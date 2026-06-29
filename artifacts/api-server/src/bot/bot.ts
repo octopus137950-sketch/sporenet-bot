@@ -19,6 +19,15 @@ import * as deleteroleCmd from "./commands/deleterole.js";
 import * as setwelcomeCmd from "./commands/setwelcome.js";
 import * as setgoodbyeCmd from "./commands/setgoodbye.js";
 import * as disablewelcomeCmd from "./commands/disablewelcome.js";
+import * as farmCmd from "./commands/farm.js";
+import * as walletCmd from "./commands/wallet.js";
+import * as shopCmd from "./commands/shop.js";
+import * as buyCmd from "./commands/buy.js";
+import * as addshopCmd from "./commands/addshop.js";
+import * as givesporeCmd from "./commands/givespore.js";
+import * as setsporeCmd from "./commands/setspore.js";
+import * as setlogCmd from "./commands/setlog.js";
+import * as leaderboardCmd from "./commands/leaderboard.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -31,6 +40,15 @@ commands.set("deleterole", deleteroleCmd);
 commands.set("setwelcome", setwelcomeCmd);
 commands.set("setgoodbye", setgoodbyeCmd);
 commands.set("disablewelcome", disablewelcomeCmd);
+commands.set("farm", farmCmd);
+commands.set("wallet", walletCmd);
+commands.set("shop", shopCmd);
+commands.set("buy", buyCmd);
+commands.set("addshop", addshopCmd);
+commands.set("give-spore", givesporeCmd);
+commands.set("set-spore", setsporeCmd);
+commands.set("setlog", setlogCmd);
+commands.set("leaderboard", leaderboardCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -58,10 +76,8 @@ export async function startBot(): Promise<void> {
 
   client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
-
     const command = commands.get(interaction.commandName);
     if (!command) return;
-
     try {
       await command.execute(interaction);
     } catch (err) {
@@ -76,35 +92,23 @@ export async function startBot(): Promise<void> {
   });
 
   client.on(Events.MessageReactionAdd, async (reaction, user) => {
-    try {
-      await handleReactionAdd(reaction, user);
-    } catch (err) {
-      logger.error({ err }, "Error handling reaction add");
-    }
+    try { await handleReactionAdd(reaction, user); }
+    catch (err) { logger.error({ err }, "Error handling reaction add"); }
   });
 
   client.on(Events.MessageReactionRemove, async (reaction, user) => {
-    try {
-      await handleReactionRemove(reaction, user);
-    } catch (err) {
-      logger.error({ err }, "Error handling reaction remove");
-    }
+    try { await handleReactionRemove(reaction, user); }
+    catch (err) { logger.error({ err }, "Error handling reaction remove"); }
   });
 
   client.on(Events.GuildMemberAdd, async (member) => {
-    try {
-      await handleMemberAdd(member);
-    } catch (err) {
-      logger.error({ err }, "Error handling member add");
-    }
+    try { await handleMemberAdd(member); }
+    catch (err) { logger.error({ err }, "Error handling member add"); }
   });
 
   client.on(Events.GuildMemberRemove, async (member) => {
-    try {
-      await handleMemberRemove(member);
-    } catch (err) {
-      logger.error({ err }, "Error handling member remove");
-    }
+    try { await handleMemberRemove(member); }
+    catch (err) { logger.error({ err }, "Error handling member remove"); }
   });
 
   await client.login(token);

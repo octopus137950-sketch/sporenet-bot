@@ -5,6 +5,15 @@ import { data as deleteroleData } from "./commands/deleterole.js";
 import { data as setwelcomeData } from "./commands/setwelcome.js";
 import { data as setgoodbyeData } from "./commands/setgoodbye.js";
 import { data as disablewelcomeData } from "./commands/disablewelcome.js";
+import { data as farmData } from "./commands/farm.js";
+import { data as walletData } from "./commands/wallet.js";
+import { data as shopData } from "./commands/shop.js";
+import { data as buyData } from "./commands/buy.js";
+import { data as addshopData } from "./commands/addshop.js";
+import { data as givesporeData } from "./commands/givespore.js";
+import { data as setsporeData } from "./commands/setspore.js";
+import { data as setlogData } from "./commands/setlog.js";
+import { data as leaderboardData } from "./commands/leaderboard.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -23,13 +32,18 @@ export async function deployCommands(): Promise<void> {
     setwelcomeData.toJSON(),
     setgoodbyeData.toJSON(),
     disablewelcomeData.toJSON(),
+    farmData.toJSON(),
+    walletData.toJSON(),
+    shopData.toJSON(),
+    buyData.toJSON(),
+    addshopData.toJSON(),
+    givesporeData.toJSON(),
+    setsporeData.toJSON(),
+    setlogData.toJSON(),
+    leaderboardData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");
-
-  await rest.put(Routes.applicationCommands(clientId), {
-    body: commands,
-  });
-
+  await rest.put(Routes.applicationCommands(clientId), { body: commands });
   console.log("✅ deploy slash commands สำเร็จ!");
 }
