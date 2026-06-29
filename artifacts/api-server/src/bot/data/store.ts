@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_FILE = path.join(__dirname, "reaction_roles.json");
+const DATA_FILE = path.join(__dirname, "bot_data.json");
 
 export interface RoleEntry {
   emoji: string;
@@ -22,19 +22,36 @@ export interface ReactionRolePanel {
   roles: RoleEntry[];
 }
 
+export interface WelcomeGoodbyeConfig {
+  channelId: string;
+  message: string;
+  imageUrl?: string;
+  enabled: boolean;
+}
+
+export interface GuildConfig {
+  welcome?: WelcomeGoodbyeConfig;
+  goodbye?: WelcomeGoodbyeConfig;
+}
+
 export interface Store {
   panels: Record<string, ReactionRolePanel>;
+  guilds: Record<string, GuildConfig>;
 }
 
 function loadStore(): Store {
   if (!fs.existsSync(DATA_FILE)) {
-    return { panels: {} };
+    return { panels: {}, guilds: {} };
   }
   try {
     const raw = fs.readFileSync(DATA_FILE, "utf-8");
-    return JSON.parse(raw) as Store;
+    const parsed = JSON.parse(raw) as Partial<Store>;
+    return {
+      panels: parsed.panels ?? {},
+      guilds: parsed.guilds ?? {},
+    };
   } catch {
-    return { panels: {} };
+    return { panels: {}, guilds: {} };
   }
 }
 
@@ -68,4 +85,34 @@ export function deletePanel(messageId: string): boolean {
 
 export function getAllPanels(): ReactionRolePanel[] {
   return Object.values(_store.panels);
+}
+
+export function getGuildConfig(guildId: string): GuildConfig {
+  return _store.guilds[guildId] ?? {};
+}
+
+export function setWelcomeConfig(guildId: string, config: WelcomeGoodbyeConfig): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  _store.guilds[guildId]!.welcome = config;
+  saveStore(_store);
+}
+
+export function setGoodbyeConfig(guildId: string, config: WelcomeGoodbyeConfig): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  _store.guilds[guildId]!.goodbye = config;
+  saveStore(_store);
+}
+
+export function disableWelcome(guildId: string): void {
+  if (_store.guilds[guildId]?.welcome) {
+    _store.guilds[guildId]!.welcome!.enabled = false;
+    saveStore(_store);
+  }
+}
+
+export function disableGoodbye(guildId: string): void {
+  if (_store.guilds[guildId]?.goodbye) {
+    _store.guilds[guildId]!.goodbye!.enabled = false;
+    saveStore(_store);
+  }
 }

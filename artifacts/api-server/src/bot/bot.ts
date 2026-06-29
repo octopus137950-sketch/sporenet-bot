@@ -10,10 +10,15 @@ import { logger } from "../lib/logger.js";
 import { deployCommands } from "./deploy-commands.js";
 import { handleReactionAdd } from "./events/reactionAdd.js";
 import { handleReactionRemove } from "./events/reactionRemove.js";
+import { handleMemberAdd } from "./events/memberAdd.js";
+import { handleMemberRemove } from "./events/memberRemove.js";
 
 import * as reactionroleCmd from "./commands/reactionrole.js";
 import * as listrolesCmd from "./commands/listroles.js";
 import * as deleteroleCmd from "./commands/deleterole.js";
+import * as setwelcomeCmd from "./commands/setwelcome.js";
+import * as setgoodbyeCmd from "./commands/setgoodbye.js";
+import * as disablewelcomeCmd from "./commands/disablewelcome.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -23,6 +28,9 @@ const commands = new Collection<string, Command>();
 commands.set("reactionrole", reactionroleCmd);
 commands.set("listroles", listrolesCmd);
 commands.set("deleterole", deleteroleCmd);
+commands.set("setwelcome", setwelcomeCmd);
+commands.set("setgoodbye", setgoodbyeCmd);
+commands.set("disablewelcome", disablewelcomeCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -38,6 +46,7 @@ export async function startBot(): Promise<void> {
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.GuildMessageReactions,
+      GatewayIntentBits.GuildMembers,
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
   });
@@ -79,6 +88,22 @@ export async function startBot(): Promise<void> {
       await handleReactionRemove(reaction, user);
     } catch (err) {
       logger.error({ err }, "Error handling reaction remove");
+    }
+  });
+
+  client.on(Events.GuildMemberAdd, async (member) => {
+    try {
+      await handleMemberAdd(member);
+    } catch (err) {
+      logger.error({ err }, "Error handling member add");
+    }
+  });
+
+  client.on(Events.GuildMemberRemove, async (member) => {
+    try {
+      await handleMemberRemove(member);
+    } catch (err) {
+      logger.error({ err }, "Error handling member remove");
     }
   });
 
