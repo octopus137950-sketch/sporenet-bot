@@ -16,6 +16,7 @@ import { handleMemberRemove } from "./events/memberRemove.js";
 import * as reactionroleCmd from "./commands/reactionrole.js";
 import * as listrolesCmd from "./commands/listroles.js";
 import * as deleteroleCmd from "./commands/deleterole.js";
+import * as addroleCmd from "./commands/addrole.js";
 import * as setwelcomeCmd from "./commands/setwelcome.js";
 import * as setgoodbyeCmd from "./commands/setgoodbye.js";
 import * as disablewelcomeCmd from "./commands/disablewelcome.js";
@@ -28,6 +29,8 @@ import * as givesporeCmd from "./commands/givespore.js";
 import * as setsporeCmd from "./commands/setspore.js";
 import * as setlogCmd from "./commands/setlog.js";
 import * as leaderboardCmd from "./commands/leaderboard.js";
+import * as dailyCmd from "./commands/daily.js";
+import * as transferCmd from "./commands/transfer.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -37,6 +40,7 @@ const commands = new Collection<string, Command>();
 commands.set("reactionrole", reactionroleCmd);
 commands.set("listroles", listrolesCmd);
 commands.set("deleterole", deleteroleCmd);
+commands.set("addrole", addroleCmd);
 commands.set("setwelcome", setwelcomeCmd);
 commands.set("setgoodbye", setgoodbyeCmd);
 commands.set("disablewelcome", disablewelcomeCmd);
@@ -49,6 +53,8 @@ commands.set("give-spore", givesporeCmd);
 commands.set("set-spore", setsporeCmd);
 commands.set("setlog", setlogCmd);
 commands.set("leaderboard", leaderboardCmd);
+commands.set("daily", dailyCmd);
+commands.set("transfer", transferCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];

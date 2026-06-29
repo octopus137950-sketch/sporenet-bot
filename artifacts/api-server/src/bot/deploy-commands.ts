@@ -2,6 +2,7 @@ import { REST, Routes } from "discord.js";
 import { data as reactionroleData } from "./commands/reactionrole.js";
 import { data as listrolesData } from "./commands/listroles.js";
 import { data as deleteroleData } from "./commands/deleterole.js";
+import { data as addroleData } from "./commands/addrole.js";
 import { data as setwelcomeData } from "./commands/setwelcome.js";
 import { data as setgoodbyeData } from "./commands/setgoodbye.js";
 import { data as disablewelcomeData } from "./commands/disablewelcome.js";
@@ -14,6 +15,8 @@ import { data as givesporeData } from "./commands/givespore.js";
 import { data as setsporeData } from "./commands/setspore.js";
 import { data as setlogData } from "./commands/setlog.js";
 import { data as leaderboardData } from "./commands/leaderboard.js";
+import { data as dailyData } from "./commands/daily.js";
+import { data as transferData } from "./commands/transfer.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -29,6 +32,7 @@ export async function deployCommands(): Promise<void> {
     reactionroleData.toJSON(),
     listrolesData.toJSON(),
     deleteroleData.toJSON(),
+    addroleData.toJSON(),
     setwelcomeData.toJSON(),
     setgoodbyeData.toJSON(),
     disablewelcomeData.toJSON(),
@@ -41,6 +45,8 @@ export async function deployCommands(): Promise<void> {
     setsporeData.toJSON(),
     setlogData.toJSON(),
     leaderboardData.toJSON(),
+    dailyData.toJSON(),
+    transferData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");

@@ -52,6 +52,8 @@ export interface PlayerData {
   farmLevel: number;
   farmExp: number;
   lastFarmTime: number;
+  lastDailyTime: number;
+  dailyStreak: number;
 }
 
 export interface Store {
