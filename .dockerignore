@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+**/dist
+**/.cache
+.git
+.gitignore
+.replit
+.replitignore
+.local
+.agents
+attached_assets
+artifacts/mockup-sandbox
+*.log
+*.map
+README.md

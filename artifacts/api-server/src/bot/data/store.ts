@@ -3,7 +3,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_FILE = path.join(__dirname, "bot_data.json");
+const DATA_DIR = process.env["DATA_DIR"] ?? __dirname;
+const DATA_FILE = path.join(DATA_DIR, "bot_data.json");
 
 export interface RoleEntry {
   emoji: string;
