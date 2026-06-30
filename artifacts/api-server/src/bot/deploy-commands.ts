@@ -20,6 +20,7 @@ import { data as setcasinoData } from "./commands/setcasino.js";
 import { data as setgamechannelData } from "./commands/setgamechannel.js";
 import { data as setshoppanelData } from "./commands/setshoppanel.js";
 import { data as helpData } from "./commands/help.js";
+import { data as mushroomData } from "./commands/mushroom.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -52,6 +53,7 @@ export async function deployCommands(): Promise<void> {
     setcasinoData.toJSON(),
     setgamechannelData.toJSON(),
     setshoppanelData.toJSON(),
+    mushroomData.toJSON(),
     helpData.toJSON(),
   ];
 
