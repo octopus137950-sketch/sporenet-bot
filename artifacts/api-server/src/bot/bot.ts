@@ -42,6 +42,7 @@ import * as setcasinoCmd from "./commands/setcasino.js";
 import * as setgamechannelCmd from "./commands/setgamechannel.js";
 import * as setshoppanelCmd from "./commands/setshoppanel.js";
 import * as helpCmd from "./commands/help.js";
+import * as mushroomCmd from "./commands/mushroom.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -68,6 +69,7 @@ commands.set("transfer", transferCmd);
 commands.set("setcasino", setcasinoCmd);
 commands.set("setgamechannel", setgamechannelCmd);
 commands.set("setshoppanel", setshoppanelCmd);
+commands.set("mushroom", mushroomCmd);
 commands.set("help", helpCmd);
 
 export async function startBot(): Promise<void> {
