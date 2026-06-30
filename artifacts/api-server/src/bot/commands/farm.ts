@@ -2,10 +2,14 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   TextChannel,
 } from "discord.js";
 import { getPlayer, savePlayer, getLogChannel } from "../data/store.js";
 import { requireGameChannel } from "../utils/channelGuard.js";
+import { setPendingBattle } from "../data/monsterState.js";
 
 export const data = new SlashCommandBuilder()
   .setName("farm")
@@ -13,6 +17,7 @@ export const data = new SlashCommandBuilder()
 
 const COOLDOWN_SECONDS = 60;
 const EXP_PER_FARM = 5;
+const MONSTER_CHANCE = 25;
 
 interface FarmEvent {
   emoji: string;
@@ -21,6 +26,19 @@ interface FarmEvent {
   type: "gain" | "lose" | "percent";
   min: number;
   max: number;
+  weight: number;
+  color: number;
+}
+
+interface MonsterDef {
+  emoji: string;
+  name: string;
+  description: string;
+  winChance: number;
+  winMin: number;
+  winMax: number;
+  lossMin: number;
+  lossMax: number;
   weight: number;
   color: number;
 }
@@ -78,6 +96,57 @@ const EVENTS: FarmEvent[] = [
   },
 ];
 
+const MONSTERS: MonsterDef[] = [
+  {
+    emoji: "🐛",
+    name: "หนอนเขียวป่า",
+    description: "หนอนยักษ์สีเขียวน่าเกลียดโผล่ขึ้นมาจากดินขวางหน้า!",
+    winChance: 65,
+    winMin: 20,
+    winMax: 35,
+    lossMin: 10,
+    lossMax: 15,
+    weight: 50,
+    color: 0x90ee90,
+  },
+  {
+    emoji: "🦇",
+    name: "ค้างคาวเห็ดพิษ",
+    description: "ฝูงค้างคาวกินเห็ดพิษบินลงมาจู่โจมท่านจากความมืด!",
+    winChance: 55,
+    winMin: 40,
+    winMax: 60,
+    lossMin: 20,
+    lossMax: 30,
+    weight: 30,
+    color: 0x9370db,
+  },
+  {
+    emoji: "🐗",
+    name: "หมูป่าบ้าเลือด",
+    description: "หมูป่าขนาดมหึมาพุ่งออกมาจากพุ่มไม้ตาแดงฉาน!",
+    winChance: 45,
+    winMin: 70,
+    winMax: 100,
+    lossMin: 30,
+    lossMax: 50,
+    weight: 15,
+    color: 0xcd5c5c,
+  },
+  {
+    emoji: "🐉",
+    name: "มังกรเห็ดโบราณ",
+    description: "มังกรตำนานแห่งป่าเห็ดปรากฏตัวขึ้น — โอกาสเจอหายากมาก!",
+    winChance: 30,
+    winMin: 150,
+    winMax: 220,
+    lossMin: 60,
+    lossMax: 90,
+    weight: 5,
+    color: 0xff4500,
+  },
+];
+
 function rollEvent(): FarmEvent {
   const total = EVENTS.reduce((s, e) => s + e.weight, 0);
   let roll = Math.random() * total;
@@ -86,6 +155,16 @@ function rollEvent(): FarmEvent {
     if (roll <= 0) return event;
   }
   return EVENTS[0]!;
+}
+
+function rollMonster(): MonsterDef {
+  const total = MONSTERS.reduce((s, m) => s + m.weight, 0);
+  let roll = Math.random() * total;
+  for (const m of MONSTERS) {
+    roll -= m.weight;
+    if (roll <= 0) return m;
+  }
+  return MONSTERS[0]!;
 }
 
 function randInt(min: number, max: number): number {
@@ -152,7 +231,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   savePlayer(player);
 
   const newExpNeeded = player.farmLevel * 100;
-  const embed = new EmbedBuilder()
+  const farmEmbed = new EmbedBuilder()
     .setTitle(`${event.emoji} ${event.name}`)
     .setDescription(`${event.description}\n\n${resultText}${levelUpText}`)
     .setColor(event.color)
@@ -169,5 +248,54 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     .setFooter({ text: `${interaction.user.username} • ฟาร์มอีกครั้งในอีก 60 วินาที` })
     .setTimestamp();
 
-  await interaction.editReply({ embeds: [embed] });
+  const hasMonster = Math.random() * 100 < MONSTER_CHANCE;
+
+  if (!hasMonster) {
+    await interaction.editReply({ embeds: [farmEmbed] });
+
+    if (guild && pointChange !== 0) {
+      const logId = getLogChannel(guild.id);
+      if (logId) {
+        const logCh = guild.channels.cache.get(logId) as TextChannel | undefined;
+        logCh?.send({ content: `📋 **${interaction.user.username}** ฟาร์มได้ **${pointChange > 0 ? "+" : ""}${pointChange}** สปอร์` }).catch(() => null);
+      }
+    }
+    return;
+  }
+
+  const monster = rollMonster();
+  setPendingBattle(userId, {
+    monsterEmoji: monster.emoji,
+    monsterName: monster.name,
+    winChance: monster.winChance,
+    winMin: monster.winMin,
+    winMax: monster.winMax,
+    lossMin: monster.lossMin,
+    lossMax: monster.lossMax,
+  });
+
+  const monsterEmbed = new EmbedBuilder()
+    .setTitle(`⚠️ มอนสเตอร์ปรากฏ! ${monster.emoji} ${monster.name}`)
+    .setDescription(
+      `${monster.description}\n\n` +
+      `📊 โอกาสชนะ: **${monster.winChance}%**\n` +
+      `🏆 ถ้าชนะ: **+${monster.winMin}~${monster.winMax} สปอร์**\n` +
+      `💀 ถ้าแพ้: **-${monster.lossMin}~${monster.lossMax} สปอร์**\n\n` +
+      `⏰ ตัดสินใจภายใน **60 วินาที!**`
+    )
+    .setColor(monster.color)
+    .setFooter({ text: "เลือก: สู้หรือหนี?" });
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`monster_fight_${userId}`)
+      .setLabel("⚔️ สู้")
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`monster_flee_${userId}`)
+      .setLabel("🏃 หนี")
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  await interaction.editReply({ embeds: [farmEmbed, monsterEmbed], components: [row] });
 }

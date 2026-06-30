@@ -19,6 +19,7 @@ import {
   handleShopSelect,
   handleShopConfirm,
 } from "./events/shopHandler.js";
+import { handleMonsterFight, handleMonsterFlee } from "./events/monsterHandler.js";
 
 import * as reactionroleCmd from "./commands/reactionrole.js";
 import * as listrolesCmd from "./commands/listroles.js";
@@ -40,6 +41,7 @@ import * as transferCmd from "./commands/transfer.js";
 import * as setcasinoCmd from "./commands/setcasino.js";
 import * as setgamechannelCmd from "./commands/setgamechannel.js";
 import * as setshoppanelCmd from "./commands/setshoppanel.js";
+import * as helpCmd from "./commands/help.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -66,6 +68,7 @@ commands.set("transfer", transferCmd);
 commands.set("setcasino", setcasinoCmd);
 commands.set("setgamechannel", setgamechannelCmd);
 commands.set("setshoppanel", setshoppanelCmd);
+commands.set("help", helpCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -110,6 +113,10 @@ export async function startBot(): Promise<void> {
           await handleShopBack(interaction);
         } else if (id.startsWith("shop_confirm_")) {
           await handleShopConfirm(interaction, id.replace("shop_confirm_", ""));
+        } else if (id.startsWith("monster_fight_")) {
+          await handleMonsterFight(interaction);
+        } else if (id.startsWith("monster_flee_")) {
+          await handleMonsterFlee(interaction);
         }
         return;
       }
