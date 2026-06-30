@@ -1,10 +1,12 @@
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env["DATA_DIR"] ?? __dirname;
+const DATA_DIR = process.env["DATA_DIR"] ?? path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "bot_data.json");
+
+fs.mkdirSync(DATA_DIR, { recursive: true });
+console.log(`📦 [store] DATA_DIR = ${DATA_DIR}`);
+console.log(`📄 [store] DATA_FILE = ${DATA_FILE}`);
 
 export interface RoleEntry {
   emoji: string;
