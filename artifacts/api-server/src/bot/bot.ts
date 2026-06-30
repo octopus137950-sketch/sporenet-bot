@@ -12,6 +12,7 @@ import { handleReactionAdd } from "./events/reactionAdd.js";
 import { handleReactionRemove } from "./events/reactionRemove.js";
 import { handleMemberAdd } from "./events/memberAdd.js";
 import { handleMemberRemove } from "./events/memberRemove.js";
+import { handleCasinoButton, handleCasinoModal } from "./events/casinoHandler.js";
 
 import * as reactionroleCmd from "./commands/reactionrole.js";
 import * as listrolesCmd from "./commands/listroles.js";
@@ -31,6 +32,7 @@ import * as setlogCmd from "./commands/setlog.js";
 import * as leaderboardCmd from "./commands/leaderboard.js";
 import * as dailyCmd from "./commands/daily.js";
 import * as transferCmd from "./commands/transfer.js";
+import * as setcasinoCmd from "./commands/setcasino.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -55,6 +57,7 @@ commands.set("setlog", setlogCmd);
 commands.set("leaderboard", leaderboardCmd);
 commands.set("daily", dailyCmd);
 commands.set("transfer", transferCmd);
+commands.set("setcasino", setcasinoCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -81,19 +84,44 @@ export async function startBot(): Promise<void> {
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
-    const command = commands.get(interaction.commandName);
-    if (!command) return;
     try {
-      await command.execute(interaction);
-    } catch (err) {
-      logger.error({ err }, `Error in command ${interaction.commandName}`);
-      const errMsg = "❌ เกิดข้อผิดพลาดในการรันคำสั่ง";
-      if (interaction.replied || interaction.deferred) {
-        await interaction.editReply(errMsg).catch(() => null);
-      } else {
-        await interaction.reply({ content: errMsg, ephemeral: true }).catch(() => null);
+      if (interaction.isChatInputCommand()) {
+        const command = commands.get(interaction.commandName);
+        if (!command) return;
+        await command.execute(interaction);
+        return;
       }
+
+      if (interaction.isButton()) {
+        if (interaction.customId === "casino_bet") {
+          await handleCasinoButton(interaction);
+        }
+        return;
+      }
+
+      if (interaction.isModalSubmit()) {
+        if (interaction.customId === "casino_bet_modal") {
+          await handleCasinoModal(interaction);
+        }
+        return;
+      }
+    } catch (err) {
+      logger.error({ err }, "Error handling interaction");
+      const errMsg = "❌ เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
+      try {
+        if (
+          "replied" in interaction &&
+          "deferred" in interaction &&
+          (interaction.replied || interaction.deferred)
+        ) {
+          await (interaction as ChatInputCommandInteraction).editReply(errMsg);
+        } else if ("reply" in interaction) {
+          await (interaction as ChatInputCommandInteraction).reply({
+            content: errMsg,
+            ephemeral: true,
+          });
+        }
+      } catch { /* ignore reply errors */ }
     }
   });
 

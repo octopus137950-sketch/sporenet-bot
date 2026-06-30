@@ -17,6 +17,7 @@ import { data as setlogData } from "./commands/setlog.js";
 import { data as leaderboardData } from "./commands/leaderboard.js";
 import { data as dailyData } from "./commands/daily.js";
 import { data as transferData } from "./commands/transfer.js";
+import { data as setcasinoData } from "./commands/setcasino.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -47,6 +48,7 @@ export async function deployCommands(): Promise<void> {
     leaderboardData.toJSON(),
     dailyData.toJSON(),
     transferData.toJSON(),
+    setcasinoData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");
