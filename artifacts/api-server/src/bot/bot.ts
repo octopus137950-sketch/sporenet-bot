@@ -13,6 +13,12 @@ import { handleReactionRemove } from "./events/reactionRemove.js";
 import { handleMemberAdd } from "./events/memberAdd.js";
 import { handleMemberRemove } from "./events/memberRemove.js";
 import { handleCasinoButton, handleCasinoModal } from "./events/casinoHandler.js";
+import {
+  handleShopOpen,
+  handleShopBack,
+  handleShopSelect,
+  handleShopConfirm,
+} from "./events/shopHandler.js";
 
 import * as reactionroleCmd from "./commands/reactionrole.js";
 import * as listrolesCmd from "./commands/listroles.js";
@@ -24,7 +30,6 @@ import * as disablewelcomeCmd from "./commands/disablewelcome.js";
 import * as farmCmd from "./commands/farm.js";
 import * as walletCmd from "./commands/wallet.js";
 import * as shopCmd from "./commands/shop.js";
-import * as buyCmd from "./commands/buy.js";
 import * as addshopCmd from "./commands/addshop.js";
 import * as givesporeCmd from "./commands/givespore.js";
 import * as setsporeCmd from "./commands/setspore.js";
@@ -33,6 +38,8 @@ import * as leaderboardCmd from "./commands/leaderboard.js";
 import * as dailyCmd from "./commands/daily.js";
 import * as transferCmd from "./commands/transfer.js";
 import * as setcasinoCmd from "./commands/setcasino.js";
+import * as setgamechannelCmd from "./commands/setgamechannel.js";
+import * as setshoppanelCmd from "./commands/setshoppanel.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -49,7 +56,6 @@ commands.set("disablewelcome", disablewelcomeCmd);
 commands.set("farm", farmCmd);
 commands.set("wallet", walletCmd);
 commands.set("shop", shopCmd);
-commands.set("buy", buyCmd);
 commands.set("addshop", addshopCmd);
 commands.set("give-spore", givesporeCmd);
 commands.set("set-spore", setsporeCmd);
@@ -58,6 +64,8 @@ commands.set("leaderboard", leaderboardCmd);
 commands.set("daily", dailyCmd);
 commands.set("transfer", transferCmd);
 commands.set("setcasino", setcasinoCmd);
+commands.set("setgamechannel", setgamechannelCmd);
+commands.set("setshoppanel", setshoppanelCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -93,8 +101,22 @@ export async function startBot(): Promise<void> {
       }
 
       if (interaction.isButton()) {
-        if (interaction.customId === "casino_bet") {
+        const id = interaction.customId;
+        if (id === "casino_bet") {
           await handleCasinoButton(interaction);
+        } else if (id === "shop_open") {
+          await handleShopOpen(interaction);
+        } else if (id === "shop_back") {
+          await handleShopBack(interaction);
+        } else if (id.startsWith("shop_confirm_")) {
+          await handleShopConfirm(interaction, id.replace("shop_confirm_", ""));
+        }
+        return;
+      }
+
+      if (interaction.isStringSelectMenu()) {
+        if (interaction.customId === "shop_select") {
+          await handleShopSelect(interaction);
         }
         return;
       }
@@ -121,7 +143,7 @@ export async function startBot(): Promise<void> {
             ephemeral: true,
           });
         }
-      } catch { /* ignore reply errors */ }
+      } catch { /* ignore */ }
     }
   });
 

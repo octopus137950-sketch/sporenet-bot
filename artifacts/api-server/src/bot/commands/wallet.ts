@@ -5,6 +5,7 @@ import {
   GuildMember,
 } from "discord.js";
 import { getPlayer } from "../data/store.js";
+import { requireGameChannel } from "../utils/channelGuard.js";
 
 export const data = new SlashCommandBuilder()
   .setName("wallet")
@@ -19,6 +20,7 @@ function expBar(current: number, max: number, length = 12): string {
 }
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireGameChannel(interaction))) return;
   await interaction.deferReply();
 
   const target = interaction.options.getUser("player") ?? interaction.user;

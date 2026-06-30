@@ -9,7 +9,6 @@ import { data as disablewelcomeData } from "./commands/disablewelcome.js";
 import { data as farmData } from "./commands/farm.js";
 import { data as walletData } from "./commands/wallet.js";
 import { data as shopData } from "./commands/shop.js";
-import { data as buyData } from "./commands/buy.js";
 import { data as addshopData } from "./commands/addshop.js";
 import { data as givesporeData } from "./commands/givespore.js";
 import { data as setsporeData } from "./commands/setspore.js";
@@ -18,6 +17,8 @@ import { data as leaderboardData } from "./commands/leaderboard.js";
 import { data as dailyData } from "./commands/daily.js";
 import { data as transferData } from "./commands/transfer.js";
 import { data as setcasinoData } from "./commands/setcasino.js";
+import { data as setgamechannelData } from "./commands/setgamechannel.js";
+import { data as setshoppanelData } from "./commands/setshoppanel.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -40,7 +41,6 @@ export async function deployCommands(): Promise<void> {
     farmData.toJSON(),
     walletData.toJSON(),
     shopData.toJSON(),
-    buyData.toJSON(),
     addshopData.toJSON(),
     givesporeData.toJSON(),
     setsporeData.toJSON(),
@@ -49,6 +49,8 @@ export async function deployCommands(): Promise<void> {
     dailyData.toJSON(),
     transferData.toJSON(),
     setcasinoData.toJSON(),
+    setgamechannelData.toJSON(),
+    setshoppanelData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");

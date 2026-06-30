@@ -43,6 +43,7 @@ export interface GuildConfig {
   welcome?: WelcomeGoodbyeConfig;
   goodbye?: WelcomeGoodbyeConfig;
   logChannelId?: string;
+  gameChannelId?: string;
   shop?: ShopItem[];
 }
 
@@ -147,6 +148,16 @@ export function setLogChannel(guildId: string, channelId: string): void {
 
 export function getLogChannel(guildId: string): string | undefined {
   return _store.guilds[guildId]?.logChannelId;
+}
+
+export function setGameChannel(guildId: string, channelId: string): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  _store.guilds[guildId]!.gameChannelId = channelId;
+  saveStore(_store);
+}
+
+export function getGameChannel(guildId: string): string | undefined {
+  return _store.guilds[guildId]?.gameChannelId;
 }
 
 export function getShopItems(guildId: string): ShopItem[] {

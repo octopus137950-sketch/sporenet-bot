@@ -4,6 +4,7 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import { getTopPlayers } from "../data/store.js";
+import { requireGameChannel } from "../utils/channelGuard.js";
 
 export const data = new SlashCommandBuilder()
   .setName("leaderboard")
@@ -12,6 +13,7 @@ export const data = new SlashCommandBuilder()
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireGameChannel(interaction))) return;
   await interaction.deferReply();
 
   const top = getTopPlayers(10);

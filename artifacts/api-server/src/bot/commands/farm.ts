@@ -5,6 +5,7 @@ import {
   TextChannel,
 } from "discord.js";
 import { getPlayer, savePlayer, getLogChannel } from "../data/store.js";
+import { requireGameChannel } from "../utils/channelGuard.js";
 
 export const data = new SlashCommandBuilder()
   .setName("farm")
@@ -97,6 +98,7 @@ function expBar(current: number, max: number, length = 10): string {
 }
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireGameChannel(interaction))) return;
   await interaction.deferReply();
 
   const userId = interaction.user.id;
