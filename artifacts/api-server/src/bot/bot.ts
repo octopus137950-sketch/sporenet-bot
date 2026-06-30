@@ -20,6 +20,7 @@ import {
   handleShopConfirm,
 } from "./events/shopHandler.js";
 import { handleMonsterFight, handleMonsterFlee } from "./events/monsterHandler.js";
+import { handleVerifyButton, handleVerifyModal } from "./events/verificationHandler.js";
 
 import * as reactionroleCmd from "./commands/reactionrole.js";
 import * as listrolesCmd from "./commands/listroles.js";
@@ -107,7 +108,9 @@ export async function startBot(): Promise<void> {
 
       if (interaction.isButton()) {
         const id = interaction.customId;
-        if (id === "casino_bet") {
+        if (id.startsWith("verify_open_")) {
+          await handleVerifyButton(interaction);
+        } else if (id === "casino_bet") {
           await handleCasinoButton(interaction);
         } else if (id === "shop_open") {
           await handleShopOpen(interaction);
@@ -131,7 +134,9 @@ export async function startBot(): Promise<void> {
       }
 
       if (interaction.isModalSubmit()) {
-        if (interaction.customId === "casino_bet_modal") {
+        if (interaction.customId.startsWith("verify_modal_")) {
+          await handleVerifyModal(interaction);
+        } else if (interaction.customId === "casino_bet_modal") {
           await handleCasinoModal(interaction);
         }
         return;
