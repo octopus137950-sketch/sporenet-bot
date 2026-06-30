@@ -59,6 +59,14 @@ export interface VerificationPanel {
   fields: VerificationPanelField[]; // up to 5
 }
 
+export interface VerificationSubmission {
+  id: string; // uuid-like or timestamp-based id
+  panelMessageId: string;
+  userId: string;
+  values: Record<string, string>;
+  createdAt: number;
+}
+
 export interface GuildConfig {
   welcome?: WelcomeGoodbyeConfig;
   goodbye?: WelcomeGoodbyeConfig;
@@ -82,11 +90,12 @@ export interface Store {
   guilds: Record<string, GuildConfig>;
   players: Record<string, PlayerData>;
   verificationPanels: Record<string, VerificationPanel>;
+  verificationSubmissions: VerificationSubmission[];
 }
 
 function loadStore(): Store {
   if (!fs.existsSync(DATA_FILE)) {
-    return { panels: {}, guilds: {}, players: {}, verificationPanels: {} };
+    return { panels: {}, guilds: {}, players: {}, verificationPanels: {}, verificationSubmissions: [] };
   }
   try {
     const raw = fs.readFileSync(DATA_FILE, "utf-8");
@@ -96,9 +105,10 @@ function loadStore(): Store {
       guilds: parsed.guilds ?? {},
       players: parsed.players ?? {},
       verificationPanels: parsed.verificationPanels ?? {},
+      verificationSubmissions: parsed.verificationSubmissions ?? [],
     };
   } catch {
-    return { panels: {}, guilds: {}, players: {}, verificationPanels: {} };
+    return { panels: {}, guilds: {}, players: {}, verificationPanels: {}, verificationSubmissions: [] };
   }
 }
 
@@ -250,4 +260,18 @@ export function deleteVerificationPanel(messageId: string): boolean {
 
 export function getAllVerificationPanels(): VerificationPanel[] {
   return Object.values(_store.verificationPanels);
+}
+
+// Verification submissions
+export function saveVerificationSubmission(sub: VerificationSubmission): void {
+  _store.verificationSubmissions.push(sub);
+  saveStore(_store);
+}
+
+export function getSubmissionsForPanel(messageId: string): VerificationSubmission[] {
+  return _store.verificationSubmissions.filter((s) => s.panelMessageId === messageId);
+}
+
+export function getSubmissionsForUser(userId: string): VerificationSubmission[] {
+  return _store.verificationSubmissions.filter((s) => s.userId === userId);
 }
