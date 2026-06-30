@@ -178,6 +178,8 @@ export function getPlayer(userId: string): PlayerData {
       farmLevel: 1,
       farmExp: 0,
       lastFarmTime: 0,
+      lastDailyTime: 0,
+      dailyStreak: 0,
     };
   }
   return _store.players[userId]!;
