@@ -41,6 +41,24 @@ export interface ShopItem {
   type: "role" | "custom";
 }
 
+export interface VerificationPanelField {
+  id: string; // internal id like field_0
+  label: string; // shown label
+  placeholder?: string;
+  required?: boolean;
+}
+
+export interface VerificationPanel {
+  guildId: string;
+  channelId: string;
+  messageId: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  roleIdToGrant?: string;
+  fields: VerificationPanelField[]; // up to 5
+}
+
 export interface GuildConfig {
   welcome?: WelcomeGoodbyeConfig;
   goodbye?: WelcomeGoodbyeConfig;
@@ -63,11 +81,12 @@ export interface Store {
   panels: Record<string, ReactionRolePanel>;
   guilds: Record<string, GuildConfig>;
   players: Record<string, PlayerData>;
+  verificationPanels: Record<string, VerificationPanel>;
 }
 
 function loadStore(): Store {
   if (!fs.existsSync(DATA_FILE)) {
-    return { panels: {}, guilds: {}, players: {} };
+    return { panels: {}, guilds: {}, players: {}, verificationPanels: {} };
   }
   try {
     const raw = fs.readFileSync(DATA_FILE, "utf-8");
@@ -76,9 +95,10 @@ function loadStore(): Store {
       panels: parsed.panels ?? {},
       guilds: parsed.guilds ?? {},
       players: parsed.players ?? {},
+      verificationPanels: parsed.verificationPanels ?? {},
     };
   } catch {
-    return { panels: {}, guilds: {}, players: {} };
+    return { panels: {}, guilds: {}, players: {}, verificationPanels: {} };
   }
 }
 
@@ -207,4 +227,27 @@ export function getTopPlayers(limit = 10): PlayerData[] {
   return Object.values(_store.players)
     .sort((a, b) => b.sporePoints - a.sporePoints)
     .slice(0, limit);
+}
+
+// Verification panel APIs
+export function saveVerificationPanel(panel: VerificationPanel): void {
+  _store.verificationPanels[panel.messageId] = panel;
+  saveStore(_store);
+}
+
+export function getVerificationPanel(messageId: string): VerificationPanel | undefined {
+  return _store.verificationPanels[messageId];
+}
+
+export function deleteVerificationPanel(messageId: string): boolean {
+  if (_store.verificationPanels[messageId]) {
+    delete _store.verificationPanels[messageId];
+    saveStore(_store);
+    return true;
+  }
+  return false;
+}
+
+export function getAllVerificationPanels(): VerificationPanel[] {
+  return Object.values(_store.verificationPanels);
 }
