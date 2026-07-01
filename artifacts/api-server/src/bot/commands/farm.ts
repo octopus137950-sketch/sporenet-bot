@@ -10,6 +10,7 @@ import {
 import { getPlayer, savePlayer, getLogChannel } from "../data/store.js";
 import { requireGameChannel } from "../utils/channelGuard.js";
 import { setPendingBattle } from "../data/monsterState.js";
+import { incrementQuestProgress } from "../events/questTracker.js";
 
 export const data = new SlashCommandBuilder()
   .setName("farm")
@@ -229,6 +230,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   savePlayer(player);
+
+  // ── Quest tracking: increment farm quest progress ────────────
+  if (guild) {
+    incrementQuestProgress(interaction.client, guild.id, userId, "farm", 1).catch(
+      (e) => console.error("[farm] quest increment error:", e)
+    );
+  }
 
   const newExpNeeded = player.farmLevel * 100;
   const farmEmbed = new EmbedBuilder()

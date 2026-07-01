@@ -28,6 +28,7 @@ import { data as setvoicerewardData } from "./commands/setvoicereward.js";
 import { data as blockvoiceroomData } from "./commands/blockvoiceroom.js";
 import { data as setdynvoiceData } from "./commands/setdynvoice.js";
 import { data as roomData } from "./commands/room.js";
+import { data as questData } from "./commands/quest.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -69,6 +70,7 @@ export async function deployCommands(): Promise<void> {
     blockvoiceroomData.toJSON(),
     setdynvoiceData.toJSON(),
     roomData.toJSON(),
+    questData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");

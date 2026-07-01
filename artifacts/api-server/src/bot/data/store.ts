@@ -101,18 +101,45 @@ export interface PlayerData {
   dailyStreak: number;
 }
 
+// ─── Daily Quest Data ────────────────────────────────────────
+
+export interface PlayerQuestEntry {
+  questId: string;
+  progress: number;   // current accumulated progress
+  completed: boolean; // true when progress >= target
+  claimed: boolean;   // true after reward has been collected
+}
+
+export interface PlayerQuestData {
+  userId: string;
+  date: string;       // Thai date "YYYY-MM-DD" — resets each midnight
+  quests: PlayerQuestEntry[];
+}
+
+// ─── Store ───────────────────────────────────────────────────
+
 export interface Store {
   panels: Record<string, ReactionRolePanel>;
   guilds: Record<string, GuildConfig>;
   players: Record<string, PlayerData>;
   verificationPanels: Record<string, VerificationPanel>;
   verificationSubmissions: VerificationSubmission[];
+  questData: Record<string, PlayerQuestData>;
+}
+
+function emptyStore(): Store {
+  return {
+    panels: {},
+    guilds: {},
+    players: {},
+    verificationPanels: {},
+    verificationSubmissions: [],
+    questData: {},
+  };
 }
 
 function loadStore(): Store {
-  if (!fs.existsSync(DATA_FILE)) {
-    return { panels: {}, guilds: {}, players: {}, verificationPanels: {}, verificationSubmissions: [] };
-  }
+  if (!fs.existsSync(DATA_FILE)) return emptyStore();
   try {
     const raw = fs.readFileSync(DATA_FILE, "utf-8");
     const parsed = JSON.parse(raw) as Partial<Store>;
@@ -122,9 +149,10 @@ function loadStore(): Store {
       players: parsed.players ?? {},
       verificationPanels: parsed.verificationPanels ?? {},
       verificationSubmissions: parsed.verificationSubmissions ?? [],
+      questData: parsed.questData ?? {},
     };
   } catch {
-    return { panels: {}, guilds: {}, players: {}, verificationPanels: {}, verificationSubmissions: [] };
+    return emptyStore();
   }
 }
 
@@ -135,6 +163,8 @@ function saveStore(store: Store): void {
 let _store: Store = loadStore();
 
 export function getStore(): Store { return _store; }
+
+// ─── Panels ─────────────────────────────────────────────────
 
 export function savePanel(panel: ReactionRolePanel): void {
   _store.panels[panel.messageId] = panel;
@@ -157,6 +187,8 @@ export function deletePanel(messageId: string): boolean {
 export function getAllPanels(): ReactionRolePanel[] {
   return Object.values(_store.panels);
 }
+
+// ─── Guild Config ────────────────────────────────────────────
 
 export function getGuildConfig(guildId: string): GuildConfig {
   return _store.guilds[guildId] ?? {};
@@ -249,6 +281,8 @@ export function setDynVoiceConfig(guildId: string, config: DynVoiceConfig | null
   saveStore(_store);
 }
 
+// ─── Players ─────────────────────────────────────────────────
+
 export function getPlayer(userId: string): PlayerData {
   if (!_store.players[userId]) {
     _store.players[userId] = {
@@ -274,6 +308,8 @@ export function getTopPlayers(limit = 10): PlayerData[] {
     .sort((a, b) => b.sporePoints - a.sporePoints)
     .slice(0, limit);
 }
+
+// ─── Verification ────────────────────────────────────────────
 
 export function saveVerificationPanel(panel: VerificationPanel): void {
   _store.verificationPanels[panel.messageId] = panel;
@@ -308,4 +344,28 @@ export function getSubmissionsForPanel(messageId: string): VerificationSubmissio
 
 export function getSubmissionsForUser(userId: string): VerificationSubmission[] {
   return _store.verificationSubmissions.filter((s) => s.userId === userId);
+}
+
+// ─── Quest Data ──────────────────────────────────────────────
+
+export function getPlayerQuestData(userId: string): PlayerQuestData | undefined {
+  return _store.questData[userId];
+}
+
+export function savePlayerQuestData(data: PlayerQuestData): void {
+  _store.questData[data.userId] = data;
+  saveStore(_store);
+}
+
+/** Clear quest entries that don't match `today` (Thai YYYY-MM-DD).
+ *  Called by the daily scheduler at midnight. */
+export function clearStaleQuestData(today: string): void {
+  let changed = false;
+  for (const userId of Object.keys(_store.questData)) {
+    if (_store.questData[userId]?.date !== today) {
+      delete _store.questData[userId];
+      changed = true;
+    }
+  }
+  if (changed) saveStore(_store);
 }
