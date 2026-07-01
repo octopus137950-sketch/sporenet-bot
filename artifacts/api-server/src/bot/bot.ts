@@ -23,6 +23,8 @@ import { handleMonsterFight, handleMonsterFlee } from "./events/monsterHandler.j
 import { handleVerifyButton, handleVerifyModal } from "./events/verificationHandler.js";
 import { handleVoiceStateUpdate, startVoiceEconomyLoop } from "./events/voiceHandler.js";
 import { handleDynVoice } from "./events/dynVoiceHandler.js";
+import { onQuestMessage, startQuestVoiceLoop } from "./events/questTracker.js";
+import { startQuestDailyReset } from "./utils/questScheduler.js";
 
 import * as reactionroleCmd from "./commands/reactionrole.js";
 import * as listrolesCmd from "./commands/listroles.js";
@@ -53,6 +55,7 @@ import * as setvoicerewardCmd from "./commands/setvoicereward.js";
 import * as blockvoiceroomCmd from "./commands/blockvoiceroom.js";
 import * as setdynvoiceCmd from "./commands/setdynvoice.js";
 import * as roomCmd from "./commands/room.js";
+import * as questCmd from "./commands/quest.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -88,6 +91,7 @@ commands.set("setvoicereward", setvoicerewardCmd);
 commands.set("blockvoiceroom", blockvoiceroomCmd);
 commands.set("setdynvoice", setdynvoiceCmd);
 commands.set("room", roomCmd);
+commands.set("quest", questCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -105,6 +109,7 @@ export async function startBot(): Promise<void> {
       GatewayIntentBits.GuildMessageReactions,
       GatewayIntentBits.GuildMembers,
       GatewayIntentBits.GuildVoiceStates,
+      GatewayIntentBits.MessageContent,
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
   });
@@ -112,6 +117,11 @@ export async function startBot(): Promise<void> {
   client.once(Events.ClientReady, (c) => {
     logger.info(`✅ บอทออนไลน์แล้ว! ชื่อ: ${c.user.tag}`);
     console.log(`✅ บอทออนไลน์แล้ว! ชื่อ: ${c.user.tag}`);
+
+    // Start background loops
+    startVoiceEconomyLoop(client);
+    startQuestVoiceLoop(client);
+    startQuestDailyReset();
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
@@ -178,6 +188,13 @@ export async function startBot(): Promise<void> {
     }
   });
 
+  // ── Quest: track chat messages ────────────────────────────────
+  client.on(Events.MessageCreate, (message) => {
+    onQuestMessage(message, client).catch((err) =>
+      logger.error({ err }, "Error tracking quest message")
+    );
+  });
+
   client.on(Events.MessageReactionAdd, async (reaction, user) => {
     try { await handleReactionAdd(reaction, user); }
     catch (err) { logger.error({ err }, "Error handling reaction add"); }
@@ -198,16 +215,13 @@ export async function startBot(): Promise<void> {
     catch (err) { logger.error({ err }, "Error handling member remove"); }
   });
 
+  // ── Voice state: economy + quest tracking ────────────────────
   client.on(Events.VoiceStateUpdate, (oldState, newState) => {
-    try { handleVoiceStateUpdate(oldState, newState); }
+    try { handleVoiceStateUpdate(oldState, newState, client); }
     catch (err) { logger.error({ err }, "Error handling voice state update"); }
     handleDynVoice(oldState, newState).catch((err) =>
       logger.error({ err }, "Error handling dynamic voice channel")
     );
-  });
-
-  client.once(Events.ClientReady, () => {
-    startVoiceEconomyLoop(client);
   });
 
   await client.login(token);

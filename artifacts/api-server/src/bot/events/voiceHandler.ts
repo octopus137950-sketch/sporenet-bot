@@ -6,6 +6,7 @@ import {
   Guild,
 } from "discord.js";
 import { getPlayer, savePlayer, getVoiceRewardConfig } from "../data/store.js";
+import { onQuestVoiceJoin, onQuestVoiceLeave } from "./questTracker.js";
 
 interface VoiceSession {
   joinTime: number;
@@ -67,7 +68,11 @@ async function sendLeaveNotification(
   }
 }
 
-export function handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceState): void {
+export function handleVoiceStateUpdate(
+  oldState: VoiceState,
+  newState: VoiceState,
+  client: Client
+): void {
   const member = newState.member ?? oldState.member;
   if (!member || member.user.bot) return;
 
@@ -80,12 +85,16 @@ export function handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceStat
 
   if (joinedVoice) {
     sessions.set(key, { joinTime: Date.now(), earnedSpore: 0, earnedExp: 0 });
+    // Quest tracking: record voice join
+    onQuestVoiceJoin(guildId, userId);
   } else if (leftVoice) {
     const session = sessions.get(key);
     sessions.delete(key);
     if (session) {
       sendLeaveNotification(newState.guild, userId, session).catch(console.error);
     }
+    // Quest tracking: accumulate minutes on leave
+    onQuestVoiceLeave(guildId, userId, client);
   }
   // Moved between channels — session continues unchanged
 }
