@@ -24,6 +24,8 @@ import { data as mushroomData } from "./commands/mushroom.js";
 import { data as verifypanelData } from "./commands/verifypanel.js";
 import { data as deleteverifypanelData } from "./commands/deleteverifypanel.js";
 import { data as editverifypanelData } from "./commands/editverifypanel.js";
+import { data as setvoicerewardData } from "./commands/setvoicereward.js";
+import { data as blockvoiceroomData } from "./commands/blockvoiceroom.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -61,6 +63,8 @@ export async function deployCommands(): Promise<void> {
     verifypanelData.toJSON(),
     deleteverifypanelData.toJSON(),
     editverifypanelData.toJSON(),
+    setvoicerewardData.toJSON(),
+    blockvoiceroomData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");
