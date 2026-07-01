@@ -7,6 +7,7 @@ import {
 } from "discord.js";
 import { getPlayer, savePlayer, getVoiceRewardConfig } from "../data/store.js";
 import { onQuestVoiceJoin, onQuestVoiceLeave } from "./questTracker.js";
+import { trackStatAndCheck } from "../utils/achievementChecker.js";
 
 interface VoiceSession {
   joinTime: number;
@@ -92,6 +93,14 @@ export function handleVoiceStateUpdate(
     sessions.delete(key);
     if (session) {
       sendLeaveNotification(newState.guild, userId, session).catch(console.error);
+
+      // Achievement tracking: accumulate voice time in seconds
+      const secondsSpent = Math.floor((Date.now() - session.joinTime) / 1000);
+      if (secondsSpent > 0) {
+        trackStatAndCheck(client, guildId, userId, "voiceTimeSeconds", secondsSpent).catch(
+          (e) => console.error("[voiceHandler] achievement voice check error:", e)
+        );
+      }
     }
     // Quest tracking: accumulate minutes on leave
     onQuestVoiceLeave(guildId, userId, client);

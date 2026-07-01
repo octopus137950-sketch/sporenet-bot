@@ -29,6 +29,8 @@ import { data as blockvoiceroomData } from "./commands/blockvoiceroom.js";
 import { data as setdynvoiceData } from "./commands/setdynvoice.js";
 import { data as roomData } from "./commands/room.js";
 import { data as questData } from "./commands/quest.js";
+import { data as achievementAdminData } from "./commands/achievement-admin.js";
+import { data as achievementData } from "./commands/achievement.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -71,6 +73,8 @@ export async function deployCommands(): Promise<void> {
     setdynvoiceData.toJSON(),
     roomData.toJSON(),
     questData.toJSON(),
+    achievementAdminData.toJSON(),
+    achievementData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");

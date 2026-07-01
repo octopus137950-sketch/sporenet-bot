@@ -11,6 +11,7 @@ import { getPlayer, savePlayer, getLogChannel } from "../data/store.js";
 import { requireGameChannel } from "../utils/channelGuard.js";
 import { setPendingBattle } from "../data/monsterState.js";
 import { incrementQuestProgress } from "../events/questTracker.js";
+import { trackStatAndCheck } from "../utils/achievementChecker.js";
 
 export const data = new SlashCommandBuilder()
   .setName("farm")
@@ -235,6 +236,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   if (guild) {
     incrementQuestProgress(interaction.client, guild.id, userId, "farm", 1).catch(
       (e) => console.error("[farm] quest increment error:", e)
+    );
+
+    // ── Achievement tracking: increment cumulative farm count ──
+    trackStatAndCheck(interaction.client, guild.id, userId, "farmCount", 1).catch(
+      (e) => console.error("[farm] achievement check error:", e)
     );
   }
 

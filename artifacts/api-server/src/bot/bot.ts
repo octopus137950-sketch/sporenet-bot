@@ -56,6 +56,8 @@ import * as blockvoiceroomCmd from "./commands/blockvoiceroom.js";
 import * as setdynvoiceCmd from "./commands/setdynvoice.js";
 import * as roomCmd from "./commands/room.js";
 import * as questCmd from "./commands/quest.js";
+import * as achievementAdminCmd from "./commands/achievement-admin.js";
+import * as achievementCmd from "./commands/achievement.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -92,6 +94,8 @@ commands.set("blockvoiceroom", blockvoiceroomCmd);
 commands.set("setdynvoice", setdynvoiceCmd);
 commands.set("room", roomCmd);
 commands.set("quest", questCmd);
+commands.set("achievement-admin", achievementAdminCmd);
+commands.set("achievement", achievementCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];

@@ -2,6 +2,7 @@
 // questTracker.ts — Quest progress tracking
 // Handles: chat message counting, voice minute accumulation,
 // and farm increment calls forwarded from farm.ts.
+// Also hooks into the achievement checker for cumulative stats.
 // ============================================================
 
 import { Client, Guild, TextBasedChannel, EmbedBuilder, Message } from "discord.js";
@@ -19,6 +20,7 @@ import {
   DIFFICULTY_LABEL,
 } from "../data/questPool.js";
 import { getThaiDateString } from "../utils/thaiTime.js";
+import { trackStatAndCheck } from "../utils/achievementChecker.js";
 
 // ─── Voice session tracking (separate from voiceHandler.ts) ──
 // key = `${guildId}:${userId}`, value = timestamp of last quest-tick
@@ -76,12 +78,15 @@ export async function onQuestMessage(message: Message, client: Client): Promise<
   // Ignore bots, DMs, and system messages
   if (message.author.bot || !message.guild || !message.author) return;
 
-  await incrementQuestProgress(
-    client,
-    message.guild.id,
-    message.author.id,
-    "chat",
-    1
+  const guildId = message.guild.id;
+  const userId  = message.author.id;
+
+  // Update quest progress
+  await incrementQuestProgress(client, guildId, userId, "chat", 1);
+
+  // Update cumulative achievement stat
+  trackStatAndCheck(client, guildId, userId, "chatCount", 1).catch(
+    (e) => console.error("[questTracker] achievement chat check error:", e)
   );
 }
 

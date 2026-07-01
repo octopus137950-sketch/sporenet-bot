@@ -105,15 +105,48 @@ export interface PlayerData {
 
 export interface PlayerQuestEntry {
   questId: string;
-  progress: number;   // current accumulated progress
-  completed: boolean; // true when progress >= target
-  claimed: boolean;   // true after reward has been collected
+  progress: number;
+  completed: boolean;
+  claimed: boolean;
 }
 
 export interface PlayerQuestData {
   userId: string;
-  date: string;       // Thai date "YYYY-MM-DD" — resets each midnight
+  date: string;
   quests: PlayerQuestEntry[];
+}
+
+// ─── Achievement System ──────────────────────────────────────
+
+export type AchievementTargetType = "voice_time" | "chat_count" | "farm_count";
+
+export interface AchievementConfig {
+  achievementId: string;
+  guildId: string;
+  titleName: string;
+  targetType: AchievementTargetType;
+  targetValue: number;
+  sporeReward: number;
+  isSecret: boolean;
+  isDiscovered: boolean;
+  firstUnlockedBy: string | null;
+  discordRoleId?: string;
+  createdAt: number;
+}
+
+export interface PlayerAchievement {
+  userId: string;
+  guildId: string;
+  achievementId: string;
+  unlockedAt: number;
+}
+
+export interface PlayerStats {
+  userId: string;
+  guildId: string;
+  voiceTimeSeconds: number;
+  chatCount: number;
+  farmCount: number;
 }
 
 // ─── Store ───────────────────────────────────────────────────
@@ -125,6 +158,9 @@ export interface Store {
   verificationPanels: Record<string, VerificationPanel>;
   verificationSubmissions: VerificationSubmission[];
   questData: Record<string, PlayerQuestData>;
+  achievements: Record<string, AchievementConfig[]>;
+  playerAchievements: PlayerAchievement[];
+  playerStats: Record<string, PlayerStats>;
 }
 
 function emptyStore(): Store {
@@ -135,6 +171,9 @@ function emptyStore(): Store {
     verificationPanels: {},
     verificationSubmissions: [],
     questData: {},
+    achievements: {},
+    playerAchievements: [],
+    playerStats: {},
   };
 }
 
@@ -150,6 +189,9 @@ function loadStore(): Store {
       verificationPanels: parsed.verificationPanels ?? {},
       verificationSubmissions: parsed.verificationSubmissions ?? [],
       questData: parsed.questData ?? {},
+      achievements: parsed.achievements ?? {},
+      playerAchievements: parsed.playerAchievements ?? [],
+      playerStats: parsed.playerStats ?? {},
     };
   } catch {
     return emptyStore();
@@ -357,8 +399,6 @@ export function savePlayerQuestData(data: PlayerQuestData): void {
   saveStore(_store);
 }
 
-/** Clear quest entries that don't match `today` (Thai YYYY-MM-DD).
- *  Called by the daily scheduler at midnight. */
 export function clearStaleQuestData(today: string): void {
   let changed = false;
   for (const userId of Object.keys(_store.questData)) {
@@ -368,4 +408,94 @@ export function clearStaleQuestData(today: string): void {
     }
   }
   if (changed) saveStore(_store);
+}
+
+// ─── Achievement CRUD ────────────────────────────────────────
+
+export function getGuildAchievements(guildId: string): AchievementConfig[] {
+  return _store.achievements[guildId] ?? [];
+}
+
+export function getAchievementById(guildId: string, achievementId: string): AchievementConfig | undefined {
+  return (_store.achievements[guildId] ?? []).find((a) => a.achievementId === achievementId);
+}
+
+export function saveAchievement(ach: AchievementConfig): void {
+  if (!_store.achievements[ach.guildId]) _store.achievements[ach.guildId] = [];
+  const idx = _store.achievements[ach.guildId]!.findIndex((a) => a.achievementId === ach.achievementId);
+  if (idx >= 0) {
+    _store.achievements[ach.guildId]![idx] = ach;
+  } else {
+    _store.achievements[ach.guildId]!.push(ach);
+  }
+  saveStore(_store);
+}
+
+export function deleteAchievement(guildId: string, achievementId: string): boolean {
+  const list = _store.achievements[guildId];
+  if (!list) return false;
+  const idx = list.findIndex((a) => a.achievementId === achievementId);
+  if (idx === -1) return false;
+  list.splice(idx, 1);
+  saveStore(_store);
+  return true;
+}
+
+export function markAchievementDiscovered(guildId: string, achievementId: string, userId: string): void {
+  const ach = getAchievementById(guildId, achievementId);
+  if (!ach) return;
+  ach.isDiscovered = true;
+  ach.firstUnlockedBy = userId;
+  saveAchievement(ach);
+}
+
+// ─── Player Achievements ─────────────────────────────────────
+
+export function getPlayerAchievements(guildId: string, userId: string): PlayerAchievement[] {
+  return _store.playerAchievements.filter((a) => a.guildId === guildId && a.userId === userId);
+}
+
+export function addPlayerAchievement(entry: PlayerAchievement): void {
+  _store.playerAchievements.push(entry);
+  saveStore(_store);
+}
+
+export function hasPlayerAchievement(guildId: string, userId: string, achievementId: string): boolean {
+  return _store.playerAchievements.some(
+    (a) => a.guildId === guildId && a.userId === userId && a.achievementId === achievementId
+  );
+}
+
+// ─── Player Stats (cumulative for achievements) ───────────────
+
+function statsKey(guildId: string, userId: string): string {
+  return `${guildId}:${userId}`;
+}
+
+export function getPlayerStats(guildId: string, userId: string): PlayerStats {
+  const key = statsKey(guildId, userId);
+  if (!_store.playerStats[key]) {
+    _store.playerStats[key] = {
+      userId,
+      guildId,
+      voiceTimeSeconds: 0,
+      chatCount: 0,
+      farmCount: 0,
+    };
+  }
+  return _store.playerStats[key]!;
+}
+
+export function incrementPlayerStat(
+  guildId: string,
+  userId: string,
+  field: keyof Omit<PlayerStats, "userId" | "guildId">,
+  amount: number
+): PlayerStats {
+  const key = statsKey(guildId, userId);
+  const stats = getPlayerStats(guildId, userId);
+  stats[field] += amount;
+  _store.playerStats[key] = stats;
+  saveStore(_store);
+  return stats;
 }
