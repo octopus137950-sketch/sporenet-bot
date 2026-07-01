@@ -77,6 +77,10 @@ export interface VoiceRewardConfig {
   blockedRoomIds: string[];
 }
 
+export interface DynVoiceConfig {
+  starterChannelId: string;
+}
+
 export interface GuildConfig {
   welcome?: WelcomeGoodbyeConfig;
   goodbye?: WelcomeGoodbyeConfig;
@@ -84,6 +88,7 @@ export interface GuildConfig {
   gameChannelId?: string;
   shop?: ShopItem[];
   voiceReward?: VoiceRewardConfig;
+  dynVoice?: DynVoiceConfig | null;
 }
 
 export interface PlayerData {
@@ -231,6 +236,16 @@ export function getVoiceRewardConfig(guildId: string): VoiceRewardConfig | undef
 export function setVoiceRewardConfig(guildId: string, config: VoiceRewardConfig): void {
   if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
   _store.guilds[guildId]!.voiceReward = config;
+  saveStore(_store);
+}
+
+export function getDynVoiceConfig(guildId: string): DynVoiceConfig | null | undefined {
+  return _store.guilds[guildId]?.dynVoice;
+}
+
+export function setDynVoiceConfig(guildId: string, config: DynVoiceConfig | null): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  _store.guilds[guildId]!.dynVoice = config;
   saveStore(_store);
 }
 
