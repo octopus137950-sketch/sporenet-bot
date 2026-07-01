@@ -44,6 +44,7 @@ import * as setgamechannelCmd from "./commands/setgamechannel.js";
 import * as setshoppanelCmd from "./commands/setshoppanel.js";
 import * as helpCmd from "./commands/help.js";
 import * as mushroomCmd from "./commands/mushroom.js";
+import * as verifypanelCmd from "./commands/verifypanel.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -72,6 +73,7 @@ commands.set("setgamechannel", setgamechannelCmd);
 commands.set("setshoppanel", setshoppanelCmd);
 commands.set("mushroom", mushroomCmd);
 commands.set("help", helpCmd);
+commands.set("verifypanel", verifypanelCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
