@@ -7,6 +7,7 @@ import {
   PermissionFlagsBits,
 } from "discord.js";
 import { getPlayer, savePlayer, getShopItems, getLogChannel } from "../data/store.js";
+import { requireGameChannel } from "../utils/channelGuard.js";
 
 export const data = new SlashCommandBuilder()
   .setName("buy")
@@ -16,6 +17,7 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireGameChannel(interaction))) return;
   await interaction.deferReply({ ephemeral: true });
 
   const guild = interaction.guild;
