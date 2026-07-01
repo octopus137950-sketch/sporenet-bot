@@ -4,12 +4,14 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import { getShopItems, getPlayer } from "../data/store.js";
+import { requireGameChannel } from "../utils/channelGuard.js";
 
 export const data = new SlashCommandBuilder()
   .setName("shop")
   .setDescription("🏪 ดูร้านค้าและสินค้าที่แลกได้ด้วยสปอร์");
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireGameChannel(interaction))) return;
   await interaction.deferReply();
 
   const guild = interaction.guild;
