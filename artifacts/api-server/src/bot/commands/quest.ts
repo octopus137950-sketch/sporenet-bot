@@ -7,7 +7,7 @@ import {
   ChatInputCommandInteraction,
   EmbedBuilder,
 } from "discord.js";
-import { getPlayer, savePlayer } from "../data/store.js";
+import { getPlayer, savePlayer, savePlayerQuestData } from "../data/store.js";
 import { requireGameChannel } from "../utils/channelGuard.js";
 import { getQuestById, DIFFICULTY_EMOJI, DIFFICULTY_LABEL } from "../data/questPool.js";
 import { ensureQuestData, incrementQuestProgress } from "../events/questTracker.js";
@@ -159,7 +159,6 @@ async function handleClaim(interaction: ChatInputCommandInteraction): Promise<vo
   savePlayer(player);
 
   // Save updated quest data
-  const { savePlayerQuestData } = await import("../data/store.js");
   savePlayerQuestData(questData);
 
   const allDone = questData.quests.every((q) => q.claimed);

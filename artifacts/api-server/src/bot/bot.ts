@@ -109,7 +109,7 @@ export async function startBot(): Promise<void> {
       GatewayIntentBits.GuildMessageReactions,
       GatewayIntentBits.GuildMembers,
       GatewayIntentBits.GuildVoiceStates,
-      GatewayIntentBits.MessageContent,
+      // MessageContent is a privileged intent — not needed since we only count messages, not read them
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
   });
