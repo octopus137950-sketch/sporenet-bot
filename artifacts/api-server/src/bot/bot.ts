@@ -21,6 +21,7 @@ import {
 } from "./events/shopHandler.js";
 import { handleMonsterFight, handleMonsterFlee } from "./events/monsterHandler.js";
 import { handleVerifyButton, handleVerifyModal } from "./events/verificationHandler.js";
+import { handleVoiceStateUpdate, startVoiceEconomyLoop } from "./events/voiceHandler.js";
 
 import * as reactionroleCmd from "./commands/reactionrole.js";
 import * as listrolesCmd from "./commands/listroles.js";
@@ -47,6 +48,8 @@ import * as mushroomCmd from "./commands/mushroom.js";
 import * as verifypanelCmd from "./commands/verifypanel.js";
 import * as deleteverifypanelCmd from "./commands/deleteverifypanel.js";
 import * as editverifypanelCmd from "./commands/editverifypanel.js";
+import * as setvoicerewardCmd from "./commands/setvoicereward.js";
+import * as blockvoiceroomCmd from "./commands/blockvoiceroom.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -78,6 +81,8 @@ commands.set("help", helpCmd);
 commands.set("verifypanel", verifypanelCmd);
 commands.set("deleteverifypanel", deleteverifypanelCmd);
 commands.set("editverifypanel", editverifypanelCmd);
+commands.set("setvoicereward", setvoicerewardCmd);
+commands.set("blockvoiceroom", blockvoiceroomCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -94,6 +99,7 @@ export async function startBot(): Promise<void> {
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.GuildMessageReactions,
       GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.GuildVoiceStates,
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
   });
@@ -185,6 +191,15 @@ export async function startBot(): Promise<void> {
   client.on(Events.GuildMemberRemove, async (member) => {
     try { await handleMemberRemove(member); }
     catch (err) { logger.error({ err }, "Error handling member remove"); }
+  });
+
+  client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+    try { handleVoiceStateUpdate(oldState, newState); }
+    catch (err) { logger.error({ err }, "Error handling voice state update"); }
+  });
+
+  client.once(Events.ClientReady, () => {
+    startVoiceEconomyLoop(client);
   });
 
   await client.login(token);
