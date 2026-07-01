@@ -7,6 +7,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   TextChannel,
+  ChannelType,
 } from "discord.js";
 import { saveVerificationPanel } from "../data/store.js";
 
@@ -17,6 +18,13 @@ export const data = new SlashCommandBuilder()
   .addStringOption((o) => o.setName("title").setDescription("หัวข้อของแผง").setRequired(true))
   .addStringOption((o) => o.setName("description").setDescription("คำอธิบาย").setRequired(true))
   .addRoleOption((o) => o.setName("role").setDescription("ยศที่จะมอบให้เมื่อยืนยัน").setRequired(true))
+  .addChannelOption((o) =>
+    o
+      .setName("log_channel")
+      .setDescription("ช่องแชทที่จะส่งรายงานผลการยืนยัน (ไม่บังคับ)")
+      .setRequired(false)
+      .addChannelTypes(ChannelType.GuildText)
+  )
   .addStringOption((o) => o.setName("image").setDescription("URL รูปภาพ (ไม่บังคับ)").setRequired(false))
   // field 1..5 (label, placeholder, required)
   .addStringOption((o) => o.setName("field1_label").setDescription("ฟิลด์1 - ชื่อ").setRequired(false))
@@ -51,6 +59,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const title = interaction.options.getString("title", true);
   const description = interaction.options.getString("description", true);
   const role = interaction.options.getRole("role", true);
+  const logChannel = interaction.options.getChannel("log_channel");
   const imageUrl = interaction.options.getString("image") ?? undefined;
 
   const fields: { id: string; label: string; placeholder?: string; required?: boolean }[] = [];
@@ -99,6 +108,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     imageUrl,
     roleIdToGrant: role.id,
     fields,
+    logChannelId: logChannel?.id,
   });
 
   await interaction.editReply(`✅ สร้างแผงยืนยันตัวตนแล้ว: ${msg.url}`);
