@@ -22,6 +22,7 @@ import {
 import { handleMonsterFight, handleMonsterFlee } from "./events/monsterHandler.js";
 import { handleVerifyButton, handleVerifyModal } from "./events/verificationHandler.js";
 import { handleVoiceStateUpdate, startVoiceEconomyLoop } from "./events/voiceHandler.js";
+import { handleDynVoice } from "./events/dynVoiceHandler.js";
 
 import * as reactionroleCmd from "./commands/reactionrole.js";
 import * as listrolesCmd from "./commands/listroles.js";
@@ -50,6 +51,8 @@ import * as deleteverifypanelCmd from "./commands/deleteverifypanel.js";
 import * as editverifypanelCmd from "./commands/editverifypanel.js";
 import * as setvoicerewardCmd from "./commands/setvoicereward.js";
 import * as blockvoiceroomCmd from "./commands/blockvoiceroom.js";
+import * as setdynvoiceCmd from "./commands/setdynvoice.js";
+import * as roomCmd from "./commands/room.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -83,6 +86,8 @@ commands.set("deleteverifypanel", deleteverifypanelCmd);
 commands.set("editverifypanel", editverifypanelCmd);
 commands.set("setvoicereward", setvoicerewardCmd);
 commands.set("blockvoiceroom", blockvoiceroomCmd);
+commands.set("setdynvoice", setdynvoiceCmd);
+commands.set("room", roomCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -196,6 +201,9 @@ export async function startBot(): Promise<void> {
   client.on(Events.VoiceStateUpdate, (oldState, newState) => {
     try { handleVoiceStateUpdate(oldState, newState); }
     catch (err) { logger.error({ err }, "Error handling voice state update"); }
+    handleDynVoice(oldState, newState).catch((err) =>
+      logger.error({ err }, "Error handling dynamic voice channel")
+    );
   });
 
   client.once(Events.ClientReady, () => {
