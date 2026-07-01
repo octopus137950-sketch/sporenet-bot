@@ -26,10 +26,13 @@ export async function handleDynVoice(
   if (!member || member.user.bot) return;
 
   const config = getDynVoiceConfig(guild.id);
-  if (!config) return;
+  if (!config || config.starterChannelIds.length === 0) return;
 
-  // ── JOINED a channel ──────────────────────────────────────────────
-  if (newState.channelId && newState.channelId === config.starterChannelId) {
+  // ── JOINED a starter channel ──────────────────────────────────────
+  if (
+    newState.channelId &&
+    config.starterChannelIds.includes(newState.channelId)
+  ) {
     const starterChannel = newState.channel;
     const category = starterChannel?.parent ?? undefined;
 
@@ -60,10 +63,9 @@ export async function handleDynVoice(
     try {
       await member.voice.setChannel(newChannel);
     } catch {
-      // If move fails, still keep the room registered
+      // If move fails, keep the room registered
     }
 
-    // Send control panel embed inside the voice channel's text
     const embed = new EmbedBuilder()
       .setTitle("🎙️ ห้องเสียงส่วนตัวของคุณพร้อมแล้ว!")
       .setColor(0x5865f2)
@@ -94,7 +96,7 @@ export async function handleDynVoice(
     try {
       await newChannel.send({ embeds: [embed] });
     } catch {
-      // Voice text channel might not be available in all server configurations
+      // Voice text channel might not be available in all configurations
     }
   }
 
