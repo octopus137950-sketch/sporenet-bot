@@ -125,6 +125,19 @@ export const data = new SlashCommandBuilder()
       )
   )
 
+  // ── delete-secret ─────────────────────────────────────────
+  .addSubcommand((sub) =>
+    sub
+      .setName("delete-secret")
+      .setDescription("ลบยศลับ (isSecret=true) ออกทั้งหมดในเซิร์ฟเวอร์นี้")
+      .addBooleanOption((opt) =>
+        opt
+          .setName("confirm")
+          .setDescription("พิมพ์ true เพื่อยืนยันการลบ — ไม่สามารถกู้คืนได้!")
+          .setRequired(true)
+      )
+  )
+
   // ── list ──────────────────────────────────────────────────
   .addSubcommand((sub) =>
     sub
@@ -186,10 +199,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   const sub = interaction.options.getSubcommand();
-  if (sub === "create")      await handleCreate(interaction);
-  else if (sub === "edit")   await handleEdit(interaction);
-  else if (sub === "delete") await handleDelete(interaction);
-  else if (sub === "list")   await handleAdminList(interaction);
+  if (sub === "create")              await handleCreate(interaction);
+  else if (sub === "edit")           await handleEdit(interaction);
+  else if (sub === "delete")         await handleDelete(interaction);
+  else if (sub === "delete-secret")  await handleDeleteSecret(interaction);
+  else if (sub === "list")           await handleAdminList(interaction);
 }
 
 // ─── /achievement-admin create ───────────────────────────────
@@ -348,6 +362,66 @@ async function handleDelete(interaction: ChatInputCommandInteraction): Promise<v
         .setTitle("🗑️ ลบยศความสำเร็จแล้ว")
         .setColor(0xed4245)
         .setDescription(`ยศ **${ach.titleName}** (\`${achievementId}\`) ถูกลบออกจากระบบแล้ว`)
+        .setTimestamp(),
+    ],
+    ephemeral: true,
+  });
+}
+
+// ─── /achievement-admin delete-secret ────────────────────────
+
+async function handleDeleteSecret(interaction: ChatInputCommandInteraction): Promise<void> {
+  const guildId = interaction.guild!.id;
+  const confirm = interaction.options.getBoolean("confirm", true);
+
+  if (!confirm) {
+    await interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("⚠️ ยกเลิกการลบ")
+          .setColor(0xfee75c)
+          .setDescription("ไม่ได้ยืนยัน — ยศลับยังคงอยู่ครบ\nถ้าต้องการลบจริงให้เลือก `confirm: True`"),
+      ],
+      ephemeral: true,
+    });
+    return;
+  }
+
+  const all     = getGuildAchievements(guildId);
+  const secrets = all.filter((a) => a.isSecret);
+
+  if (secrets.length === 0) {
+    await interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("📋 ไม่มียศลับในเซิร์ฟเวอร์นี้")
+          .setColor(0x5865f2)
+          .setDescription("ไม่พบยศที่มีสถานะ `isSecret = true` เลยครับ"),
+      ],
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // Delete every secret achievement
+  for (const ach of secrets) {
+    deleteAchievement(guildId, ach.achievementId);
+  }
+
+  const nameList = secrets
+    .map((a, i) => `${i + 1}. **${a.titleName}** (\`${a.achievementId}\`)`)
+    .join("\n");
+
+  await interaction.reply({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle(`🗑️ ลบยศลับทั้งหมดสำเร็จ (${secrets.length} รายการ)`)
+        .setColor(0xed4245)
+        .setDescription(
+          `ยศลับต่อไปนี้ถูกลบออกจากระบบแล้ว:\n\n${nameList}\n\n` +
+          `_ยศปกติ (isSecret = false) ยังคงอยู่ครบถ้วน_`
+        )
+        .setFooter({ text: `ดำเนินการโดย ${interaction.user.username}` })
         .setTimestamp(),
     ],
     ephemeral: true,
