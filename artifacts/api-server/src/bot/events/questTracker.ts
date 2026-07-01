@@ -22,8 +22,7 @@ import {
 import { getThaiDateString } from "../utils/thaiTime.js";
 import { trackStatAndCheck } from "../utils/achievementChecker.js";
 
-// ─── Voice session tracking (separate from voiceHandler.ts) ──
-// key = `${guildId}:${userId}`, value = timestamp of last quest-tick
+// ─── Voice session tracking ───────────────────────────────────
 const questVoiceSessions = new Map<string, number>();
 
 export function onQuestVoiceJoin(guildId: string, userId: string): void {
@@ -48,7 +47,6 @@ export function onQuestVoiceLeave(
   );
 }
 
-// Called by startQuestVoiceLoop every minute for every active voice session
 export function startQuestVoiceLoop(client: Client): void {
   setInterval(() => {
     const now = Date.now();
@@ -56,11 +54,10 @@ export function startQuestVoiceLoop(client: Client): void {
       const minutesSinceTick = Math.floor((now - lastTick) / 60_000);
       if (minutesSinceTick < 1) continue;
 
-      const parts = key.split(":");
+      const parts  = key.split(":");
       const guildId = parts[0]!;
-      const userId = parts[1]!;
+      const userId  = parts[1]!;
 
-      // Advance the tick by the integer minutes consumed
       questVoiceSessions.set(key, lastTick + minutesSinceTick * 60_000);
 
       incrementQuestProgress(client, guildId, userId, "voice", minutesSinceTick).catch(
@@ -75,16 +72,13 @@ export function startQuestVoiceLoop(client: Client): void {
 // ─── Chat message handler ─────────────────────────────────────
 
 export async function onQuestMessage(message: Message, client: Client): Promise<void> {
-  // Ignore bots, DMs, and system messages
   if (message.author.bot || !message.guild || !message.author) return;
 
   const guildId = message.guild.id;
   const userId  = message.author.id;
 
-  // Update quest progress
   await incrementQuestProgress(client, guildId, userId, "chat", 1);
 
-  // Update cumulative achievement stat
   trackStatAndCheck(client, guildId, userId, "chatCount", 1).catch(
     (e) => console.error("[questTracker] achievement chat check error:", e)
   );
@@ -92,9 +86,6 @@ export async function onQuestMessage(message: Message, client: Client): Promise<
 
 // ─── Core progress updater ────────────────────────────────────
 
-/** Call this every time a player does a quest-trackable activity.
- *  Rolls fresh quests if the player has none for today.
- *  Sends a game-channel notification when a quest is completed. */
 export async function incrementQuestProgress(
   client: Client,
   guildId: string,
@@ -119,12 +110,17 @@ export async function incrementQuestProgress(
 
     if (before < def.target && entry.progress >= def.target) {
       entry.completed = true;
-      // Fire-and-forget completion notification
+
       if (guild) {
         sendCompletionNotification(guild, userId, def.description, def.reward).catch(
           (e) => console.error("[questTracker] notification error:", e)
         );
       }
+
+      // ── Track cumulative quest_completed stat for achievement system ──
+      trackStatAndCheck(client, guildId, userId, "questCompletedCount", 1).catch(
+        (e) => console.error("[questTracker] achievement quest_completed check error:", e)
+      );
     }
     changed = true;
   }
@@ -134,21 +130,19 @@ export async function incrementQuestProgress(
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-/** Returns existing quest data for today, or creates (and saves) fresh data. */
 export function ensureQuestData(userId: string, today: string): PlayerQuestData {
   const existing = getPlayerQuestData(userId);
   if (existing && existing.date === today) return existing;
 
-  // Roll 3 new quests for the new day
   const defs = rollQuests(3);
   const freshData: PlayerQuestData = {
     userId,
     date: today,
     quests: defs.map((d) => ({
-      questId: d.id,
-      progress: 0,
+      questId:   d.id,
+      progress:  0,
       completed: false,
-      claimed: false,
+      claimed:   false,
     })),
   };
   savePlayerQuestData(freshData);
@@ -172,7 +166,7 @@ async function sendCompletionNotification(
       .setTitle("✅ ภารกิจสำเร็จ!")
       .setDescription(
         `<@${userId}> ทำภารกิจ **${description}** สำเร็จแล้ว! 🎉\n` +
-          `พิมพ์ \`/quest claim\` เพื่อรับรางวัล **${reward.toLocaleString()} สปอร์**`
+        `พิมพ์ \`/quest claim\` เพื่อรับรางวัล **${reward.toLocaleString()} สปอร์**`
       )
       .setColor(0x57f287)
       .setTimestamp();
@@ -181,5 +175,4 @@ async function sendCompletionNotification(
   } catch { /* ignore send failures */ }
 }
 
-// Re-export for convenience (used by quest.ts command)
 export { DIFFICULTY_EMOJI, DIFFICULTY_LABEL };

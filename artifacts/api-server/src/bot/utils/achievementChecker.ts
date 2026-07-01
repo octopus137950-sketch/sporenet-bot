@@ -1,7 +1,6 @@
 // ============================================================
 // achievementChecker.ts — Achievement system core logic
-// Tracks cumulative player stats and grants achievement roles
-// + spore rewards when thresholds are met.
+// Supports multi-condition achievements (ALL must be met).
 // ============================================================
 
 import {
@@ -21,7 +20,8 @@ import {
   addPlayerAchievement,
   incrementPlayerStat,
   AchievementConfig,
-  AchievementTargetType,
+  AchievementCondition,
+  AchievementConditionType,
   PlayerStats,
 } from "../data/store.js";
 
@@ -60,21 +60,24 @@ async function checkAchievements(
   for (const ach of achievements) {
     if (unlockedIds.has(ach.achievementId)) continue;
 
-    const statValue = resolveStatValue(stats, ach.targetType);
-    if (statValue < ach.targetValue) continue;
+    // ALL conditions must be satisfied
+    const allMet = ach.conditions.every((cond) =>
+      resolveStatValue(stats, cond.type) >= cond.value
+    );
+    if (!allMet) continue;
 
-    // Player just crossed the threshold — grant the achievement!
     await grantAchievement(client, guild, userId, ach).catch((e) =>
       console.error("[achievementChecker] grantAchievement error:", e)
     );
   }
 }
 
-function resolveStatValue(stats: PlayerStats, type: AchievementTargetType): number {
+function resolveStatValue(stats: PlayerStats, type: AchievementConditionType): number {
   switch (type) {
-    case "voice_time":  return stats.voiceTimeSeconds;
-    case "chat_count":  return stats.chatCount;
-    case "farm_count":  return stats.farmCount;
+    case "voice_time":       return stats.voiceTimeSeconds;
+    case "chat_count":       return stats.chatCount;
+    case "farm_count":       return stats.farmCount;
+    case "quest_completed":  return stats.questCompletedCount;
   }
 }
 
@@ -86,7 +89,6 @@ async function grantAchievement(
   userId: string,
   ach: AchievementConfig
 ): Promise<void> {
-  // Grant Discord role if configured
   if (ach.discordRoleId) {
     try {
       const member = await guild.members.fetch(userId).catch(() => null);
@@ -94,14 +96,12 @@ async function grantAchievement(
     } catch { /* role may have been deleted */ }
   }
 
-  // Grant spore reward
   if (ach.sporeReward > 0) {
     const player = getPlayer(userId);
     player.sporePoints += ach.sporeReward;
     savePlayer(player);
   }
 
-  // Record unlock
   addPlayerAchievement({
     userId,
     guildId: guild.id,
@@ -110,7 +110,6 @@ async function grantAchievement(
   });
 
   const isFirstDiscovery = !ach.isDiscovered;
-
   if (isFirstDiscovery) {
     markAchievementDiscovered(guild.id, ach.achievementId, userId);
     await sendFirstDiscoveryAnnouncement(guild, userId, ach);
@@ -119,25 +118,32 @@ async function grantAchievement(
   }
 }
 
-// ─── Announcement helpers ─────────────────────────────────────
+// ─── Label helpers ────────────────────────────────────────────
 
-function buildTargetLabel(ach: AchievementConfig): string {
-  switch (ach.targetType) {
+export function conditionLabel(cond: AchievementCondition): string {
+  switch (cond.type) {
     case "voice_time": {
-      const h = Math.floor(ach.targetValue / 3600);
-      const m = Math.floor((ach.targetValue % 3600) / 60);
+      const h = Math.floor(cond.value / 3600);
+      const m = Math.floor((cond.value % 3600) / 60);
       const parts: string[] = [];
       if (h > 0) parts.push(`${h} ชั่วโมง`);
       if (m > 0) parts.push(`${m} นาที`);
-      const label = parts.length ? parts.join(" ") : `${ach.targetValue} วินาที`;
-      return `อยู่ในห้องเสียงสะสม ${label}`;
+      return `อยู่ห้องเสียงสะสม ${parts.length ? parts.join(" ") : `${cond.value} วินาที`}`;
     }
     case "chat_count":
-      return `ส่งข้อความสะสม ${ach.targetValue.toLocaleString()} ครั้ง`;
+      return `ส่งข้อความสะสม ${cond.value.toLocaleString()} ครั้ง`;
     case "farm_count":
-      return `ฟาร์มเห็ดสะสม ${ach.targetValue.toLocaleString()} ครั้ง`;
+      return `ฟาร์มเห็ดสะสม ${cond.value.toLocaleString()} ครั้ง`;
+    case "quest_completed":
+      return `ทำเควสสำเร็จสะสม ${cond.value.toLocaleString()} ครั้ง`;
   }
 }
+
+function buildConditionsText(ach: AchievementConfig): string {
+  return ach.conditions.map(conditionLabel).join(" และ ");
+}
+
+// ─── Announcement helpers ─────────────────────────────────────
 
 async function getGameTextChannel(guild: Guild): Promise<TextBasedChannel | null> {
   const channelId = getGameChannel(guild.id);
@@ -155,7 +161,7 @@ async function sendFirstDiscoveryAnnouncement(
   const ch = await getGameTextChannel(guild);
   if (!ch) return;
 
-  const targetLabel = buildTargetLabel(ach);
+  const condText = buildConditionsText(ach);
 
   const embed = new EmbedBuilder()
     .setTitle("🏆 ตำนานถูกเปิดเผย! ยศลับถูกค้นพบครั้งแรก!")
@@ -163,7 +169,7 @@ async function sendFirstDiscoveryAnnouncement(
     .setDescription(
       `✨ <@${userId}> คือ **ผู้บุกเบิก** คนแรกที่ปลดล็อกยศลับ!\n\n` +
       `🎖️ **ยศ:** ${ach.titleName}\n` +
-      `🔓 **เงื่อนไขที่เปิดเผย:** ${targetLabel}\n` +
+      `🔓 **เงื่อนไขที่เปิดเผย:** ${condText}\n` +
       `🍄 **รางวัลพิเศษ:** +${ach.sporeReward.toLocaleString()} สปอร์\n\n` +
       `_ประวัติศาสตร์ถูกสร้างขึ้นแล้ว... ยศนี้จะไม่เป็นความลับอีกต่อไป_ 🌟`
     )
@@ -175,14 +181,8 @@ async function sendFirstDiscoveryAnnouncement(
       content: "@everyone",
       embeds: [embed],
     });
-
-    // Pin the announcement
     await msg.pin().catch(() => null);
-
-    // Auto-unpin after 24 hours
-    setTimeout(() => {
-      msg.unpin().catch(() => null);
-    }, 24 * 60 * 60 * 1000);
+    setTimeout(() => msg.unpin().catch(() => null), 24 * 60 * 60 * 1000);
   } catch (e) {
     console.error("[achievementChecker] failed to send first-discovery announcement:", e);
   }

@@ -1,6 +1,6 @@
 // ============================================================
 // achievement.ts — User command: /achievement list
-// Shows achievement book with personal progress for each entry.
+// Shows achievement book with personal progress per condition.
 // ============================================================
 
 import {
@@ -13,6 +13,7 @@ import {
   getPlayerAchievements,
   getPlayerStats,
   AchievementConfig,
+  AchievementCondition,
   PlayerStats,
 } from "../data/store.js";
 
@@ -25,30 +26,33 @@ export const data = new SlashCommandBuilder()
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-function getCurrentProgress(stats: PlayerStats, ach: AchievementConfig): number {
-  switch (ach.targetType) {
-    case "voice_time":  return stats.voiceTimeSeconds;
-    case "chat_count":  return stats.chatCount;
-    case "farm_count":  return stats.farmCount;
+function getCurrentProgress(stats: PlayerStats, cond: AchievementCondition): number {
+  switch (cond.type) {
+    case "voice_time":       return stats.voiceTimeSeconds;
+    case "chat_count":       return stats.chatCount;
+    case "farm_count":       return stats.farmCount;
+    case "quest_completed":  return stats.questCompletedCount;
   }
 }
 
-function formatProgressLabel(current: number, ach: AchievementConfig): string {
-  switch (ach.targetType) {
+function formatConditionProgress(stats: PlayerStats, cond: AchievementCondition): string {
+  const current = getCurrentProgress(stats, cond);
+  switch (cond.type) {
     case "voice_time": {
       const curH = Math.floor(current / 3600);
       const curM = Math.floor((current % 3600) / 60);
-      const tarH = Math.floor(ach.targetValue / 3600);
-      const tarM = Math.floor((ach.targetValue % 3600) / 60);
-
+      const tarH = Math.floor(cond.value / 3600);
+      const tarM = Math.floor((cond.value % 3600) / 60);
       const curStr = curH > 0 ? `${curH} ชม. ${curM} นาที` : `${curM} นาที`;
       const tarStr = tarH > 0 ? `${tarH} ชม.` : `${tarM} นาที`;
-      return `อยู่ในห้องเสียง ${curStr}/${tarStr}`;
+      return `⏱️ อยู่ห้องเสียง ${curStr}/${tarStr}`;
     }
     case "chat_count":
-      return `ส่งข้อความ ${current.toLocaleString()}/${ach.targetValue.toLocaleString()} ครั้ง`;
+      return `💬 ส่งข้อความ ${current.toLocaleString()}/${cond.value.toLocaleString()} ครั้ง`;
     case "farm_count":
-      return `ฟาร์มเห็ด ${current.toLocaleString()}/${ach.targetValue.toLocaleString()} ครั้ง`;
+      return `🍄 ฟาร์มเห็ด ${current.toLocaleString()}/${cond.value.toLocaleString()} ครั้ง`;
+    case "quest_completed":
+      return `📋 ทำเควสสำเร็จ ${current.toLocaleString()}/${cond.value.toLocaleString()} ครั้ง`;
   }
 }
 
@@ -58,12 +62,22 @@ function progressBar(current: number, target: number, length = 8): string {
   return "█".repeat(filled) + "░".repeat(length - filled) + ` ${Math.floor(pct * 100)}%`;
 }
 
+/** Worst (lowest %) progress bar across all conditions */
+function overallProgressBar(stats: PlayerStats, conditions: AchievementCondition[]): string {
+  const lowestPct = conditions.reduce((min, cond) => {
+    const pct = Math.min(getCurrentProgress(stats, cond) / cond.value, 1);
+    return pct < min ? pct : min;
+  }, 1);
+  const filled = Math.round(lowestPct * 8);
+  return "█".repeat(filled) + "░".repeat(8 - filled) + ` ${Math.floor(lowestPct * 100)}%`;
+}
+
 function buildAchievementLine(
   ach: AchievementConfig,
   isUnlocked: boolean,
   stats: PlayerStats
 ): string {
-  // ── Case 1: Player already unlocked this achievement ──────────
+  // ── Case 1: Player already unlocked ───────────────────────
   if (isUnlocked) {
     return (
       `🟢 **${ach.titleName}**\n` +
@@ -72,7 +86,7 @@ function buildAchievementLine(
     );
   }
 
-  // ── Case 2: Secret — no one has discovered it yet ─────────────
+  // ── Case 2: Secret — no one has discovered it yet ─────────
   if (ach.isSecret && !ach.isDiscovered) {
     return (
       `❓🔒 **[ ยศลับที่ยังไม่ถูกค้นพบ ]**\n` +
@@ -80,20 +94,48 @@ function buildAchievementLine(
     );
   }
 
-  // ── Case 3: Not yet unlocked (normal OR discovered-secret) ────
-  const current = getCurrentProgress(stats, ach);
-  const progressLabel = formatProgressLabel(current, ach);
-  const bar = progressBar(current, ach.targetValue);
+  // ── Case 3: Not yet unlocked (normal OR discovered-secret) ─
   const secretNote = ach.isSecret && ach.isDiscovered ? " _(เคยลับ)_" : "";
-  const firstBy = ach.firstUnlockedBy
+  const rewardText = ach.sporeReward > 0 ? ` • 🍄 ${ach.sporeReward.toLocaleString()} สปอร์` : "";
+  const firstBy    = ach.firstUnlockedBy
     ? `\n> 👑 บุกเบิกโดย: <@${ach.firstUnlockedBy}>`
     : "";
-  const rewardText = ach.sporeReward > 0 ? ` • 🍄 ${ach.sporeReward.toLocaleString()} สปอร์` : "";
+
+  const multiCond = ach.conditions.length > 1;
+
+  // Single condition — show inline
+  if (!multiCond) {
+    const cond    = ach.conditions[0]!;
+    const current = getCurrentProgress(stats, cond);
+    const bar     = progressBar(current, cond.value);
+    const label   = formatConditionProgress(stats, cond);
+    return (
+      `🔒 **${ach.titleName}**${secretNote}\n` +
+      `> เงื่อนไข: ${label}${rewardText}\n` +
+      `> \`${bar}\`` +
+      firstBy
+    );
+  }
+
+  // Multi-condition — list each + overall bar
+  const condLines = ach.conditions
+    .map((cond) => {
+      const current = getCurrentProgress(stats, cond);
+      const met     = current >= cond.value;
+      const bar     = progressBar(current, cond.value);
+      return (
+        `> ${met ? "✅" : "🔲"} ${formatConditionProgress(stats, cond)}\n` +
+        `> \`${bar}\``
+      );
+    })
+    .join("\n");
+
+  const overallBar = overallProgressBar(stats, ach.conditions);
 
   return (
-    `🔒 **${ach.titleName}**${secretNote}\n` +
-    `> เงื่อนไข: ${progressLabel}${rewardText}\n` +
-    `> \`${bar}\`` +
+    `🔒 **${ach.titleName}**${secretNote} _(${ach.conditions.length} เงื่อนไข — ต้องทำครบทุกข้อ)_${rewardText}\n` +
+    condLines +
+    `\n> **ภาพรวม:** \`${overallBar}\`` +
     firstBy
   );
 }
@@ -138,12 +180,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   );
 
   const totalUnlocked = achievements.filter((a) => unlockedIds.has(a.achievementId)).length;
-  const totalVisible  = achievements.length;
 
-  // Split into pages of 8 per embed
   const chunks: string[][] = [];
-  for (let i = 0; i < lines.length; i += 8) {
-    chunks.push(lines.slice(i, i + 8));
+  for (let i = 0; i < lines.length; i += 6) {
+    chunks.push(lines.slice(i, i + 6));
   }
 
   const embeds = chunks.map((chunk, idx) => {
@@ -152,7 +192,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setDescription(chunk.join("\n\n"));
 
     if (idx === 0) {
-      e.setTitle(`🏆 สมุดยศความสำเร็จ (${totalUnlocked}/${totalVisible} ปลดล็อก)`)
+      e.setTitle(`🏆 สมุดยศความสำเร็จ (${totalUnlocked}/${achievements.length} ปลดล็อก)`)
        .setThumbnail(interaction.user.displayAvatarURL());
     } else {
       e.setTitle("🏆 สมุดยศความสำเร็จ (ต่อ)");
@@ -160,7 +200,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return e;
   });
 
-  // Footer on last embed
   if (embeds.length > 0) {
     embeds[embeds.length - 1]!
       .setFooter({

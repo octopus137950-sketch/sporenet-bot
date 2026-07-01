@@ -118,14 +118,25 @@ export interface PlayerQuestData {
 
 // ─── Achievement System ──────────────────────────────────────
 
-export type AchievementTargetType = "voice_time" | "chat_count" | "farm_count";
+/** Supported condition types for achievements */
+export type AchievementConditionType =
+  | "voice_time"        // วินาทีในห้องเสียงสะสม
+  | "chat_count"        // ข้อความที่ส่งสะสม
+  | "farm_count"        // ครั้งที่ฟาร์มเห็ดสะสม
+  | "quest_completed";  // เควสที่สำเร็จสะสม (ทุกวันรวมกัน)
+
+/** A single condition (type + threshold).  ALL conditions in an achievement must be met. */
+export interface AchievementCondition {
+  type: AchievementConditionType;
+  value: number;
+}
 
 export interface AchievementConfig {
   achievementId: string;
   guildId: string;
   titleName: string;
-  targetType: AchievementTargetType;
-  targetValue: number;
+  /** One or more conditions — ALL must be satisfied simultaneously */
+  conditions: AchievementCondition[];
   sporeReward: number;
   isSecret: boolean;
   isDiscovered: boolean;
@@ -147,6 +158,7 @@ export interface PlayerStats {
   voiceTimeSeconds: number;
   chatCount: number;
   farmCount: number;
+  questCompletedCount: number;
 }
 
 // ─── Store ───────────────────────────────────────────────────
@@ -177,21 +189,69 @@ function emptyStore(): Store {
   };
 }
 
+// ── Migrate legacy single-condition achievements on load ──────
+// Old format had `targetType` + `targetValue` directly.
+// New format uses `conditions: AchievementCondition[]`.
+function migrateLegacyAchievement(raw: Record<string, unknown>): AchievementConfig {
+  if (!Array.isArray(raw["conditions"])) {
+    // Legacy format — convert to new conditions array
+    const conditions: AchievementCondition[] = [{
+      type: (raw["targetType"] as AchievementConditionType) ?? "chat_count",
+      value: (raw["targetValue"] as number) ?? 1,
+    }];
+    return {
+      achievementId:   raw["achievementId"] as string,
+      guildId:         raw["guildId"] as string,
+      titleName:       raw["titleName"] as string,
+      conditions,
+      sporeReward:     (raw["sporeReward"] as number) ?? 0,
+      isSecret:        (raw["isSecret"] as boolean) ?? false,
+      isDiscovered:    (raw["isDiscovered"] as boolean) ?? false,
+      firstUnlockedBy: (raw["firstUnlockedBy"] as string | null) ?? null,
+      discordRoleId:   raw["discordRoleId"] as string | undefined,
+      createdAt:       (raw["createdAt"] as number) ?? Date.now(),
+    };
+  }
+  return raw as unknown as AchievementConfig;
+}
+
 function loadStore(): Store {
   if (!fs.existsSync(DATA_FILE)) return emptyStore();
   try {
     const raw = fs.readFileSync(DATA_FILE, "utf-8");
     const parsed = JSON.parse(raw) as Partial<Store>;
+
+    // Migrate legacy achievements
+    const rawAchievements = (parsed.achievements ?? {}) as Record<string, Record<string, unknown>[]>;
+    const achievements: Record<string, AchievementConfig[]> = {};
+    for (const [guildId, list] of Object.entries(rawAchievements)) {
+      achievements[guildId] = list.map(migrateLegacyAchievement);
+    }
+
+    // Migrate legacy PlayerStats missing questCompletedCount
+    const rawStats = (parsed.playerStats ?? {}) as Record<string, Partial<PlayerStats>>;
+    const playerStats: Record<string, PlayerStats> = {};
+    for (const [key, s] of Object.entries(rawStats)) {
+      playerStats[key] = {
+        userId:               s.userId ?? "",
+        guildId:              s.guildId ?? "",
+        voiceTimeSeconds:     s.voiceTimeSeconds ?? 0,
+        chatCount:            s.chatCount ?? 0,
+        farmCount:            s.farmCount ?? 0,
+        questCompletedCount:  s.questCompletedCount ?? 0,
+      };
+    }
+
     return {
-      panels: parsed.panels ?? {},
-      guilds: parsed.guilds ?? {},
-      players: parsed.players ?? {},
-      verificationPanels: parsed.verificationPanels ?? {},
+      panels:                  parsed.panels ?? {},
+      guilds:                  parsed.guilds ?? {},
+      players:                 parsed.players ?? {},
+      verificationPanels:      parsed.verificationPanels ?? {},
       verificationSubmissions: parsed.verificationSubmissions ?? [],
-      questData: parsed.questData ?? {},
-      achievements: parsed.achievements ?? {},
-      playerAchievements: parsed.playerAchievements ?? [],
-      playerStats: parsed.playerStats ?? {},
+      questData:               parsed.questData ?? {},
+      achievements,
+      playerAchievements:      parsed.playerAchievements ?? [],
+      playerStats,
     };
   } catch {
     return emptyStore();
@@ -478,9 +538,10 @@ export function getPlayerStats(guildId: string, userId: string): PlayerStats {
     _store.playerStats[key] = {
       userId,
       guildId,
-      voiceTimeSeconds: 0,
-      chatCount: 0,
-      farmCount: 0,
+      voiceTimeSeconds:    0,
+      chatCount:           0,
+      farmCount:           0,
+      questCompletedCount: 0,
     };
   }
   return _store.playerStats[key]!;
@@ -498,4 +559,29 @@ export function incrementPlayerStat(
   _store.playerStats[key] = stats;
   saveStore(_store);
   return stats;
+}
+
+// ─── Condition parsing helper (used by admin command) ────────
+
+/**
+ * Parse a conditions string into AchievementCondition[].
+ * Format: "voice_time:180000,chat_count:3000,farm_count:200,quest_completed:50"
+ * Returns null if any token is invalid.
+ */
+export function parseConditionsString(raw: string): AchievementCondition[] | null {
+  const VALID_TYPES: AchievementConditionType[] = ["voice_time", "chat_count", "farm_count", "quest_completed"];
+  const tokens = raw.split(",").map((t) => t.trim()).filter(Boolean);
+  if (tokens.length === 0) return null;
+
+  const result: AchievementCondition[] = [];
+  for (const token of tokens) {
+    const colonIdx = token.indexOf(":");
+    if (colonIdx === -1) return null;
+    const type = token.slice(0, colonIdx).trim() as AchievementConditionType;
+    const valueStr = token.slice(colonIdx + 1).trim();
+    const value = parseInt(valueStr, 10);
+    if (!VALID_TYPES.includes(type) || isNaN(value) || value < 1) return null;
+    result.push({ type, value });
+  }
+  return result;
 }
