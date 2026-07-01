@@ -68,12 +68,22 @@ export interface VerificationSubmission {
   createdAt: number;
 }
 
+export interface VoiceRewardConfig {
+  enabled: boolean;
+  timeLoopMinutes: number;
+  giveSpore: number;
+  giveExp: number;
+  notifyChannelId?: string;
+  blockedRoomIds: string[];
+}
+
 export interface GuildConfig {
   welcome?: WelcomeGoodbyeConfig;
   goodbye?: WelcomeGoodbyeConfig;
   logChannelId?: string;
   gameChannelId?: string;
   shop?: ShopItem[];
+  voiceReward?: VoiceRewardConfig;
 }
 
 export interface PlayerData {
@@ -212,6 +222,16 @@ export function removeShopItem(guildId: string, itemId: string): boolean {
   shop.splice(idx, 1);
   saveStore(_store);
   return true;
+}
+
+export function getVoiceRewardConfig(guildId: string): VoiceRewardConfig | undefined {
+  return _store.guilds[guildId]?.voiceReward;
+}
+
+export function setVoiceRewardConfig(guildId: string, config: VoiceRewardConfig): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  _store.guilds[guildId]!.voiceReward = config;
+  saveStore(_store);
 }
 
 export function getPlayer(userId: string): PlayerData {
