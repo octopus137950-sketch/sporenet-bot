@@ -45,6 +45,8 @@ import * as setshoppanelCmd from "./commands/setshoppanel.js";
 import * as helpCmd from "./commands/help.js";
 import * as mushroomCmd from "./commands/mushroom.js";
 import * as verifypanelCmd from "./commands/verifypanel.js";
+import * as deleteverifypanelCmd from "./commands/deleteverifypanel.js";
+import * as editverifypanelCmd from "./commands/editverifypanel.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -74,6 +76,8 @@ commands.set("setshoppanel", setshoppanelCmd);
 commands.set("mushroom", mushroomCmd);
 commands.set("help", helpCmd);
 commands.set("verifypanel", verifypanelCmd);
+commands.set("deleteverifypanel", deleteverifypanelCmd);
+commands.set("editverifypanel", editverifypanelCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
