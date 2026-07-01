@@ -42,8 +42,8 @@ export interface ShopItem {
 }
 
 export interface VerificationPanelField {
-  id: string; // internal id like field_0
-  label: string; // shown label
+  id: string;
+  label: string;
   placeholder?: string;
   required?: boolean;
 }
@@ -56,11 +56,12 @@ export interface VerificationPanel {
   description: string;
   imageUrl?: string;
   roleIdToGrant?: string;
-  fields: VerificationPanelField[]; // up to 5
+  fields: VerificationPanelField[];
+  logChannelId?: string;
 }
 
 export interface VerificationSubmission {
-  id: string; // uuid-like or timestamp-based id
+  id: string;
   panelMessageId: string;
   userId: string;
   values: Record<string, string>;
@@ -239,7 +240,6 @@ export function getTopPlayers(limit = 10): PlayerData[] {
     .slice(0, limit);
 }
 
-// Verification panel APIs
 export function saveVerificationPanel(panel: VerificationPanel): void {
   _store.verificationPanels[panel.messageId] = panel;
   saveStore(_store);
@@ -262,7 +262,6 @@ export function getAllVerificationPanels(): VerificationPanel[] {
   return Object.values(_store.verificationPanels);
 }
 
-// Verification submissions
 export function saveVerificationSubmission(sub: VerificationSubmission): void {
   _store.verificationSubmissions.push(sub);
   saveStore(_store);
