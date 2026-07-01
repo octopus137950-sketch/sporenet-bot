@@ -11,7 +11,6 @@ import {
 } from "discord.js";
 import {
   getVerificationPanel,
-  getGuildConfig,
   saveVerificationSubmission,
 } from "../data/store.js";
 
@@ -105,18 +104,32 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
     return;
   }
 
-  // optional: send a log to configured log channel
-  const guildCfg = getGuildConfig(panel.guildId);
-  if (guildCfg.logChannelId && interaction.guild) {
+  // send log to panel's log channel (panel.logChannelId takes priority)
+  const logChannelId = panel.logChannelId;
+  if (logChannelId && interaction.guild) {
     try {
-      const ch = await interaction.guild.channels.fetch(guildCfg.logChannelId);
+      const ch = await interaction.guild.channels.fetch(logChannelId);
       if (ch && (ch as TextBasedChannel).send) {
+        const user = interaction.user;
+        const avatarUrl = user.displayAvatarURL({ size: 128 });
+
+        // Build embed with each field value shown
         const embed = new EmbedBuilder()
-          .setTitle("✅ สมาชิกยืนยันตัวตน")
-          .setDescription(`ผู้ใช้: ${interaction.user.tag} (${interaction.user.id})\nยศ: <@&${panel.roleIdToGrant}>\nช่องที่กรอก: ${Object.keys(values).length}`)
-          .setColor(0x2ecc71)
+          .setAuthor({ name: user.displayName ?? user.username, iconURL: avatarUrl })
+          .setThumbnail(avatarUrl)
+          .setColor(0x5865f2)
+          .setFooter({ text: `ID: ${user.id}` })
           .setTimestamp();
-        await (ch as TextBasedChannel).send({ embeds: [embed] });
+
+        for (const [label, value] of Object.entries(values)) {
+          embed.addFields({ name: label, value: value || "-", inline: false });
+        }
+
+        // Message: mention + "ได้รับยศเรียบร้อยแล้ว"
+        await (ch as TextBasedChannel).send({
+          content: `<@${user.id}> ✅ ได้รับยศเรียบร้อยแล้ว`,
+          embeds: [embed],
+        });
       }
     } catch (e) {
       console.error("Failed to send verification log:", e);
