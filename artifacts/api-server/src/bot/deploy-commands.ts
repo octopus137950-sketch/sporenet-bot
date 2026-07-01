@@ -26,6 +26,8 @@ import { data as deleteverifypanelData } from "./commands/deleteverifypanel.js";
 import { data as editverifypanelData } from "./commands/editverifypanel.js";
 import { data as setvoicerewardData } from "./commands/setvoicereward.js";
 import { data as blockvoiceroomData } from "./commands/blockvoiceroom.js";
+import { data as setdynvoiceData } from "./commands/setdynvoice.js";
+import { data as roomData } from "./commands/room.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -65,6 +67,8 @@ export async function deployCommands(): Promise<void> {
     editverifypanelData.toJSON(),
     setvoicerewardData.toJSON(),
     blockvoiceroomData.toJSON(),
+    setdynvoiceData.toJSON(),
+    roomData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");
