@@ -43,9 +43,7 @@ export const data = new SlashCommandBuilder()
       .addStringOption((opt) =>
         opt
           .setName("conditions")
-          .setDescription(
-            "เงื่อนไข เช่น: chat_count:3000,farm_count:200 | ประเภท: voice_time/chat_count/farm_count/quest_completed"
-          )
+          .setDescription("Ex: chat_count:3000,farm_count:200 | types: voice_time/chat_count/farm_count/quest_completed")
           .setRequired(true)
       )
       .addIntegerOption((opt) =>
@@ -90,9 +88,7 @@ export const data = new SlashCommandBuilder()
       .addStringOption((opt) =>
         opt
           .setName("conditions")
-          .setDescription(
-            "เงื่อนไขใหม่ทั้งหมด เช่น: chat_count:3000,farm_count:200 (จะแทนที่เงื่อนไขเดิมทั้งหมด)"
-          )
+          .setDescription("Ex: chat_count:3000,farm_count:200 — แทนที่เงื่อนไขเดิมทั้งหมด")
           .setRequired(false)
       )
       .addIntegerOption((opt) =>
