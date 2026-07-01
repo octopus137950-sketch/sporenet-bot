@@ -78,7 +78,7 @@ export interface VoiceRewardConfig {
 }
 
 export interface DynVoiceConfig {
-  starterChannelId: string;
+  starterChannelIds: string[];
 }
 
 export interface GuildConfig {
