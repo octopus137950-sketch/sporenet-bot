@@ -110,6 +110,19 @@ async function distributeVoiceRewards(client: Client): Promise<void> {
       for (const [, member] of voiceChannel.members) {
         if (member.user.bot) continue;
 
+        const key = sessionKey(guildId, member.id);
+        let session = sessions.get(key);
+
+        // If no session (user was in channel before bot started), create one now
+        if (!session) {
+          session = { joinTime: now, earnedSpore: 0, earnedExp: 0 };
+          sessions.set(key, session);
+        }
+
+        // Only reward if user has been in the channel for at least the full interval
+        const timeInChannel = now - session.joinTime;
+        if (timeInChannel < intervalMs) continue;
+
         const player = getPlayer(member.id);
         player.sporePoints += config.giveSpore;
         player.farmExp += config.giveExp;
@@ -122,20 +135,9 @@ async function distributeVoiceRewards(client: Client): Promise<void> {
 
         savePlayer(player);
 
-        // Update session accumulator
-        const key = sessionKey(guildId, member.id);
-        const session = sessions.get(key);
-        if (session) {
-          session.earnedSpore += config.giveSpore;
-          session.earnedExp += config.giveExp;
-        } else {
-          // User was in voice before bot started tracking
-          sessions.set(key, {
-            joinTime: now,
-            earnedSpore: config.giveSpore,
-            earnedExp: config.giveExp,
-          });
-        }
+        // Update session accumulator (session is always defined here)
+        session.earnedSpore += config.giveSpore;
+        session.earnedExp += config.giveExp;
       }
     }
   }
