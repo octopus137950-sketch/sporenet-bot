@@ -11,6 +11,7 @@ import { data as walletData } from "./commands/wallet.js";
 import { data as shopData } from "./commands/shop.js";
 import { data as addshopData } from "./commands/addshop.js";
 import { data as givesporeData } from "./commands/givespore.js";
+import { data as giveitemData } from "./commands/giveitem.js";
 import { data as setsporeData } from "./commands/setspore.js";
 import { data as setlogData } from "./commands/setlog.js";
 import { data as leaderboardData } from "./commands/leaderboard.js";
@@ -57,6 +58,7 @@ export async function deployCommands(): Promise<void> {
     shopData.toJSON(),
     addshopData.toJSON(),
     givesporeData.toJSON(),
+    giveitemData.toJSON(),
     setsporeData.toJSON(),
     setlogData.toJSON(),
     leaderboardData.toJSON(),
