@@ -12,6 +12,8 @@ import { requireGameChannel } from "../utils/channelGuard.js";
 import { setPendingBattle } from "../data/monsterState.js";
 import { incrementQuestProgress } from "../events/questTracker.js";
 import { trackStatAndCheck } from "../utils/achievementChecker.js";
+import { rollItemDrop } from "../data/itemsPool.js";
+import { addItemToInventory } from "../data/store.js";
 
 export const data = new SlashCommandBuilder()
   .setName("farm")
@@ -265,6 +267,17 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const hasMonster = Math.random() * 100 < MONSTER_CHANCE;
 
   if (!hasMonster) {
+    // ── Item drop check ──────────────────────────────────────
+    const droppedItem = rollItemDrop();
+    if (droppedItem && guild) {
+      addItemToInventory(userId, droppedItem.id);
+      farmEmbed.addFields({
+        name: `✨ ไอเทมหายากดรอป!`,
+        value: `${droppedItem.emoji} **${droppedItem.name}**\n> ${droppedItem.lore}\n📬 ไอเทมถูกเก็บเข้ากระเป๋าแล้ว ใช้ /wallet เพื่อสวมใส่!`,
+        inline: false,
+      });
+    }
+
     await interaction.editReply({ embeds: [farmEmbed] });
 
     if (guild && pointChange !== 0) {

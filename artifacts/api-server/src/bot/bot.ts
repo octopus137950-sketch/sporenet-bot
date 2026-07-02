@@ -25,6 +25,11 @@ import { handleVoiceStateUpdate, startVoiceEconomyLoop } from "./events/voiceHan
 import { handleDynVoice } from "./events/dynVoiceHandler.js";
 import { initWorldBossScheduler } from "./events/worldBossHandler.js";
 import { onQuestMessage, startQuestVoiceLoop } from "./events/questTracker.js";
+import {
+  handleInventorySelect,
+  handleInventoryEquip,
+  handleInventoryUnequip,
+} from "./events/inventoryHandler.js";
 import { startQuestDailyReset } from "./utils/questScheduler.js";
 
 import * as reactionroleCmd from "./commands/reactionrole.js";
@@ -159,6 +164,10 @@ export async function startBot(): Promise<void> {
           await handleMonsterFight(interaction);
         } else if (id.startsWith("monster_flee_")) {
           await handleMonsterFlee(interaction);
+        } else if (id.startsWith("inv_equip:")) {
+          await handleInventoryEquip(interaction);
+        } else if (id.startsWith("inv_unequip:")) {
+          await handleInventoryUnequip(interaction);
         }
         return;
       }
@@ -166,6 +175,8 @@ export async function startBot(): Promise<void> {
       if (interaction.isStringSelectMenu()) {
         if (interaction.customId === "shop_select") {
           await handleShopSelect(interaction);
+        } else if (interaction.customId.startsWith("inv_select:")) {
+          await handleInventorySelect(interaction);
         }
         return;
       }

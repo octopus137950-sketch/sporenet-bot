@@ -173,7 +173,15 @@ export interface PlayerStats {
 
 // ─── Store ───────────────────────────────────────────────────
 
-export interface Store {
+export 
+// ─── Inventory System ────────────────────────────────────────
+
+export interface InventoryItem {
+  itemId: string;
+  isEquipped: boolean;
+}
+
+interface Store {
   panels: Record<string, ReactionRolePanel>;
   guilds: Record<string, GuildConfig>;
   players: Record<string, PlayerData>;
@@ -183,6 +191,7 @@ export interface Store {
   achievements: Record<string, AchievementConfig[]>;
   playerAchievements: PlayerAchievement[];
   playerStats: Record<string, PlayerStats>;
+  inventories: Record<string, InventoryItem[]>;
 }
 
 function emptyStore(): Store {
@@ -196,6 +205,7 @@ function emptyStore(): Store {
     achievements: {},
     playerAchievements: [],
     playerStats: {},
+    inventories: {},
   };
 }
 
@@ -262,6 +272,7 @@ function loadStore(): Store {
       achievements,
       playerAchievements:      parsed.playerAchievements ?? [],
       playerStats,
+      inventories: (parsed.inventories ?? {}) as Record<string, InventoryItem[]>,
     };
   } catch {
     return emptyStore();
@@ -604,6 +615,94 @@ export function parseConditionsString(raw: string): AchievementCondition[] | nul
     const value = parseInt(valueStr, 10);
     if (!VALID_TYPES.includes(type) || isNaN(value) || value < 1) return null;
     result.push({ type, value });
+  }
+  return result;
+}
+
+// ─── Inventory Helpers ───────────────────────────────────────
+
+/** ดึงกระเป๋าไอเทมของผู้เล่น (สร้างใหม่ถ้าไม่มี) */
+export function getInventory(userId: string): InventoryItem[] {
+  if (!_store.inventories[userId]) {
+    _store.inventories[userId] = [];
+  }
+  return _store.inventories[userId]!;
+}
+
+/** เพิ่มไอเทมเข้ากระเป๋า (ยังไม่สวมใส่) */
+export function addItemToInventory(userId: string, itemId: string): void {
+  const inv = getInventory(userId);
+  inv.push({ itemId, isEquipped: false });
+  _store.inventories[userId] = inv;
+  saveStore(_store);
+}
+
+/** นับจำนวนช่องสวมใส่ที่ใช้ไปแล้ว (max 3) */
+export function getEquippedCount(userId: string): number {
+  return getInventory(userId).filter((e) => e.isEquipped).length;
+}
+
+/**
+ * สวมใส่ไอเทม — คืน true ถ้าสำเร็จ
+ * กฎ: ชิ้นเดียวกัน (itemId เดียวกัน) ถ้าสวมใส่อยู่แล้ว ไม่ต้อง stack
+ */
+export function equipItem(userId: string, itemId: string): boolean {
+  const inv = getInventory(userId);
+  // หา slot ที่ยังไม่ได้สวม (เป็นชิ้นเดิมๆ ที่ไม่ได้ equipped)
+  const slot = inv.find((e) => e.itemId === itemId && !e.isEquipped);
+  if (!slot) return false;
+  if (getEquippedCount(userId) >= 3) return false;
+  slot.isEquipped = true;
+  _store.inventories[userId] = inv;
+  saveStore(_store);
+  return true;
+}
+
+/**
+ * ถอดไอเทม — คืน true ถ้าสำเร็จ
+ */
+export function unequipItem(userId: string, itemId: string): boolean {
+  const inv = getInventory(userId);
+  const slot = inv.find((e) => e.itemId === itemId && e.isEquipped);
+  if (!slot) return false;
+  slot.isEquipped = false;
+  _store.inventories[userId] = inv;
+  saveStore(_store);
+  return true;
+}
+
+/**
+ * โอนไอเทม (ถอดออกก่อนโอน) — คืน true ถ้าสำเร็จ
+ */
+export function transferItem(fromUserId: string, toUserId: string, itemId: string): boolean {
+  const fromInv = getInventory(fromUserId);
+  // ห้ามโอนถ้า equipped อยู่
+  const slot = fromInv.find((e) => e.itemId === itemId && !e.isEquipped);
+  if (!slot) return false;
+  // ลบจากผู้โอน
+  const idx = fromInv.indexOf(slot);
+  fromInv.splice(idx, 1);
+  _store.inventories[fromUserId] = fromInv;
+  // เพิ่มให้ผู้รับ
+  addItemToInventory(toUserId, itemId);
+  saveStore(_store);
+  return true;
+}
+
+/**
+ * ดึงบัฟที่ active อยู่จากไอเทมที่สวมใส่
+ * กฎ non-stack: ไอเทมชนิดเดียวกัน (itemId เดียวกัน) นับแค่ 1 ครั้ง
+ */
+export function getActiveBuffs(userId: string): Map<string, number> {
+  const inv = getInventory(userId);
+  const equipped = inv.filter((e) => e.isEquipped);
+  // dedupe by itemId (non-stack rule)
+  const seen = new Set<string>();
+  const result = new Map<string, number>();
+  for (const entry of equipped) {
+    if (seen.has(entry.itemId)) continue;
+    seen.add(entry.itemId);
+    result.set(entry.itemId, 1);
   }
   return result;
 }

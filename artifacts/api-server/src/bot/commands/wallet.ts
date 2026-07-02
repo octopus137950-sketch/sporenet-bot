@@ -4,7 +4,8 @@ import {
   EmbedBuilder,
   GuildMember,
 } from "discord.js";
-import { getPlayer } from "../data/store.js";
+import { getPlayer, getInventory } from "../data/store.js";
+import { buildInventorySelectMenu } from "../events/inventoryHandler.js";
 import { requireGameChannel } from "../utils/channelGuard.js";
 
 export const data = new SlashCommandBuilder()
@@ -34,6 +35,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     if (member) memberDisplayName = member.displayName;
   }
 
+  const inv = getInventory(target.id);
+  const totalItems = inv.length;
+  const equippedItems = inv.filter((e) => e.isEquipped).length;
+  const invText = totalItems > 0
+    ? `มีไอเทม **${totalItems}** ชิ้น (สวมใส่ **${equippedItems}/3** ช่อง)`
+    : "กระเป๋าว่างเปล่า — ลองฟาร์มหาไอเทมหายากดู!";
+
   const embed = new EmbedBuilder()
     .setAuthor({ name: `👛 กระเป๋าของ ${memberDisplayName}`, iconURL: target.displayAvatarURL() })
     .setThumbnail(target.displayAvatarURL({ size: 256 }))
@@ -46,10 +54,16 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         name: `📊 EXP ${player.farmExp}/${expNeeded} (${expPct}%)`,
         value: `${expBar(player.farmExp, expNeeded)} `,
         inline: false,
-      }
+      },
+      { name: "🎒 กระเป๋าไอเทม", value: invText, inline: false },
     )
-    .setFooter({ text: "ใช้ /farm เพื่อหาสปอร์ | ใช้ /shop เพื่อแลกของรางวัล" })
+    .setFooter({ text: "ใช้ /farm เพื่อหาสปอร์ และโอกาสได้ไอเทมหายาก! | /transfer เพื่อโอนของ" })
     .setTimestamp();
 
-  await interaction.editReply({ embeds: [embed] });
+  // Build inventory select menu (only for the user's own wallet)
+  const isOwnWallet = target.id === interaction.user.id;
+  const menuRow = isOwnWallet ? buildInventorySelectMenu(target.id) : null;
+
+  const components = menuRow ? [menuRow] : [];
+  await interaction.editReply({ embeds: [embed], components });
 }

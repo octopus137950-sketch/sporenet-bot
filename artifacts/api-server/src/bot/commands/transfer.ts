@@ -4,15 +4,28 @@ import {
   EmbedBuilder,
   TextChannel,
 } from "discord.js";
-import { getPlayer, savePlayer, getLogChannel } from "../data/store.js";
+import { getPlayer, savePlayer, getLogChannel, getInventory, transferItem } from "../data/store.js";
+import { getItemById } from "../data/itemsPool.js";
 import { requireGameChannel } from "../utils/channelGuard.js";
 
 export const data = new SlashCommandBuilder()
   .setName("transfer")
-  .setDescription("💸 โอนสปอร์ให้ผู้เล่นคนอื่น")
-  .addUserOption((o) => o.setName("to").setDescription("ผู้รับสปอร์").setRequired(true))
+  .setDescription("💸 โอนสปอร์หรือไอเทมให้ผู้เล่นคนอื่น")
+  .addStringOption((o) =>
+    o.setName("type")
+      .setDescription("ประเภทที่ต้องการโอน")
+      .setRequired(true)
+      .addChoices(
+        { name: "💰 สปอร์", value: "money" },
+        { name: "🎒 ไอเทม", value: "item" },
+      )
+  )
+  .addUserOption((o) => o.setName("to").setDescription("ผู้รับ").setRequired(true))
   .addIntegerOption((o) =>
-    o.setName("amount").setDescription("จำนวนสปอร์ที่ต้องการโอน").setRequired(true).setMinValue(1)
+    o.setName("amount").setDescription("จำนวนสปอร์ที่ต้องการโอน (เฉพาะโหมดสปอร์)").setRequired(false).setMinValue(1)
+  )
+  .addStringOption((o) =>
+    o.setName("item_id").setDescription("ID ไอเทมที่ต้องการโอน เช่น magic_basket (เฉพาะโหมดไอเทม)").setRequired(false)
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -25,60 +38,115 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
+  const transferType = interaction.options.getString("type", true) as "money" | "item";
   const target = interaction.options.getUser("to", true);
-  const amount = interaction.options.getInteger("amount", true);
 
   if (target.id === interaction.user.id) {
-    await interaction.editReply("❌ ไม่สามารถโอนสปอร์ให้ตัวเองได้");
+    await interaction.editReply("❌ ไม่สามารถโอนให้ตัวเองได้");
     return;
   }
   if (target.bot) {
-    await interaction.editReply("❌ ไม่สามารถโอนสปอร์ให้บอทได้");
+    await interaction.editReply("❌ ไม่สามารถโอนให้บอทได้");
     return;
   }
 
-  const sender = getPlayer(interaction.user.id);
-  if (sender.sporePoints < amount) {
-    await interaction.editReply(
-      `❌ สปอร์ไม่พอ!\nคุณมี **${sender.sporePoints.toLocaleString()}** สปอร์\nต้องการโอน **${amount.toLocaleString()}** สปอร์`
-    );
+  // ── Money Transfer ─────────────────────────────────────────
+  if (transferType === "money") {
+    const amount = interaction.options.getInteger("amount");
+    if (!amount) {
+      await interaction.editReply("❌ กรุณาระบุ `amount` สำหรับการโอนสปอร์");
+      return;
+    }
+
+    const sender = getPlayer(interaction.user.id);
+    if (sender.sporePoints < amount) {
+      await interaction.editReply(
+        `❌ สปอร์ไม่พอ!\nคุณมี **${sender.sporePoints.toLocaleString()}** สปอร์\nต้องการโอน **${amount.toLocaleString()}** สปอร์`
+      );
+      return;
+    }
+
+    const receiver = getPlayer(target.id);
+    sender.sporePoints -= amount;
+    receiver.sporePoints += amount;
+    savePlayer(sender);
+    savePlayer(receiver);
+
+    const embed = new EmbedBuilder()
+      .setTitle("💸 โอนสปอร์สำเร็จ!")
+      .setColor(0x57f287)
+      .addFields(
+        { name: "📤 ผู้โอน", value: `<@${interaction.user.id}>`, inline: true },
+        { name: "📥 ผู้รับ", value: `<@${target.id}>`, inline: true },
+        { name: "🍄 จำนวน", value: `**${amount.toLocaleString()}** สปอร์`, inline: false },
+        { name: "💼 คงเหลือ", value: `**${sender.sporePoints.toLocaleString()}** สปอร์`, inline: true },
+      )
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+
+    const logId = getLogChannel(guild.id);
+    if (logId) {
+      const logCh = guild.channels.cache.get(logId) as TextChannel | undefined;
+      logCh?.send({
+        content: `💸 **${interaction.user.username}** โอน **${amount.toLocaleString()}** สปอร์ ให้ **${target.username}**`,
+      }).catch(() => null);
+    }
     return;
   }
 
-  const receiver = getPlayer(target.id);
-  sender.sporePoints -= amount;
-  receiver.sporePoints += amount;
-  savePlayer(sender);
-  savePlayer(receiver);
+  // ── Item Transfer ──────────────────────────────────────────
+  if (transferType === "item") {
+    const itemId = interaction.options.getString("item_id");
+    if (!itemId) {
+      await interaction.editReply("❌ กรุณาระบุ `item_id` สำหรับการโอนไอเทม\n💡 ตัวอย่าง ID: `magic_basket`, `sage_tome`, `golden_ring`, `poison_blade`, `spore_gauntlet`, `fern_crown`, `mushroom_potion`, `mystic_wand`");
+      return;
+    }
 
-  const embed = new EmbedBuilder()
-    .setTitle("💸 โอนสปอร์สำเร็จ!")
-    .setColor(0x57f287)
-    .addFields(
-      { name: "📤 ผู้โอน", value: `<@${interaction.user.id}>`, inline: true },
-      { name: "📥 ผู้รับ", value: `<@${target.id}>`, inline: true },
-      { name: "💰 จำนวนที่โอน", value: `**${amount.toLocaleString()} สปอร์**`, inline: false },
-      { name: "🍄 คงเหลือ (ของคุณ)", value: `${sender.sporePoints.toLocaleString()} สปอร์`, inline: true },
-      { name: "🍄 สปอร์ใหม่ (ผู้รับ)", value: `${receiver.sporePoints.toLocaleString()} สปอร์`, inline: true }
-    )
-    .setTimestamp();
+    const item = getItemById(itemId);
+    if (!item) {
+      await interaction.editReply("❌ ไม่พบไอเทมนี้ในระบบ กรุณาตรวจสอบ item_id อีกครั้ง");
+      return;
+    }
 
-  await interaction.editReply({ embeds: [embed] });
+    const senderInv = getInventory(interaction.user.id);
+    const hasUnequipped = senderInv.some((e) => e.itemId === itemId && !e.isEquipped);
+    if (!hasUnequipped) {
+      const hasEquipped = senderInv.some((e) => e.itemId === itemId && e.isEquipped);
+      if (hasEquipped) {
+        await interaction.editReply(`❌ ไอเทม **${item.emoji} ${item.name}** กำลังสวมใส่อยู่!\nกรุณาถอดออกก่อนจึงจะโอนได้ (ใช้คำสั่ง /wallet เพื่อถอด)`);
+      } else {
+        await interaction.editReply(`❌ คุณไม่มีไอเทม **${item.emoji} ${item.name}** ในกระเป๋า`);
+      }
+      return;
+    }
 
-  const logChannelId = getLogChannel(guild.id);
-  if (logChannelId) {
-    const logChannel = guild.channels.cache.get(logChannelId) as TextChannel | undefined;
-    if (logChannel) {
-      const logEmbed = new EmbedBuilder()
-        .setTitle("💸 มีการโอนสปอร์")
-        .setColor(0x5865f2)
-        .addFields(
-          { name: "📤 ผู้โอน", value: `<@${interaction.user.id}> (${interaction.user.username})`, inline: true },
-          { name: "📥 ผู้รับ", value: `<@${target.id}> (${target.username})`, inline: true },
-          { name: "💰 จำนวน", value: `${amount.toLocaleString()} สปอร์`, inline: true }
-        )
-        .setTimestamp();
-      await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
+    const success = transferItem(interaction.user.id, target.id, itemId);
+    if (!success) {
+      await interaction.editReply("❌ เกิดข้อผิดพลาดในการโอนไอเทม");
+      return;
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("🎒 โอนไอเทมสำเร็จ!")
+      .setColor(0x5865f2)
+      .addFields(
+        { name: "📤 ผู้โอน", value: `<@${interaction.user.id}>`, inline: true },
+        { name: "📥 ผู้รับ", value: `<@${target.id}>`, inline: true },
+        { name: "✨ ไอเทม", value: `${item.emoji} **${item.name}**`, inline: false },
+        { name: "🔮 เอฟเฟกต์", value: item.lore, inline: false },
+      )
+      .setFooter({ text: "ไอเทมที่โอนจะยังไม่สวมใส่โดยอัตโนมัติ — ผู้รับต้องเปิด /wallet เพื่อสวมใส่เอง" })
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+
+    const logId = getLogChannel(guild.id);
+    if (logId) {
+      const logCh = guild.channels.cache.get(logId) as TextChannel | undefined;
+      logCh?.send({
+        content: `🎒 **${interaction.user.username}** โอนไอเทม **${item.emoji} ${item.name}** ให้ **${target.username}**`,
+      }).catch(() => null);
     }
   }
 }
