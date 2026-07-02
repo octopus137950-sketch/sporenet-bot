@@ -1,6 +1,7 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
+  AutocompleteInteraction,
   EmbedBuilder,
   TextChannel,
 } from "discord.js";
@@ -10,23 +11,48 @@ import { requireGameChannel } from "../utils/channelGuard.js";
 
 export const data = new SlashCommandBuilder()
   .setName("transfer")
-  .setDescription("💸 โอนสปอร์หรือไอเทมให้ผู้เล่นคนอื่น")
-  .addStringOption((o) =>
-    o.setName("type")
-      .setDescription("ประเภทที่ต้องการโอน")
-      .setRequired(true)
-      .addChoices(
-        { name: "💰 สปอร์", value: "money" },
-        { name: "🎒 ไอเทม", value: "item" },
-      )
+  .setDescription("💸 โอนสปอร์และ/หรือไอเทมให้ผู้เล่นคนอื่น")
+  .addUserOption((o) =>
+    o.setName("to").setDescription("ผู้รับ").setRequired(true)
   )
-  .addUserOption((o) => o.setName("to").setDescription("ผู้รับ").setRequired(true))
   .addIntegerOption((o) =>
-    o.setName("amount").setDescription("จำนวนสปอร์ที่ต้องการโอน (เฉพาะโหมดสปอร์)").setRequired(false).setMinValue(1)
+    o.setName("amount")
+      .setDescription("จำนวนสปอร์ที่ต้องการโอน (ไม่ต้องใส่ถ้าไม่โอนสปอร์)")
+      .setRequired(false)
+      .setMinValue(1)
   )
   .addStringOption((o) =>
-    o.setName("item_id").setDescription("ID ไอเทมที่ต้องการโอน เช่น magic_basket (เฉพาะโหมดไอเทม)").setRequired(false)
+    o.setName("item")
+      .setDescription("ไอเทมที่ต้องการโอน (พิมพ์เพื่อค้นหาจากกระเป๋าของคุณ)")
+      .setRequired(false)
+      .setAutocomplete(true)
   );
+
+/** Autocomplete: แสดงไอเทมที่ไม่ได้สวมใส่จากกระเป๋าของผู้ใช้ */
+export async function autocomplete(interaction: AutocompleteInteraction): Promise<void> {
+  const focused = interaction.options.getFocused().toLowerCase();
+  const inv = getInventory(interaction.user.id);
+
+  // กรองเฉพาะไอเทมที่ไม่ได้ equipped และ dedupe ตาม itemId
+  const seen = new Set<string>();
+  const choices: { name: string; value: string }[] = [];
+
+  for (const entry of inv) {
+    if (entry.isEquipped) continue;
+    if (seen.has(entry.itemId)) continue;
+    seen.add(entry.itemId);
+
+    const item = getItemById(entry.itemId);
+    if (!item) continue;
+
+    const label = `${item.emoji} ${item.name} — ${item.lore}`;
+    if (focused === "" || item.name.toLowerCase().includes(focused) || item.id.toLowerCase().includes(focused)) {
+      choices.push({ name: label.slice(0, 100), value: item.id });
+    }
+  }
+
+  await interaction.respond(choices.slice(0, 25));
+}
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!(await requireGameChannel(interaction))) return;
@@ -38,8 +64,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const transferType = interaction.options.getString("type", true) as "money" | "item";
   const target = interaction.options.getUser("to", true);
+  const amount = interaction.options.getInteger("amount");
+  const itemId = interaction.options.getString("item");
 
   if (target.id === interaction.user.id) {
     await interaction.editReply("❌ ไม่สามารถโอนให้ตัวเองได้");
@@ -49,15 +76,18 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await interaction.editReply("❌ ไม่สามารถโอนให้บอทได้");
     return;
   }
+  if (!amount && !itemId) {
+    await interaction.editReply("❌ กรุณาระบุ **จำนวนสปอร์** หรือ **ไอเทม** ที่ต้องการโอนอย่างน้อยหนึ่งอย่าง");
+    return;
+  }
 
-  // ── Money Transfer ─────────────────────────────────────────
-  if (transferType === "money") {
-    const amount = interaction.options.getInteger("amount");
-    if (!amount) {
-      await interaction.editReply("❌ กรุณาระบุ `amount` สำหรับการโอนสปอร์");
-      return;
-    }
+  const resultFields: { name: string; value: string; inline?: boolean }[] = [
+    { name: "📤 ผู้โอน", value: `<@${interaction.user.id}>`, inline: true },
+    { name: "📥 ผู้รับ", value: `<@${target.id}>`, inline: true },
+  ];
 
+  // ── โอนสปอร์ ──────────────────────────────────────────────────
+  if (amount) {
     const sender = getPlayer(interaction.user.id);
     if (sender.sporePoints < amount) {
       await interaction.editReply(
@@ -72,18 +102,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     savePlayer(sender);
     savePlayer(receiver);
 
-    const embed = new EmbedBuilder()
-      .setTitle("💸 โอนสปอร์สำเร็จ!")
-      .setColor(0x57f287)
-      .addFields(
-        { name: "📤 ผู้โอน", value: `<@${interaction.user.id}>`, inline: true },
-        { name: "📥 ผู้รับ", value: `<@${target.id}>`, inline: true },
-        { name: "🍄 จำนวน", value: `**${amount.toLocaleString()}** สปอร์`, inline: false },
-        { name: "💼 คงเหลือ", value: `**${sender.sporePoints.toLocaleString()}** สปอร์`, inline: true },
-      )
-      .setTimestamp();
-
-    await interaction.editReply({ embeds: [embed] });
+    resultFields.push(
+      { name: "🍄 สปอร์ที่โอน", value: `**${amount.toLocaleString()}** สปอร์`, inline: false },
+      { name: "💼 สปอร์คงเหลือ", value: `**${sender.sporePoints.toLocaleString()}** สปอร์`, inline: true }
+    );
 
     const logId = getLogChannel(guild.id);
     if (logId) {
@@ -92,20 +114,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         content: `💸 **${interaction.user.username}** โอน **${amount.toLocaleString()}** สปอร์ ให้ **${target.username}**`,
       }).catch(() => null);
     }
-    return;
   }
 
-  // ── Item Transfer ──────────────────────────────────────────
-  if (transferType === "item") {
-    const itemId = interaction.options.getString("item_id");
-    if (!itemId) {
-      await interaction.editReply("❌ กรุณาระบุ `item_id` สำหรับการโอนไอเทม\n💡 ตัวอย่าง ID: `magic_basket`, `sage_tome`, `golden_ring`, `poison_blade`, `spore_gauntlet`, `fern_crown`, `mushroom_potion`, `mystic_wand`");
-      return;
-    }
-
+  // ── โอนไอเทม ──────────────────────────────────────────────────
+  if (itemId) {
     const item = getItemById(itemId);
     if (!item) {
-      await interaction.editReply("❌ ไม่พบไอเทมนี้ในระบบ กรุณาตรวจสอบ item_id อีกครั้ง");
+      await interaction.editReply("❌ ไม่พบไอเทมนี้ในระบบ กรุณาเลือกจากรายการที่แสดงในช่อง `item`");
       return;
     }
 
@@ -114,7 +129,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     if (!hasUnequipped) {
       const hasEquipped = senderInv.some((e) => e.itemId === itemId && e.isEquipped);
       if (hasEquipped) {
-        await interaction.editReply(`❌ ไอเทม **${item.emoji} ${item.name}** กำลังสวมใส่อยู่!\nกรุณาถอดออกก่อนจึงจะโอนได้ (ใช้คำสั่ง /wallet เพื่อถอด)`);
+        await interaction.editReply(
+          `❌ ไอเทม **${item.emoji} ${item.name}** กำลังสวมใส่อยู่!\nกรุณาถอดออกก่อนจึงจะโอนได้ (ใช้คำสั่ง /wallet เพื่อถอด)`
+        );
       } else {
         await interaction.editReply(`❌ คุณไม่มีไอเทม **${item.emoji} ${item.name}** ในกระเป๋า`);
       }
@@ -127,19 +144,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setTitle("🎒 โอนไอเทมสำเร็จ!")
-      .setColor(0x5865f2)
-      .addFields(
-        { name: "📤 ผู้โอน", value: `<@${interaction.user.id}>`, inline: true },
-        { name: "📥 ผู้รับ", value: `<@${target.id}>`, inline: true },
-        { name: "✨ ไอเทม", value: `${item.emoji} **${item.name}**`, inline: false },
-        { name: "🔮 เอฟเฟกต์", value: item.lore, inline: false },
-      )
-      .setFooter({ text: "ไอเทมที่โอนจะยังไม่สวมใส่โดยอัตโนมัติ — ผู้รับต้องเปิด /wallet เพื่อสวมใส่เอง" })
-      .setTimestamp();
-
-    await interaction.editReply({ embeds: [embed] });
+    resultFields.push(
+      { name: "✨ ไอเทมที่โอน", value: `${item.emoji} **${item.name}**`, inline: false },
+      { name: "🔮 เอฟเฟกต์", value: item.lore, inline: false }
+    );
 
     const logId = getLogChannel(guild.id);
     if (logId) {
@@ -149,4 +157,23 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       }).catch(() => null);
     }
   }
+
+  // ── สรุปผล ─────────────────────────────────────────────────────
+  const title = amount && itemId
+    ? "💸🎒 โอนสปอร์และไอเทมสำเร็จ!"
+    : amount
+    ? "💸 โอนสปอร์สำเร็จ!"
+    : "🎒 โอนไอเทมสำเร็จ!";
+
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setColor(amount && itemId ? 0xfee75c : amount ? 0x57f287 : 0x5865f2)
+    .addFields(resultFields)
+    .setTimestamp();
+
+  if (itemId) {
+    embed.setFooter({ text: "ไอเทมที่โอนจะยังไม่สวมใส่โดยอัตโนมัติ — ผู้รับต้องเปิด /wallet เพื่อสวมใส่เอง" });
+  }
+
+  await interaction.editReply({ embeds: [embed] });
 }

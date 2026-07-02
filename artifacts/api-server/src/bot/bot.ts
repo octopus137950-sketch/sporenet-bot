@@ -5,6 +5,7 @@ import {
   Events,
   Collection,
   ChatInputCommandInteraction,
+  AutocompleteInteraction,
 } from "discord.js";
 import { logger } from "../lib/logger.js";
 import { deployCommands } from "./deploy-commands.js";
@@ -70,6 +71,7 @@ import * as setworldbossCmd from "./commands/setworldboss.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
+  autocomplete?(interaction: AutocompleteInteraction): Promise<void>;
 }
 
 const commands = new Collection<string, Command>();
@@ -143,6 +145,14 @@ export async function startBot(): Promise<void> {
 
   client.on(Events.InteractionCreate, async (interaction) => {
     try {
+      if (interaction.isAutocomplete()) {
+        const command = commands.get(interaction.commandName);
+        if (command?.autocomplete) {
+          await command.autocomplete(interaction as AutocompleteInteraction);
+        }
+        return;
+      }
+
       if (interaction.isChatInputCommand()) {
         const command = commands.get(interaction.commandName);
         if (!command) return;
