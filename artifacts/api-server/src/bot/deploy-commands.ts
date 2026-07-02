@@ -34,6 +34,7 @@ import { data as achievementAdminData } from "./commands/achievement-admin.js";
 import { data as achievementData } from "./commands/achievement.js";
 import { data as attackData } from "./commands/attack.js";
 import { data as setworldbossData } from "./commands/setworldboss.js";
+import { data as setSporeCrashData } from "./commands/setSporeCrash.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -81,6 +82,7 @@ export async function deployCommands(): Promise<void> {
     achievementData.toJSON(),
     attackData.toJSON(),
     setworldbossData.toJSON(),
+    setSporeCrashData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");

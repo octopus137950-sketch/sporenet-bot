@@ -68,6 +68,12 @@ import * as achievementAdminCmd from "./commands/achievement-admin.js";
 import * as achievementCmd from "./commands/achievement.js";
 import * as attackCmd from "./commands/attack.js";
 import * as setworldbossCmd from "./commands/setworldboss.js";
+import * as setSporeCrashCmd from "./commands/setSporeCrash.js";
+import {
+  handleCrashBetButton,
+  handleCrashBetModal,
+  handleCrashCashOut,
+} from "./events/sporeCrashHandler.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -110,6 +116,7 @@ commands.set("achievement-admin", achievementAdminCmd);
 commands.set("achievement", achievementCmd);
 commands.set("attack", attackCmd);
 commands.set("setworldboss", setworldbossCmd);
+commands.set("setsporecrash", setSporeCrashCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -166,6 +173,10 @@ export async function startBot(): Promise<void> {
           await handleVerifyButton(interaction);
         } else if (id === "casino_bet") {
           await handleCasinoButton(interaction);
+        } else if (id === "crash_bet") {
+          await handleCrashBetButton(interaction);
+        } else if (id.startsWith("crash_cashout:")) {
+          await handleCrashCashOut(interaction);
         } else if (id === "shop_open") {
           await handleShopOpen(interaction);
         } else if (id === "shop_back") {
@@ -198,6 +209,8 @@ export async function startBot(): Promise<void> {
           await handleVerifyModal(interaction);
         } else if (interaction.customId === "casino_bet_modal") {
           await handleCasinoModal(interaction);
+        } else if (interaction.customId === "crash_bet_modal") {
+          await handleCrashBetModal(interaction);
         }
         return;
       }
