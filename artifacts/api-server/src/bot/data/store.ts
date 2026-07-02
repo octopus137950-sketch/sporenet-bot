@@ -173,7 +173,6 @@ export interface PlayerStats {
 
 // ─── Store ───────────────────────────────────────────────────
 
-export 
 // ─── Inventory System ────────────────────────────────────────
 
 export interface InventoryItem {
@@ -181,7 +180,7 @@ export interface InventoryItem {
   isEquipped: boolean;
 }
 
-interface Store {
+export interface Store {
   panels: Record<string, ReactionRolePanel>;
   guilds: Record<string, GuildConfig>;
   players: Record<string, PlayerData>;
