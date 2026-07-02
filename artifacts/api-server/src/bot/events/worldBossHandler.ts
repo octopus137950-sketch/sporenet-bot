@@ -11,12 +11,20 @@ import {
   Guild,
 } from "discord.js";
 import { BOSS_POOL, BossTemplate } from "../data/bossPool.js";
+import { ITEMS_POOL } from "../data/itemsPool.js";
 import {
   getWorldBossConfig,
   setWorldBossConfig,
   getPlayer,
   savePlayer,
+  addItemToInventory,
 } from "../data/store.js";
+
+/** สุ่มไอเทมดรอปจากบอส — โอกาส 2% (สูงกว่าฟาร์มปกติ 0.75%) */
+function rollBossItemDrop(): typeof ITEMS_POOL[number] | null {
+  if (Math.random() * 100 >= 2) return null;
+  return ITEMS_POOL[Math.floor(Math.random() * ITEMS_POOL.length)]!;
+}
 
 // ─── In-memory state per guild ────────────────────────────────
 
@@ -275,21 +283,40 @@ export async function handleVictory(client: Client, guildId: string): Promise<vo
     rewards.push({ userId: uid, damage: dmg, pct, earned });
   }
 
+  // ── Item drop สำหรับ Top 3 ดาเมจ (2% ต่อคน) ─────────────────
+  const itemDropResults: Array<{ userId: string; item: typeof ITEMS_POOL[number] }> = [];
+  const top3 = rewards.slice(0, 3);
+  for (const r of top3) {
+    const dropped = rollBossItemDrop();
+    if (dropped) {
+      addItemToInventory(r.userId, dropped.id);
+      itemDropResults.push({ userId: r.userId, item: dropped });
+    }
+  }
+
   // Build top 5 leaderboard
   const top5 = rewards.slice(0, 5);
   const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
-  const lbLines = top5.map((r, i) =>
-    `${medals[i]} <@${r.userId}> — **${r.damage.toLocaleString()}** ดาเมจ (**${(r.pct * 100).toFixed(1)}%**) → **+${r.earned.toLocaleString()}** 🍄`
-  );
+  const lbLines = top5.map((r, i) => {
+    const drop = itemDropResults.find((d) => d.userId === r.userId);
+    const dropTag = drop ? ` ✨ +${drop.item.emoji}${drop.item.name}` : "";
+    return `${medals[i]} <@${r.userId}> — **${r.damage.toLocaleString()}** ดาเมจ (**${(r.pct * 100).toFixed(1)}%**) → **+${r.earned.toLocaleString()}** 🍄${dropTag}`;
+  });
 
   const duration = Date.now() - boss.spawnedAt;
+
+  // Build item drop summary field (only if someone got a drop)
+  const dropSummaryLines = itemDropResults.map(
+    (d) => `<@${d.userId}> ได้รับ ${d.item.emoji} **${d.item.name}**!`
+  );
 
   const embed = new EmbedBuilder()
     .setTitle(`🎉 ${boss.template.emoji} ชัยชนะ! ${boss.template.name} ถูกกำจัดแล้ว!`)
     .setColor(0x57f287)
     .setDescription(
       `ผู้เล่น **${sorted.length} คน** ร่วมกันสู้ และปราบบอสสำเร็จใน **${formatMs(duration)}**!\n\n` +
-      `💰 รางวัลรวม **${pool.toLocaleString()}** สปอร์ถูกแจกตามสัดส่วนดาเมจแล้ว`
+      `💰 รางวัลรวม **${pool.toLocaleString()}** สปอร์ถูกแจกตามสัดส่วนดาเมจแล้ว\n` +
+      `🎒 Top 3 ดาเมจมีโอกาส **2%** ดรอปไอเทมหายาก!`
     )
     .addFields(
       {
@@ -297,6 +324,13 @@ export async function handleVictory(client: Client, guildId: string): Promise<vo
         value: lbLines.length > 0 ? lbLines.join("\n") : "ไม่มีข้อมูล",
         inline: false,
       },
+      ...(dropSummaryLines.length > 0
+        ? [{
+            name: "✨ ไอเทมดรอปจากบอส!",
+            value: dropSummaryLines.join("\n"),
+            inline: false,
+          }]
+        : []),
       {
         name: "📊 ดาเมจรวม",
         value: `**${totalDmg.toLocaleString()}** ดาเมจ`,
