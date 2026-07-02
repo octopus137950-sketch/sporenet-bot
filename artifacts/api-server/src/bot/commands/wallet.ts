@@ -22,7 +22,7 @@ function expBar(current: number, max: number, length = 12): string {
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!(await requireGameChannel(interaction))) return;
-  await interaction.deferReply();
+  await interaction.deferReply({ ephemeral: true });
 
   const target = interaction.options.getUser("player") ?? interaction.user;
   const player = getPlayer(target.id);
