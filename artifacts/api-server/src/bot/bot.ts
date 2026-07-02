@@ -23,6 +23,7 @@ import { handleMonsterFight, handleMonsterFlee } from "./events/monsterHandler.j
 import { handleVerifyButton, handleVerifyModal } from "./events/verificationHandler.js";
 import { handleVoiceStateUpdate, startVoiceEconomyLoop } from "./events/voiceHandler.js";
 import { handleDynVoice } from "./events/dynVoiceHandler.js";
+import { initWorldBossScheduler } from "./events/worldBossHandler.js";
 import { onQuestMessage, startQuestVoiceLoop } from "./events/questTracker.js";
 import { startQuestDailyReset } from "./utils/questScheduler.js";
 
@@ -58,6 +59,8 @@ import * as roomCmd from "./commands/room.js";
 import * as questCmd from "./commands/quest.js";
 import * as achievementAdminCmd from "./commands/achievement-admin.js";
 import * as achievementCmd from "./commands/achievement.js";
+import * as attackCmd from "./commands/attack.js";
+import * as setworldbossCmd from "./commands/setworldboss.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -96,6 +99,8 @@ commands.set("room", roomCmd);
 commands.set("quest", questCmd);
 commands.set("achievement-admin", achievementAdminCmd);
 commands.set("achievement", achievementCmd);
+commands.set("attack", attackCmd);
+commands.set("setworldboss", setworldbossCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -126,6 +131,7 @@ export async function startBot(): Promise<void> {
     startVoiceEconomyLoop(client);
     startQuestVoiceLoop(client);
     startQuestDailyReset();
+    initWorldBossScheduler(client);
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
