@@ -40,7 +40,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       "🟠 **x2.00** — ~40%  (วัดใจครึ่งต่อครึ่ง)\n" +
       "🔴 **x5.00** — ~20%  (โซนเสี่ยงสูง)\n" +
       "💀 **x10.0** — ~1-2% (แจ็กพอตแตก)\n\n" +
-      "💡 ยิ่ง Top 3 ดาเมจบอสยิ่งมีโอกาสรับไอเทมพิเศษ!"
     )
     .setColor(0xffa500)
     .setFooter({ text: "เดิมพันขั้นต่ำ 10 • สูงสุด 100,000 สปอร์ | ระบบ Fair Play — ไม่ระเบิดที่ x1.00" })
