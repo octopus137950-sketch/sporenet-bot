@@ -31,6 +31,8 @@ import { data as roomData } from "./commands/room.js";
 import { data as questData } from "./commands/quest.js";
 import { data as achievementAdminData } from "./commands/achievement-admin.js";
 import { data as achievementData } from "./commands/achievement.js";
+import { data as attackData } from "./commands/attack.js";
+import { data as setworldbossData } from "./commands/setworldboss.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -75,6 +77,8 @@ export async function deployCommands(): Promise<void> {
     questData.toJSON(),
     achievementAdminData.toJSON(),
     achievementData.toJSON(),
+    attackData.toJSON(),
+    setworldbossData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");
