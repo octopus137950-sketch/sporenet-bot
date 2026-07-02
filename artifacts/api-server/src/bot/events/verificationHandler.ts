@@ -12,7 +12,12 @@ import {
 import {
   getVerificationPanel,
   saveVerificationSubmission,
+  getPlayer,
+  savePlayer,
+  getGameChannel,
 } from "../data/store.js";
+
+const VERIFY_SPORE_REWARD = 1_000;
 
 function makeId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -104,7 +109,12 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
     return;
   }
 
-  // send log to panel's log channel (panel.logChannelId takes priority)
+  // ── Grant 1,000 spore reward ──────────────────────────────
+  const player = getPlayer(interaction.user.id);
+  player.sporePoints += VERIFY_SPORE_REWARD;
+  savePlayer(player);
+
+  // ── Send log to verification log channel ──────────────────
   const logChannelId = panel.logChannelId;
   if (logChannelId && interaction.guild) {
     try {
@@ -113,7 +123,6 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
         const user = interaction.user;
         const avatarUrl = user.displayAvatarURL({ size: 128 });
 
-        // Build embed with each field value shown
         const embed = new EmbedBuilder()
           .setAuthor({ name: user.displayName ?? user.username, iconURL: avatarUrl })
           .setThumbnail(avatarUrl)
@@ -125,7 +134,6 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
           embed.addFields({ name: label, value: value || "-", inline: false });
         }
 
-        // Message: mention + "ได้รับยศเรียบร้อยแล้ว"
         await (ch as TextBasedChannel).send({
           content: `<@${user.id}> ✅ ได้รับยศเรียบร้อยแล้ว`,
           embeds: [embed],
@@ -136,5 +144,38 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
     }
   }
 
-  await interaction.editReply({ content: `✅ ยืนยันตัวตนสำเร็จแล้ว คุณได้รับยศ <@&${panel.roleIdToGrant}>` });
+  // ── Announce to game channel ──────────────────────────────
+  if (interaction.guild) {
+    const gameChannelId = getGameChannel(interaction.guild.id);
+    if (gameChannelId) {
+      try {
+        const gameCh = await interaction.guild.channels.fetch(gameChannelId);
+        if (gameCh && (gameCh as TextBasedChannel).send) {
+          const user = interaction.user;
+          const announceEmbed = new EmbedBuilder()
+            .setTitle("🎉 สมาชิกใหม่เข้าร่วมแล้ว!")
+            .setColor(0x57f287)
+            .setDescription(
+              `ยินดีต้อนรับ <@${user.id}> สู่เซิร์ฟเวอร์! 🍄\n` +
+              `ผ่านการยืนยันตัวตนเรียบร้อยแล้ว และได้รับ\n` +
+              `🍄 **${VERIFY_SPORE_REWARD.toLocaleString()} สปอร์** เข้ากระเป๋าทันที!`
+            )
+            .setThumbnail(user.displayAvatarURL())
+            .setFooter({ text: `สปอร์รวม: ${player.sporePoints.toLocaleString()} แต้ม` })
+            .setTimestamp();
+
+          await (gameCh as TextBasedChannel).send({ embeds: [announceEmbed] });
+        }
+      } catch (e) {
+        console.error("Failed to send game channel verification announcement:", e);
+      }
+    }
+  }
+
+  // ── Reply to user (ephemeral) ─────────────────────────────
+  await interaction.editReply({
+    content:
+      `✅ ยืนยันตัวตนสำเร็จแล้ว! คุณได้รับยศ <@&${panel.roleIdToGrant}>\n` +
+      `🍄 รับรางวัล **${VERIFY_SPORE_REWARD.toLocaleString()} สปอร์** เข้ากระเป๋าทันที ยินดีต้อนรับ! 🎉`,
+  });
 }
