@@ -81,6 +81,15 @@ export interface DynVoiceConfig {
   starterChannelIds: string[];
 }
 
+export interface WorldBossConfig {
+  intervalDays: number;
+  spawnHour: number;
+  spawnMinute: number;
+  timeoutMinutes: number;
+  liveUpdateSeconds: number;
+  nextSpawnAt?: number;
+}
+
 export interface GuildConfig {
   welcome?: WelcomeGoodbyeConfig;
   goodbye?: WelcomeGoodbyeConfig;
@@ -89,6 +98,7 @@ export interface GuildConfig {
   shop?: ShopItem[];
   voiceReward?: VoiceRewardConfig;
   dynVoice?: DynVoiceConfig | null;
+  worldBoss?: WorldBossConfig;
 }
 
 export interface PlayerData {
@@ -380,6 +390,18 @@ export function getDynVoiceConfig(guildId: string): DynVoiceConfig | null | unde
 export function setDynVoiceConfig(guildId: string, config: DynVoiceConfig | null): void {
   if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
   _store.guilds[guildId]!.dynVoice = config;
+  saveStore(_store);
+}
+
+// ─── World Boss ───────────────────────────────────────────────
+
+export function getWorldBossConfig(guildId: string): WorldBossConfig | undefined {
+  return _store.guilds[guildId]?.worldBoss;
+}
+
+export function setWorldBossConfig(guildId: string, config: WorldBossConfig): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  _store.guilds[guildId]!.worldBoss = config;
   saveStore(_store);
 }
 
