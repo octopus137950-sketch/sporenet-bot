@@ -46,7 +46,11 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
     if (!item) continue;
 
     const label = `${item.emoji} ${item.name} — ${item.lore}`;
-    if (focused === "" || item.name.toLowerCase().includes(focused) || item.id.toLowerCase().includes(focused)) {
+    if (
+      focused === "" ||
+      item.name.toLowerCase().includes(focused) ||
+      item.id.toLowerCase().includes(focused)
+    ) {
       choices.push({ name: label.slice(0, 100), value: item.id });
     }
   }
@@ -81,21 +85,52 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const resultFields: { name: string; value: string; inline?: boolean }[] = [
-    { name: "📤 ผู้โอน", value: `<@${interaction.user.id}>`, inline: true },
-    { name: "📥 ผู้รับ", value: `<@${target.id}>`, inline: true },
-  ];
+  // ── Pre-validate ทุกอย่างก่อน — ไม่มีการแก้ข้อมูลใด ๆ ในบล็อกนี้ ──────────
 
-  // ── โอนสปอร์ ──────────────────────────────────────────────────
-  if (amount) {
-    const sender = getPlayer(interaction.user.id);
+  // ตรวจสปอร์
+  const sender = getPlayer(interaction.user.id);
+  if (amount !== null && amount !== undefined) {
     if (sender.sporePoints < amount) {
       await interaction.editReply(
         `❌ สปอร์ไม่พอ!\nคุณมี **${sender.sporePoints.toLocaleString()}** สปอร์\nต้องการโอน **${amount.toLocaleString()}** สปอร์`
       );
       return;
     }
+  }
 
+  // ตรวจไอเทม
+  let itemToTransfer: ReturnType<typeof getItemById> = undefined;
+  if (itemId) {
+    itemToTransfer = getItemById(itemId);
+    if (!itemToTransfer) {
+      await interaction.editReply("❌ ไม่พบไอเทมนี้ในระบบ กรุณาเลือกจากรายการที่แสดงในช่อง `item`");
+      return;
+    }
+
+    const senderInv = getInventory(interaction.user.id);
+    const hasUnequipped = senderInv.some((e) => e.itemId === itemId && !e.isEquipped);
+    if (!hasUnequipped) {
+      const hasEquipped = senderInv.some((e) => e.itemId === itemId && e.isEquipped);
+      if (hasEquipped) {
+        await interaction.editReply(
+          `❌ ไอเทม **${itemToTransfer.emoji} ${itemToTransfer.name}** กำลังสวมใส่อยู่!\nกรุณาถอดออกก่อนจึงจะโอนได้ (ใช้คำสั่ง /wallet เพื่อถอด)`
+        );
+      } else {
+        await interaction.editReply(`❌ คุณไม่มีไอเทม **${itemToTransfer.emoji} ${itemToTransfer.name}** ในกระเป๋า`);
+      }
+      return;
+    }
+  }
+
+  // ── Execute — ผ่าน validation ทั้งหมดแล้ว จึงค่อยแก้ข้อมูล ─────────────────
+
+  const resultFields: { name: string; value: string; inline?: boolean }[] = [
+    { name: "📤 ผู้โอน", value: `<@${interaction.user.id}>`, inline: true },
+    { name: "📥 ผู้รับ", value: `<@${target.id}>`, inline: true },
+  ];
+
+  // โอนสปอร์
+  if (amount !== null && amount !== undefined) {
     const receiver = getPlayer(target.id);
     sender.sporePoints -= amount;
     receiver.sporePoints += amount;
@@ -116,44 +151,24 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     }
   }
 
-  // ── โอนไอเทม ──────────────────────────────────────────────────
-  if (itemId) {
-    const item = getItemById(itemId);
-    if (!item) {
-      await interaction.editReply("❌ ไม่พบไอเทมนี้ในระบบ กรุณาเลือกจากรายการที่แสดงในช่อง `item`");
-      return;
-    }
-
-    const senderInv = getInventory(interaction.user.id);
-    const hasUnequipped = senderInv.some((e) => e.itemId === itemId && !e.isEquipped);
-    if (!hasUnequipped) {
-      const hasEquipped = senderInv.some((e) => e.itemId === itemId && e.isEquipped);
-      if (hasEquipped) {
-        await interaction.editReply(
-          `❌ ไอเทม **${item.emoji} ${item.name}** กำลังสวมใส่อยู่!\nกรุณาถอดออกก่อนจึงจะโอนได้ (ใช้คำสั่ง /wallet เพื่อถอด)`
-        );
-      } else {
-        await interaction.editReply(`❌ คุณไม่มีไอเทม **${item.emoji} ${item.name}** ในกระเป๋า`);
-      }
-      return;
-    }
-
+  // โอนไอเทม
+  if (itemId && itemToTransfer) {
     const success = transferItem(interaction.user.id, target.id, itemId);
     if (!success) {
-      await interaction.editReply("❌ เกิดข้อผิดพลาดในการโอนไอเทม");
+      await interaction.editReply("❌ เกิดข้อผิดพลาดในการโอนไอเทม (ข้อมูลเปลี่ยนแปลงระหว่างดำเนินการ กรุณาลองใหม่)");
       return;
     }
 
     resultFields.push(
-      { name: "✨ ไอเทมที่โอน", value: `${item.emoji} **${item.name}**`, inline: false },
-      { name: "🔮 เอฟเฟกต์", value: item.lore, inline: false }
+      { name: "✨ ไอเทมที่โอน", value: `${itemToTransfer.emoji} **${itemToTransfer.name}**`, inline: false },
+      { name: "🔮 เอฟเฟกต์", value: itemToTransfer.lore, inline: false }
     );
 
     const logId = getLogChannel(guild.id);
     if (logId) {
       const logCh = guild.channels.cache.get(logId) as TextChannel | undefined;
       logCh?.send({
-        content: `🎒 **${interaction.user.username}** โอนไอเทม **${item.emoji} ${item.name}** ให้ **${target.username}**`,
+        content: `🎒 **${interaction.user.username}** โอนไอเทม **${itemToTransfer.emoji} ${itemToTransfer.name}** ให้ **${target.username}**`,
       }).catch(() => null);
     }
   }
