@@ -1,10 +1,17 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
+  AutocompleteInteraction,
   PermissionFlagsBits,
   EmbedBuilder,
 } from "discord.js";
-import { getWorldBossConfig, setWorldBossConfig, isBossSystemEnabled } from "../data/store.js";
+import {
+  getWorldBossConfig,
+  setWorldBossConfig,
+  isBossSystemEnabled,
+  getCustomBosses,
+  getDisabledDefaultBosses,
+} from "../data/store.js";
 import { spawnBoss, isBossActive } from "../events/worldBossHandler.js";
 import { BOSS_POOL } from "../data/bossPool.js";
 
@@ -64,10 +71,47 @@ export const data = new SlashCommandBuilder()
     sub
       .setName("spawn_now")
       .setDescription("🔥 เรียกบอสมาทันที (สำหรับทดสอบ)")
+      .addStringOption((o) =>
+        o
+          .setName("boss")
+          .setDescription("เลือกบอสที่จะเรียก (ไม่เลือก = สุ่มอัตโนมัติ)")
+          .setRequired(false)
+          .setAutocomplete(true)
+      )
   )
   .addSubcommand((sub) =>
     sub.setName("bosses").setDescription("📖 ดูรายการบอสทั้งหมด")
   );
+
+// ─── Autocomplete (spawn_now → boss option) ───────────────────
+
+export async function autocomplete(interaction: AutocompleteInteraction): Promise<void> {
+  const guildId = interaction.guildId;
+  if (!guildId) return;
+
+  const focused = interaction.options.getFocused().toLowerCase();
+  const disabled = getDisabledDefaultBosses(guildId);
+  const customs = getCustomBosses(guildId);
+
+  const defaultChoices = BOSS_POOL
+    .filter((b) => !disabled.includes(b.name))
+    .filter((b) => b.name.toLowerCase().includes(focused) || b.difficulty.toLowerCase().includes(focused))
+    .map((b) => ({
+      name: `📦 ${b.emoji} ${b.name} (${b.difficulty}) — HP ${b.maxHp.toLocaleString()}`,
+      value: `default:${b.name}`,
+    }));
+
+  const customChoices = customs
+    .filter((b) => b.name.toLowerCase().includes(focused) || b.bossId.toLowerCase().includes(focused))
+    .map((b) => ({
+      name: `✨ ${b.emoji} ${b.name} (${b.difficulty}) — HP ${b.maxHp.toLocaleString()}`,
+      value: `custom:${b.bossId}`,
+    }));
+
+  await interaction.respond([...defaultChoices, ...customChoices].slice(0, 25));
+}
+
+// ─── Execute ──────────────────────────────────────────────────
 
 export async function execute(
   interaction: ChatInputCommandInteraction
@@ -196,8 +240,42 @@ export async function execute(
       );
       return;
     }
-    await interaction.editReply("🔥 เรียกบอสแล้ว! ดูที่ห้องเกมได้เลย");
-    await spawnBoss(interaction.client, guild.id).catch(console.error);
+
+    // ตรวจว่าเลือกบอสเฉพาะไหม
+    const bossChoice = interaction.options.getString("boss");
+    let forcedBossId: string | undefined;
+    let chosenName = "";
+
+    if (bossChoice) {
+      if (bossChoice.startsWith("default:")) {
+        const name = bossChoice.slice("default:".length);
+        const found = BOSS_POOL.find((b) => b.name === name);
+        if (!found) {
+          await interaction.editReply("❌ ไม่พบบอสที่เลือก กรุณาเลือกจากรายการ autocomplete");
+          return;
+        }
+        forcedBossId = bossChoice;
+        chosenName = `${found.emoji} ${found.name}`;
+      } else if (bossChoice.startsWith("custom:")) {
+        const id = bossChoice.slice("custom:".length);
+        const customs = getCustomBosses(guild.id);
+        const found = customs.find((b) => b.bossId === id);
+        if (!found) {
+          await interaction.editReply("❌ ไม่พบบอส custom ที่เลือก");
+          return;
+        }
+        forcedBossId = bossChoice;
+        chosenName = `${found.emoji} ${found.name}`;
+      } else {
+        await interaction.editReply("❌ ข้อมูลบอสไม่ถูกต้อง กรุณาเลือกจาก autocomplete");
+        return;
+      }
+      await interaction.editReply(`🔥 เรียก **${chosenName}** แล้ว! ดูที่ห้องเกมได้เลย`);
+    } else {
+      await interaction.editReply("🔥 สุ่มเรียกบอสแล้ว! ดูที่ห้องเกมได้เลย");
+    }
+
+    await spawnBoss(interaction.client, guild.id, forcedBossId).catch(console.error);
     return;
   }
 

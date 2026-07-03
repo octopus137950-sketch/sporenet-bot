@@ -20,6 +20,7 @@ import {
   addItemToInventory,
   getCustomBosses,
   isBossSystemEnabled,
+  getDisabledDefaultBosses,
 } from "../data/store.js";
 
 /** สุ่มไอเทมดรอปจากบอส — โอกาส 2% (สูงกว่าฟาร์มปกติ 0.75%) */
@@ -141,7 +142,16 @@ function buildLiveEmbed(boss: ActiveBoss): EmbedBuilder {
 
 // ─── Core: Spawn ─────────────────────────────────────────────
 
-export async function spawnBoss(client: Client, guildId: string): Promise<void> {
+/**
+ * Spawn a boss for a guild.
+ * @param forcedBossId — ถ้าระบุจะเรียกบอสนั้นตรงๆ โดยไม่สุ่ม
+ *   format: "default:<bossName>" | "custom:<bossId>"
+ */
+export async function spawnBoss(
+  client: Client,
+  guildId: string,
+  forcedBossId?: string
+): Promise<void> {
   // Don't spawn if already active
   if (activeBosses.has(guildId)) return;
 
@@ -168,9 +178,42 @@ export async function spawnBoss(client: Client, guildId: string): Promise<void> 
     return;
   }
 
-  // รวม pool มาตรฐาน + custom เป็น pool เดียว แล้วสุ่มพร้อมกัน
-  const combinedPool = [...BOSS_POOL, ...getCustomBosses(guildId)];
-  const template = combinedPool[Math.floor(Math.random() * combinedPool.length)]!;
+  // ─── เลือก template ──────────────────────────────────────────
+  let template: BossTemplate;
+
+  if (forcedBossId) {
+    // Admin เลือกบอสเฉพาะผ่าน spawn_now
+    if (forcedBossId.startsWith("default:")) {
+      const name = forcedBossId.slice("default:".length);
+      const found = BOSS_POOL.find((b) => b.name === name);
+      if (!found) {
+        console.warn(`[WorldBoss] forced boss not found: ${forcedBossId}`);
+        return;
+      }
+      template = found;
+    } else if (forcedBossId.startsWith("custom:")) {
+      const id = forcedBossId.slice("custom:".length);
+      const found = getCustomBosses(guildId).find((b) => b.bossId === id);
+      if (!found) {
+        console.warn(`[WorldBoss] forced custom boss not found: ${forcedBossId}`);
+        return;
+      }
+      template = found;
+    } else {
+      console.warn(`[WorldBoss] unknown forcedBossId format: ${forcedBossId}`);
+      return;
+    }
+  } else {
+    // สุ่มจาก pool รวม (มาตรฐาน ที่ยังไม่ถูก disable + custom)
+    const disabled = getDisabledDefaultBosses(guildId);
+    const activeDefaults = BOSS_POOL.filter((b) => !disabled.includes(b.name));
+    const combinedPool = [...activeDefaults, ...getCustomBosses(guildId)];
+    if (combinedPool.length === 0) {
+      console.warn(`[WorldBoss] guild ${guildId}: boss pool is empty — cannot spawn`);
+      return;
+    }
+    template = combinedPool[Math.floor(Math.random() * combinedPool.length)]!;
+  }
   const now = Date.now();
   const timeoutMs = cfg.timeoutMinutes * 60_000;
 

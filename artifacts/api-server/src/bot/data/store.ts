@@ -112,8 +112,10 @@ export interface GuildConfig {
   voiceReward?: VoiceRewardConfig;
   dynVoice?: DynVoiceConfig | null;
   worldBoss?: WorldBossConfig;
-  /** บอสที่แอดมินสร้างเอง — ถ้ามีจะใช้แทน BOSS_POOL ทั้งหมด */
+  /** บอสที่แอดมินสร้างเอง */
   customBosses?: CustomBoss[];
+  /** ชื่อบอสมาตรฐาน (BOSS_POOL) ที่ถูก disable สำหรับ guild นี้ */
+  disabledDefaultBosses?: string[];
   /** false = ปิดระบบบอสทั้งหมด (ไม่ spawn อัตโนมัติ, ไม่ spawn_now) */
   bossSystemEnabled?: boolean;
 }
@@ -468,6 +470,35 @@ export function setBossSystemEnabled(guildId: string, enabled: boolean): void {
   if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
   _store.guilds[guildId]!.bossSystemEnabled = enabled;
   saveStore(_store);
+}
+
+// ─── Disabled Default Bosses ──────────────────────────────────
+
+/** ดึงรายชื่อบอสมาตรฐานที่ถูก disable สำหรับ guild นี้ */
+export function getDisabledDefaultBosses(guildId: string): string[] {
+  return _store.guilds[guildId]?.disabledDefaultBosses ?? [];
+}
+
+/** disable บอสมาตรฐาน (ซ่อนออกจาก pool สำหรับ guild นี้) */
+export function disableDefaultBoss(guildId: string, bossName: string): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  const list = _store.guilds[guildId]!.disabledDefaultBosses ?? [];
+  if (!list.includes(bossName)) {
+    list.push(bossName);
+    _store.guilds[guildId]!.disabledDefaultBosses = list;
+    saveStore(_store);
+  }
+}
+
+/** enable บอสมาตรฐานกลับมา (นำกลับเข้า pool) */
+export function enableDefaultBoss(guildId: string, bossName: string): void {
+  const list = _store.guilds[guildId]?.disabledDefaultBosses;
+  if (!list) return;
+  const idx = list.indexOf(bossName);
+  if (idx !== -1) {
+    list.splice(idx, 1);
+    saveStore(_store);
+  }
 }
 
 // ─── Players ─────────────────────────────────────────────────

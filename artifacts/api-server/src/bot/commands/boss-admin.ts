@@ -16,6 +16,8 @@ import {
   deleteCustomBoss,
   isBossSystemEnabled,
   setBossSystemEnabled,
+  getDisabledDefaultBosses,
+  disableDefaultBoss,
 } from "../data/store.js";
 import { BOSS_POOL } from "../data/bossPool.js";
 import { isBossActive } from "../events/worldBossHandler.js";
@@ -76,11 +78,11 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((sub) =>
     sub
       .setName("delete")
-      .setDescription("🗑️ ลบบอส custom ออกจาก pool")
+      .setDescription("🗑️ ลบบอสออกจาก pool (มาตรฐานหรือ custom)")
       .addStringOption((o) =>
         o
           .setName("boss_id")
-          .setDescription("เลือกบอสที่ต้องการลบ")
+          .setDescription("เลือกบอสที่ต้องการลบ (พิมพ์เพื่อค้นหา)")
           .setRequired(true)
           .setAutocomplete(true)
       )
@@ -109,19 +111,34 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
 
   const focused = interaction.options.getFocused().toLowerCase();
   const customs = getCustomBosses(guildId);
+  const disabled = getDisabledDefaultBosses(guildId);
 
-  const choices = customs
+  // บอสมาตรฐาน (ยังไม่ถูก disable) — value: "default:<name>"
+  const defaultChoices = BOSS_POOL
+    .filter((b) => !disabled.includes(b.name))
+    .filter(
+      (b) =>
+        b.name.toLowerCase().includes(focused) ||
+        b.difficulty.toLowerCase().includes(focused)
+    )
+    .map((b) => ({
+      name: `📦 ${b.emoji} ${b.name} (${b.difficulty}) — HP ${b.maxHp.toLocaleString()}`,
+      value: `default:${b.name}`,
+    }));
+
+  // บอส custom — value: bossId
+  const customChoices = customs
     .filter(
       (b) =>
         b.name.toLowerCase().includes(focused) ||
         b.bossId.toLowerCase().includes(focused)
     )
-    .slice(0, 25)
     .map((b) => ({
-      name: `${b.emoji} ${b.name} (${b.difficulty}) — HP ${b.maxHp.toLocaleString()}`,
+      name: `✨ ${b.emoji} ${b.name} (${b.difficulty}) — HP ${b.maxHp.toLocaleString()}`,
       value: b.bossId,
     }));
 
+  const choices = [...defaultChoices, ...customChoices].slice(0, 25);
   await interaction.respond(choices);
 }
 
@@ -196,27 +213,45 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   // ── delete ───────────────────────────────────────────────────
   if (sub === "delete") {
     const bossId = interaction.options.getString("boss_id", true);
-    const customs = getCustomBosses(guildId);
-    const target = customs.find((b) => b.bossId === bossId);
-
-    if (!target) {
-      await interaction.editReply("❌ ไม่พบบอสที่ระบุ กรุณาเลือกจากรายการ autocomplete");
-      return;
-    }
 
     if (isBossActive(guildId)) {
       await interaction.editReply("⚠️ ขณะนี้มีบอสกำลังสู้อยู่ กรุณารอให้จบก่อนแล้วค่อยลบ");
       return;
     }
 
+    // ─── บอสมาตรฐาน ─────────────────────────────────────────
+    if (bossId.startsWith("default:")) {
+      const bossName = bossId.slice("default:".length);
+      const template = BOSS_POOL.find((b) => b.name === bossName);
+      if (!template) {
+        await interaction.editReply("❌ ไม่พบบอสมาตรฐานที่ระบุ");
+        return;
+      }
+      disableDefaultBoss(guildId, bossName);
+      const disabledCount = getDisabledDefaultBosses(guildId).length;
+      const activeDefault = BOSS_POOL.length - disabledCount;
+      await interaction.editReply(
+        `🗑️ ซ่อนบอสมาตรฐาน **${template.emoji} ${template.name}** ออกจาก pool แล้ว\n` +
+        `📦 บอสมาตรฐานที่ใช้ได้เหลือ **${activeDefault}** / ${BOSS_POOL.length} ตัว\n` +
+        `> 💡 บอสมาตรฐานจะไม่ถูกลบถาวร — ใช้ \`/boss-admin restore\` เพื่อนำกลับ`
+      );
+      return;
+    }
+
+    // ─── บอส custom ──────────────────────────────────────────
+    const customs = getCustomBosses(guildId);
+    const target = customs.find((b) => b.bossId === bossId);
+    if (!target) {
+      await interaction.editReply("❌ ไม่พบบอสที่ระบุ กรุณาเลือกจากรายการ autocomplete");
+      return;
+    }
+
     deleteCustomBoss(guildId, bossId);
 
     const remaining = getCustomBosses(guildId).length;
-    const fallback  = remaining === 0 ? "\n> ⚠️ pool custom ว่างเปล่า — ระบบจะสุ่มจาก pool มาตรฐานแทน" : "";
-
     await interaction.editReply(
-      `🗑️ ลบบอส **${target.emoji} ${target.name}** ออกแล้ว\n` +
-      `📊 pool custom เหลือ **${remaining}** ตัว${fallback}`
+      `🗑️ ลบบอส custom **${target.emoji} ${target.name}** ออกแล้ว\n` +
+      `📊 pool custom เหลือ **${remaining}** ตัว`
     );
     return;
   }
