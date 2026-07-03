@@ -233,11 +233,16 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     let description = statusLine;
 
+    // Cap display เพื่อไม่ให้เกิน Discord embed limit (4096 chars description)
+    const MAX_DISPLAY = 12;
+
     if (customs.length > 0) {
+      const shown = customs.slice(0, MAX_DISPLAY);
+      const overflow = customs.length - shown.length;
       description +=
         `**🎯 Pool Custom ของเซิร์ฟนี้ (${customs.length} ตัว)**\n` +
         `_ระบบจะสุ่มจาก pool นี้เท่านั้น_\n\n`;
-      description += customs
+      description += shown
         .map(
           (b, i) =>
             `**${i + 1}. ${b.emoji} ${b.name}** (${b.difficulty})\n` +
@@ -245,6 +250,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             `   > ${b.description}`
         )
         .join("\n\n");
+      if (overflow > 0) {
+        description += `\n\n_... และอีก **${overflow}** ตัว (ใช้ /boss-admin delete เพื่อดู ID ทั้งหมดผ่าน autocomplete)_`;
+      }
     } else {
       description +=
         `**🎯 ยังไม่มี Pool Custom**\n` +

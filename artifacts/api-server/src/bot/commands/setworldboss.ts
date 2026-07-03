@@ -4,7 +4,7 @@ import {
   PermissionFlagsBits,
   EmbedBuilder,
 } from "discord.js";
-import { getWorldBossConfig, setWorldBossConfig } from "../data/store.js";
+import { getWorldBossConfig, setWorldBossConfig, isBossSystemEnabled } from "../data/store.js";
 import { spawnBoss, isBossActive } from "../events/worldBossHandler.js";
 import { BOSS_POOL } from "../data/bossPool.js";
 
@@ -179,6 +179,12 @@ export async function execute(
 
   // ── /setworldboss spawn_now ─────────────────────────────────
   if (sub === "spawn_now") {
+    if (!isBossSystemEnabled(guild.id)) {
+      await interaction.editReply(
+        "🔴 ระบบบอสถูกปิดอยู่\nใช้ `/boss-admin toggle enabled:true` เพื่อเปิดก่อน"
+      );
+      return;
+    }
     if (isBossActive(guild.id)) {
       await interaction.editReply("⚠️ มีบอสกำลังสู้อยู่แล้ว!");
       return;
