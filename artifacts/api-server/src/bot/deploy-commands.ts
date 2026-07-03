@@ -21,6 +21,7 @@ import { data as setcasinoData } from "./commands/setcasino.js";
 import { data as setgamechannelData } from "./commands/setgamechannel.js";
 import { data as setshoppanelData } from "./commands/setshoppanel.js";
 import { data as helpData } from "./commands/help.js";
+import { data as helpAdminData } from "./commands/help-admin.js";
 import { data as mushroomData } from "./commands/mushroom.js";
 import { data as verifypanelData } from "./commands/verifypanel.js";
 import { data as deleteverifypanelData } from "./commands/deleteverifypanel.js";
@@ -70,6 +71,7 @@ export async function deployCommands(): Promise<void> {
     setshoppanelData.toJSON(),
     mushroomData.toJSON(),
     helpData.toJSON(),
+    helpAdminData.toJSON(),
     verifypanelData.toJSON(),
     deleteverifypanelData.toJSON(),
     editverifypanelData.toJSON(),
