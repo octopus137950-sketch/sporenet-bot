@@ -233,7 +233,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       await interaction.editReply(
         `🗑️ ซ่อนบอสมาตรฐาน **${template.emoji} ${template.name}** ออกจาก pool แล้ว\n` +
         `📦 บอสมาตรฐานที่ใช้ได้เหลือ **${activeDefault}** / ${BOSS_POOL.length} ตัว\n` +
-        `> 💡 บอสมาตรฐานจะไม่ถูกลบถาวร — ใช้ \`/boss-admin restore\` เพื่อนำกลับ`
+        `> 💡 บอสมาตรฐานจะไม่ถูกลบถาวรจากระบบ — แอดมินสามารถแก้ไข pool ได้ผ่าน bot developer`
       );
       return;
     }
