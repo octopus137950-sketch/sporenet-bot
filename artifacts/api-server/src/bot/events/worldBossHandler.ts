@@ -168,10 +168,9 @@ export async function spawnBoss(client: Client, guildId: string): Promise<void> 
     return;
   }
 
-  // Pick random boss — ใช้ custom pool ก่อน ถ้าไม่มีค่อย fallback มาตรฐาน
-  const customPool = getCustomBosses(guildId);
-  const pool = customPool.length > 0 ? customPool : BOSS_POOL;
-  const template = pool[Math.floor(Math.random() * pool.length)]!;
+  // รวม pool มาตรฐาน + custom เป็น pool เดียว แล้วสุ่มพร้อมกัน
+  const combinedPool = [...BOSS_POOL, ...getCustomBosses(guildId)];
+  const template = combinedPool[Math.floor(Math.random() * combinedPool.length)]!;
   const now = Date.now();
   const timeoutMs = cfg.timeoutMinutes * 60_000;
 

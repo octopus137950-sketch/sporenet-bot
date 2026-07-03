@@ -233,37 +233,32 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     let description = statusLine;
 
-    // Cap display เพื่อไม่ให้เกิน Discord embed limit (4096 chars description)
-    const MAX_DISPLAY = 12;
+    // รวม pool มาตรฐาน + custom เป็น pool เดียว (ลำดับเดียวกับที่ระบบสุ่ม)
+    const combinedPool = [
+      ...BOSS_POOL.map((b) => ({ ...b, bossId: null as null, createdAt: null as null })),
+      ...customs.map((b) => ({ ...b })),
+    ];
+    const total = combinedPool.length;
 
-    if (customs.length > 0) {
-      const shown = customs.slice(0, MAX_DISPLAY);
-      const overflow = customs.length - shown.length;
-      description +=
-        `**🎯 Pool Custom ของเซิร์ฟนี้ (${customs.length} ตัว)**\n` +
-        `_ระบบจะสุ่มจาก pool นี้เท่านั้น_\n\n`;
-      description += shown
-        .map(
-          (b, i) =>
-            `**${i + 1}. ${b.emoji} ${b.name}** (${b.difficulty})\n` +
-            `   \`ID: ${b.bossId}\` | ❤️ ${b.maxHp.toLocaleString()} HP | 💰 ${b.rewardSpore.toLocaleString()} สปอร์\n` +
-            `   > ${b.description}`
-        )
-        .join("\n\n");
-      if (overflow > 0) {
-        description += `\n\n_... และอีก **${overflow}** ตัว (ใช้ /boss-admin delete เพื่อดู ID ทั้งหมดผ่าน autocomplete)_`;
-      }
-    } else {
-      description +=
-        `**🎯 ยังไม่มี Pool Custom**\n` +
-        `_ระบบจะสุ่มจาก pool มาตรฐาน ${BOSS_POOL.length} ตัวด้านล่าง_\n\n` +
-        `**📦 Pool มาตรฐาน (${BOSS_POOL.length} ตัว)**\n\n` +
-        BOSS_POOL.map(
-          (b, i) =>
-            `**${i + 1}. ${b.emoji} ${b.name}** (${b.difficulty})\n` +
-            `   ❤️ ${b.maxHp.toLocaleString()} HP | 💰 ${b.rewardSpore.toLocaleString()} สปอร์\n` +
-            `   > ${b.description}`
-        ).join("\n\n");
+    // Cap display เพื่อไม่ให้เกิน Discord embed limit
+    const MAX_DISPLAY = 12;
+    const shown = combinedPool.slice(0, MAX_DISPLAY);
+    const overflow = total - shown.length;
+
+    description += `**📦 Boss Pool รวม (${total} ตัว — มาตรฐาน ${BOSS_POOL.length} + custom ${customs.length})**\n`;
+    description += `_ระบบสุ่มจากทั้งหมดนี้พร้อมกัน_\n\n`;
+    description += shown
+      .map((b, i) => {
+        const tag = b.bossId ? ` ✨ custom \`${b.bossId}\`` : " 📦 มาตรฐาน";
+        return (
+          `**${i + 1}. ${b.emoji} ${b.name}** (${b.difficulty})${tag}\n` +
+          `   ❤️ ${b.maxHp.toLocaleString()} HP | 💰 ${b.rewardSpore.toLocaleString()} สปอร์\n` +
+          `   > ${b.description}`
+        );
+      })
+      .join("\n\n");
+    if (overflow > 0) {
+      description += `\n\n_... และอีก **${overflow}** ตัว (ดู ID custom ผ่าน autocomplete ของ /boss-admin delete)_`;
     }
 
     const embed = new EmbedBuilder()
