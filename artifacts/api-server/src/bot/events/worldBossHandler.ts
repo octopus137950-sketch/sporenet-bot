@@ -11,7 +11,7 @@ import {
   Guild,
 } from "discord.js";
 import { BOSS_POOL, BossTemplate } from "../data/bossPool.js";
-import { ITEMS_POOL } from "../data/itemsPool.js";
+import { ITEMS_POOL, getItemById } from "../data/itemsPool.js";
 import {
   getWorldBossConfig,
   setWorldBossConfig,
@@ -21,6 +21,7 @@ import {
   getCustomBosses,
   isBossSystemEnabled,
   getDisabledDefaultBosses,
+  getInventory,
 } from "../data/store.js";
 
 /** สุ่มไอเทมดรอปจากบอส — โอกาส 2% (สูงกว่าฟาร์มปกติ 0.75%) */
@@ -275,8 +276,24 @@ export function processBossAttack(
   const boss = activeBosses.get(guildId);
   if (!boss) return { hit: false, damage: 0, remaining: 0, dead: false };
 
+  // ── คำนวณโบนัสโจมตีจากไอเทมที่สวมใส่ (attack_percent, non-stack) ──
+  const inv = getInventory(userId);
+  const seen = new Set<string>();
+  let attackBonus = 0;
+  for (const entry of inv) {
+    if (!entry.isEquipped) continue;
+    if (seen.has(entry.itemId)) continue;
+    seen.add(entry.itemId);
+    const item = getItemById(entry.itemId);
+    if (item?.buffType === "attack_percent") {
+      attackBonus += item.buffValue;
+    }
+  }
+  const multiplier = 1 + attackBonus / 100;
+
   const maxDmg = 10 + 5 * (userLevel - 1);
-  const dmg = Math.max(1, Math.floor(Math.random() * maxDmg) + 1);
+  const baseDmg = Math.floor(Math.random() * maxDmg) + 1;
+  const dmg = Math.max(1, Math.floor(baseDmg * multiplier));
 
   boss.currentHp = Math.max(0, boss.currentHp - dmg);
   boss.damageLogs.set(userId, (boss.damageLogs.get(userId) ?? 0) + dmg);

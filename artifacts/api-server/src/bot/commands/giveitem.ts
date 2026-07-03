@@ -6,7 +6,7 @@ import {
     TextChannel,
     } from "discord.js";
     import { addItemToInventory, getLogChannel } from "../data/store.js";
-    import { ITEMS_POOL, getItemById } from "../data/itemsPool.js";
+    import { ITEMS_POOL, ADMIN_ONLY_ITEMS, getItemById } from "../data/itemsPool.js";
 
     export const data = new SlashCommandBuilder()
     .setName("give-item")
@@ -22,7 +22,11 @@ import {
         .setRequired(true)
         .addChoices(
           ...ITEMS_POOL.map((item) => ({
-            name: `${item.emoji} ${item.name} — ${item.lore}`,
+            name: `${item.emoji} ${item.name} — ${item.lore}`.slice(0, 100),
+            value: item.id,
+          })),
+          ...ADMIN_ONLY_ITEMS.map((item) => ({
+            name: `${item.emoji} ${item.name} — ${item.lore}`.slice(0, 100),
             value: item.id,
           }))
         )
