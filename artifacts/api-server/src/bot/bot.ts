@@ -70,6 +70,7 @@ import * as achievementCmd from "./commands/achievement.js";
 import * as attackCmd from "./commands/attack.js";
 import * as setworldbossCmd from "./commands/setworldboss.js";
 import * as setSporeCrashCmd from "./commands/setSporeCrash.js";
+import * as bossAdminCmd from "./commands/boss-admin.js";
 import {
   handleCrashBetButton,
   handleCrashBetModal,
@@ -119,6 +120,7 @@ commands.set("achievement", achievementCmd);
 commands.set("attack", attackCmd);
 commands.set("setworldboss", setworldbossCmd);
 commands.set("setsporecrash", setSporeCrashCmd);
+commands.set("boss-admin", bossAdminCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];

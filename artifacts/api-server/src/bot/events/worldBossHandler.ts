@@ -18,6 +18,8 @@ import {
   getPlayer,
   savePlayer,
   addItemToInventory,
+  getCustomBosses,
+  isBossSystemEnabled,
 } from "../data/store.js";
 
 /** สุ่มไอเทมดรอปจากบอส — โอกาส 2% (สูงกว่าฟาร์มปกติ 0.75%) */
@@ -160,8 +162,16 @@ export async function spawnBoss(client: Client, guildId: string): Promise<void> 
   const channel = guild.channels.cache.get(channelId) as TextChannel | undefined;
   if (!channel) return;
 
-  // Pick random boss
-  const template = BOSS_POOL[Math.floor(Math.random() * BOSS_POOL.length)]!;
+  // ตรวจสอบว่าระบบบอสเปิดอยู่ไหม
+  if (!isBossSystemEnabled(guildId)) {
+    console.log(`[WorldBoss] guild ${guildId}: boss system is disabled — skip spawn`);
+    return;
+  }
+
+  // Pick random boss — ใช้ custom pool ก่อน ถ้าไม่มีค่อย fallback มาตรฐาน
+  const customPool = getCustomBosses(guildId);
+  const pool = customPool.length > 0 ? customPool : BOSS_POOL;
+  const template = pool[Math.floor(Math.random() * pool.length)]!;
   const now = Date.now();
   const timeoutMs = cfg.timeoutMinutes * 60_000;
 
@@ -432,6 +442,12 @@ export function initWorldBossScheduler(client: Client): void {
       if (!cfg || !cfg.nextSpawnAt) continue;
       if (activeBosses.has(guildId)) continue; // boss already active
       if (now >= cfg.nextSpawnAt) {
+        if (!isBossSystemEnabled(guildId)) {
+          console.log(`[WorldBoss] guild ${guildId}: boss system disabled, skipping scheduled spawn`);
+          // ยังคง schedule ครั้งถัดไปไว้เผื่อเปิดใหม่
+          scheduleNextSpawn(guildId, cfg.intervalDays, cfg.spawnHour, cfg.spawnMinute);
+          continue;
+        }
         console.log(`[WorldBoss] spawning boss for guild ${guildId}`);
         await spawnBoss(client, guildId).catch((e) =>
           console.error(`[WorldBoss] spawn error for ${guildId}:`, e)

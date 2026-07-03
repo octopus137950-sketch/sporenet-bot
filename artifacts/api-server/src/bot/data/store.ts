@@ -90,6 +90,19 @@ export interface WorldBossConfig {
   nextSpawnAt?: number;
 }
 
+/** บอส custom ที่แอดมินสร้างเองสำหรับ guild */
+export interface CustomBoss {
+  bossId: string;
+  name: string;
+  emoji: string;
+  difficulty: string;
+  difficultyColor: number;
+  maxHp: number;
+  rewardSpore: number;
+  description: string;
+  createdAt: number;
+}
+
 export interface GuildConfig {
   welcome?: WelcomeGoodbyeConfig;
   goodbye?: WelcomeGoodbyeConfig;
@@ -99,6 +112,10 @@ export interface GuildConfig {
   voiceReward?: VoiceRewardConfig;
   dynVoice?: DynVoiceConfig | null;
   worldBoss?: WorldBossConfig;
+  /** บอสที่แอดมินสร้างเอง — ถ้ามีจะใช้แทน BOSS_POOL ทั้งหมด */
+  customBosses?: CustomBoss[];
+  /** false = ปิดระบบบอสทั้งหมด (ไม่ spawn อัตโนมัติ, ไม่ spawn_now) */
+  bossSystemEnabled?: boolean;
 }
 
 export interface PlayerData {
@@ -412,6 +429,44 @@ export function getWorldBossConfig(guildId: string): WorldBossConfig | undefined
 export function setWorldBossConfig(guildId: string, config: WorldBossConfig): void {
   if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
   _store.guilds[guildId]!.worldBoss = config;
+  saveStore(_store);
+}
+
+// ─── Custom Boss Pool ─────────────────────────────────────────
+
+/** ดึง pool บอส custom ของ guild (ถ้าไม่มีคืน []) */
+export function getCustomBosses(guildId: string): CustomBoss[] {
+  return _store.guilds[guildId]?.customBosses ?? [];
+}
+
+/** เพิ่มบอส custom เข้า pool */
+export function addCustomBoss(guildId: string, boss: CustomBoss): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  if (!_store.guilds[guildId]!.customBosses) _store.guilds[guildId]!.customBosses = [];
+  _store.guilds[guildId]!.customBosses!.push(boss);
+  saveStore(_store);
+}
+
+/** ลบบอส custom ตาม bossId — คืน true ถ้าลบสำเร็จ */
+export function deleteCustomBoss(guildId: string, bossId: string): boolean {
+  const list = _store.guilds[guildId]?.customBosses;
+  if (!list) return false;
+  const idx = list.findIndex((b) => b.bossId === bossId);
+  if (idx === -1) return false;
+  list.splice(idx, 1);
+  saveStore(_store);
+  return true;
+}
+
+/** ระบบบอสเปิดอยู่ไหม — undefined/true = เปิด, false = ปิด */
+export function isBossSystemEnabled(guildId: string): boolean {
+  return _store.guilds[guildId]?.bossSystemEnabled !== false;
+}
+
+/** ตั้งค่าเปิด/ปิดระบบบอส */
+export function setBossSystemEnabled(guildId: string, enabled: boolean): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  _store.guilds[guildId]!.bossSystemEnabled = enabled;
   saveStore(_store);
 }
 
