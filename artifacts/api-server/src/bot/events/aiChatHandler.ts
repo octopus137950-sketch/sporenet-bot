@@ -1,6 +1,6 @@
 // ============================================================
 // aiChatHandler.ts — SporeNet AI Companion
-// เรียก Gemini API โดยตรง ไม่ผ่าน Supabase Edge Function
+// ใช้ Groq API (llama-3.3-70b) — ฟรี 14,400 req/วัน
 // ============================================================
 
 import { Message, EmbedBuilder } from "discord.js";
@@ -35,69 +35,64 @@ const SYSTEM_PROMPT = `คุณคือ "ราชาเห็ดสปอร�
 - ถ้าผู้เล่นถามเรื่องเกม ให้ตอบตามความรู้ข้างบน ถ้าไม่แน่ใจให้แซวผู้เล่นไปลองเอาเอง`;
 
 // ─── Config ───────────────────────────────────────────────────
-const GEMINI_API_KEY = process.env["GEMINI_API_KEY"];
-const GEMINI_MODEL = "gemini-2.0-flash";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GROQ_API_KEY = process.env["GROQ_API_KEY"];
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama-3.3-70b-versatile"; // ฟรี, ฉลาด, รวดเร็ว
 
 const COOLDOWN_MS = 20_000;
-const MAX_HISTORY = 10; // จำนวนรอบสนทนาที่เก็บไว้ (user+model คู่)
+const MAX_HISTORY = 10; // จำนวนรอบสนทนาที่เก็บไว้ (user+assistant คู่)
 
 // ─── In-memory state ──────────────────────────────────────────
 const cooldowns = new Map<string, number>();
 
-interface HistoryEntry {
-  role: "user" | "model";
-  parts: { text: string }[];
+interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
 }
 
-const conversationHistory = new Map<string, HistoryEntry[]>();
+const conversationHistory = new Map<string, ChatMessage[]>();
 
-// ─── Gemini request helper ────────────────────────────────────
-async function callGemini(history: HistoryEntry[], userText: string): Promise<string> {
-  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set in environment variables");
+// ─── Groq request helper ──────────────────────────────────────
+async function callGroq(history: ChatMessage[], userText: string): Promise<string> {
+  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY is not set in environment variables");
 
-  const contents: HistoryEntry[] = [
+  const messages: ChatMessage[] = [
+    { role: "system", content: SYSTEM_PROMPT },
     ...history,
-    { role: "user", parts: [{ text: userText }] },
+    { role: "user", content: userText },
   ];
 
   const body = {
-    // NOTE: Gemini REST API uses camelCase "systemInstruction"
-    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    contents,
-    generationConfig: {
-      maxOutputTokens: 300,
-      temperature: 0.9,
-      topP: 0.95,
-    },
-    safetySettings: [
-      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-    ],
+    model: GROQ_MODEL,
+    messages,
+    max_tokens: 300,
+    temperature: 0.9,
+    top_p: 0.95,
   };
 
-  const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+  const res = await fetch(GROQ_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${GROQ_API_KEY}`,
+    },
     body: JSON.stringify(body),
   });
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Gemini HTTP ${res.status}: ${errText}`);
+    throw new Error(`Groq HTTP ${res.status}: ${errText}`);
   }
 
   const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    choices?: { message?: { content?: string } }[];
   };
 
   const text =
-    data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ??
+    data.choices?.[0]?.message?.content?.trim() ??
     "ข้าไม่เข้าใจที่พวกเห็ดน้อยพูด ลองใหม่อีกครั้ง";
 
-  return text.trim();
+  return text;
 }
 
 // ─── Main handler ─────────────────────────────────────────────
@@ -110,10 +105,12 @@ export async function onAiChatMessage(message: Message): Promise<void> {
   const aiChannelId = getAiChannel(message.guild.id);
   if (!aiChannelId || message.channelId !== aiChannelId) return;
 
-  // ตรวจสอบว่า GEMINI_API_KEY ถูกตั้งค่าหรือไม่ (fail fast)
-  if (!GEMINI_API_KEY) {
-    logger.error("GEMINI_API_KEY not set — AI chat disabled");
-    await message.reply("⚠️ ข้ายังไม่ได้รับ API Key นะพวกเห็ดน้อย ให้แอดมินตั้งค่า `GEMINI_API_KEY` ก่อน");
+  // ตรวจสอบว่า GROQ_API_KEY ถูกตั้งค่าหรือไม่ (fail fast)
+  if (!GROQ_API_KEY) {
+    logger.error("GROQ_API_KEY not set — AI chat disabled");
+    await message.reply(
+      "⚠️ ข้ายังไม่ได้รับ Groq API Key นะพวกเห็ดน้อย ให้แอดมินตั้งค่า `GROQ_API_KEY` ใน Railway ก่อน"
+    );
     return;
   }
 
@@ -141,11 +138,11 @@ export async function onAiChatMessage(message: Message): Promise<void> {
   const history = conversationHistory.get(key) ?? [];
 
   try {
-    const replyText = await callGemini(history, userText);
+    const replyText = await callGroq(history, userText);
 
-    // อัปเดตประวัติสนทนา
-    history.push({ role: "user", parts: [{ text: userText }] });
-    history.push({ role: "model", parts: [{ text: replyText }] });
+    // อัปเดตประวัติสนทนา (ไม่รวม system prompt เพราะใส่ทุกครั้งอยู่แล้ว)
+    history.push({ role: "user", content: userText });
+    history.push({ role: "assistant", content: replyText });
 
     // ตัดประวัติเก่าให้อยู่ในขีดจำกัด
     if (history.length > MAX_HISTORY * 2) {
@@ -169,7 +166,6 @@ export async function onAiChatMessage(message: Message): Promise<void> {
     const errMsg = err instanceof Error ? err.message : String(err);
     logger.error({ err, errMsg }, "Error in AI chat handler");
 
-    // แสดง error สั้นๆ ให้แอดมินเห็น (ตัดให้สั้น ไม่เกิน 200 ตัวอักษร)
     const shortErr = errMsg.length > 200 ? errMsg.slice(0, 200) + "…" : errMsg;
     await message.reply(`😵 ข้าเกิดข้อผิดพลาด: \`${shortErr}\``);
   }
