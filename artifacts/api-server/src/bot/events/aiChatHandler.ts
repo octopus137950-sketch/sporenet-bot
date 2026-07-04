@@ -1,6 +1,6 @@
 // ============================================================
 // aiChatHandler.ts — SporeNet AI Companion
-// เรียก Gemini API โดยตรง ไม่ผ่าน Supabase
+// เรียก Gemini API โดยตรง ไม่ผ่าน Supabase Edge Function
 // ============================================================
 
 import { Message, EmbedBuilder } from "discord.js";
@@ -36,8 +36,8 @@ const SYSTEM_PROMPT = `คุณคือ "ราชาเห็ดสปอร�
 
 // ─── Config ───────────────────────────────────────────────────
 const GEMINI_API_KEY = process.env["GEMINI_API_KEY"];
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const COOLDOWN_MS = 20_000;
 const MAX_HISTORY = 10; // จำนวนรอบสนทนาที่เก็บไว้ (user+model คู่)
@@ -54,7 +54,7 @@ const conversationHistory = new Map<string, HistoryEntry[]>();
 
 // ─── Gemini request helper ────────────────────────────────────
 async function callGemini(history: HistoryEntry[], userText: string): Promise<string> {
-  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set");
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set in environment variables");
 
   const contents: HistoryEntry[] = [
     ...history,
@@ -62,7 +62,8 @@ async function callGemini(history: HistoryEntry[], userText: string): Promise<st
   ];
 
   const body = {
-    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    // NOTE: Gemini REST API uses camelCase "systemInstruction"
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents,
     generationConfig: {
       maxOutputTokens: 300,
@@ -85,7 +86,7 @@ async function callGemini(history: HistoryEntry[], userText: string): Promise<st
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${errText}`);
+    throw new Error(`Gemini HTTP ${res.status}: ${errText}`);
   }
 
   const data = (await res.json()) as {
@@ -109,9 +110,10 @@ export async function onAiChatMessage(message: Message): Promise<void> {
   const aiChannelId = getAiChannel(message.guild.id);
   if (!aiChannelId || message.channelId !== aiChannelId) return;
 
-  // ตรวจสอบว่า GEMINI_API_KEY ถูกตั้งค่าหรือไม่
+  // ตรวจสอบว่า GEMINI_API_KEY ถูกตั้งค่าหรือไม่ (fail fast)
   if (!GEMINI_API_KEY) {
     logger.error("GEMINI_API_KEY not set — AI chat disabled");
+    await message.reply("⚠️ ข้ายังไม่ได้รับ API Key นะพวกเห็ดน้อย ให้แอดมินตั้งค่า `GEMINI_API_KEY` ก่อน");
     return;
   }
 
@@ -164,7 +166,11 @@ export async function onAiChatMessage(message: Message): Promise<void> {
 
     await message.reply({ embeds: [embed] });
   } catch (err) {
-    logger.error({ err }, "Error in AI chat handler");
-    await message.reply("😵 ข้าปวดหัว ลองถามใหม่ภายหลังนะพวกเห็ดน้อย");
+    const errMsg = err instanceof Error ? err.message : String(err);
+    logger.error({ err, errMsg }, "Error in AI chat handler");
+
+    // แสดง error สั้นๆ ให้แอดมินเห็น (ตัดให้สั้น ไม่เกิน 200 ตัวอักษร)
+    const shortErr = errMsg.length > 200 ? errMsg.slice(0, 200) + "…" : errMsg;
+    await message.reply(`😵 ข้าเกิดข้อผิดพลาด: \`${shortErr}\``);
   }
 }
