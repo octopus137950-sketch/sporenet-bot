@@ -414,6 +414,23 @@ export function removeShopItem(guildId: string, itemId: string): boolean {
   return true;
 }
 
+export function updateShopItem(
+  guildId: string,
+  itemId: string,
+  updates: { name?: string; description?: string; price?: number; roleId?: string }
+): boolean {
+  const shop = _store.guilds[guildId]?.shop;
+  if (!shop) return false;
+  const item = shop.find((i) => i.id === itemId);
+  if (!item) return false;
+  if (updates.name !== undefined) item.name = updates.name;
+  if (updates.description !== undefined) item.description = updates.description;
+  if (updates.price !== undefined) item.price = updates.price;
+  if (updates.roleId !== undefined) item.roleId = updates.roleId;
+  saveStore(_store);
+  return true;
+}
+
 export function getVoiceRewardConfig(guildId: string): VoiceRewardConfig | undefined {
   return _store.guilds[guildId]?.voiceReward;
 }
