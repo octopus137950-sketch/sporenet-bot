@@ -12,6 +12,7 @@
   "dependencies": {
     "@discordjs/builders": "^1.14.1",
     "@discordjs/rest": "^2.6.1",
+    "@google/generative-ai": "^0.24.1",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
     "cookie-parser": "^1.4.7",

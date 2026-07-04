@@ -24,6 +24,7 @@ import { handleMonsterFight, handleMonsterFlee } from "./events/monsterHandler.j
 import { handleVerifyButton, handleVerifyModal } from "./events/verificationHandler.js";
 import { handleVoiceStateUpdate, startVoiceEconomyLoop } from "./events/voiceHandler.js";
 import { handleDynVoice } from "./events/dynVoiceHandler.js";
+import { handleAiChat } from "./events/aiHandler.js";
 import { initWorldBossScheduler } from "./events/worldBossHandler.js";
 import { onQuestMessage, startQuestVoiceLoop } from "./events/questTracker.js";
 import {
@@ -35,6 +36,8 @@ import { startQuestDailyReset } from "./utils/questScheduler.js";
 
 import * as reactionroleCmd from "./commands/reactionrole.js";
 import * as listrolesCmd from "./commands/listroles.js";
+import * as setaichannelCmd from "./commands/setaichannel.js";
+import * as disableaiCmd from "./commands/disableai.js";
 import * as deleteroleCmd from "./commands/deleterole.js";
 import * as addroleCmd from "./commands/addrole.js";
 import * as setwelcomeCmd from "./commands/setwelcome.js";
@@ -85,6 +88,8 @@ interface Command {
 const commands = new Collection<string, Command>();
 commands.set("reactionrole", reactionroleCmd);
 commands.set("listroles", listrolesCmd);
+commands.set("setaichannel", setaichannelCmd);
+commands.set("disableai", disableaiCmd);
 commands.set("deleterole", deleteroleCmd);
 commands.set("addrole", addroleCmd);
 commands.set("setwelcome", setwelcomeCmd);
@@ -238,10 +243,16 @@ export async function startBot(): Promise<void> {
     }
   });
 
-  // ── Quest: track chat messages ────────────────────────────────
+  // ── Chat messages: Quest + AI ─────────────────────────────────
   client.on(Events.MessageCreate, (message) => {
+    // Quest tracking
     onQuestMessage(message, client).catch((err) =>
       logger.error({ err }, "Error tracking quest message")
+    );
+
+    // AI Chat interaction
+    handleAiChat(message).catch((err) =>
+      logger.error({ err }, "Error handling AI chat")
     );
   });
 

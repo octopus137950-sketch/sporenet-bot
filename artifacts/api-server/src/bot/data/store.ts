@@ -81,6 +81,11 @@ export interface DynVoiceConfig {
   starterChannelIds: string[];
 }
 
+export interface AiConfig {
+  channelId?: string;
+  enabled: boolean;
+}
+
 export interface WorldBossConfig {
   intervalDays: number;
   spawnHour: number;
@@ -118,6 +123,7 @@ export interface GuildConfig {
   disabledDefaultBosses?: string[];
   /** false = ปิดระบบบอสทั้งหมด (ไม่ spawn อัตโนมัติ, ไม่ spawn_now) */
   bossSystemEnabled?: boolean;
+  aiConfig?: AiConfig;
 }
 
 export interface PlayerData {
@@ -260,7 +266,7 @@ function loadStore(): Store {
     const parsed = JSON.parse(raw) as Partial<Store>;
 
     // Migrate legacy achievements
-    const rawAchievements = (parsed.achievements ?? {}) as Record<string, Record<string, unknown>[]>;
+    const rawAchievements = (parsed.achievements ?? {}) as unknown as Record<string, Record<string, unknown>[]>;
     const achievements: Record<string, AchievementConfig[]> = {};
     for (const [guildId, list] of Object.entries(rawAchievements)) {
       achievements[guildId] = list.map(migrateLegacyAchievement);
@@ -419,6 +425,18 @@ export function getDynVoiceConfig(guildId: string): DynVoiceConfig | null | unde
 export function setDynVoiceConfig(guildId: string, config: DynVoiceConfig | null): void {
   if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
   _store.guilds[guildId]!.dynVoice = config;
+  saveStore(_store);
+}
+
+// ─── AI Config ───────────────────────────────────────────────
+
+export function getAiConfig(guildId: string): AiConfig | undefined {
+  return _store.guilds[guildId]?.aiConfig;
+}
+
+export function setAiConfig(guildId: string, config: AiConfig): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  _store.guilds[guildId]!.aiConfig = config;
   saveStore(_store);
 }
 

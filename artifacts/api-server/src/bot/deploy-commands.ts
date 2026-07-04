@@ -1,6 +1,8 @@
 import { REST, Routes } from "discord.js";
 import { data as reactionroleData } from "./commands/reactionrole.js";
 import { data as listrolesData } from "./commands/listroles.js";
+import * as setaichannelCmd from "./commands/setaichannel.js";
+import * as disableaiCmd from "./commands/disableai.js";
 import { data as deleteroleData } from "./commands/deleterole.js";
 import { data as addroleData } from "./commands/addrole.js";
 import { data as setwelcomeData } from "./commands/setwelcome.js";
@@ -51,6 +53,8 @@ export async function deployCommands(): Promise<void> {
   const commands = [
     reactionroleData.toJSON(),
     listrolesData.toJSON(),
+  setaichannelCmd.data.toJSON(),
+  disableaiCmd.data.toJSON(),
     deleteroleData.toJSON(),
     addroleData.toJSON(),
     setwelcomeData.toJSON(),
