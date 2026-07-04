@@ -37,6 +37,7 @@ import { data as attackData } from "./commands/attack.js";
 import { data as setworldbossData } from "./commands/setworldboss.js";
 import { data as setSporeCrashData } from "./commands/setSporeCrash.js";
 import { data as bossAdminData } from "./commands/boss-admin.js";
+import { data as setAiChannelData } from "./commands/setaichannel.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -87,6 +88,7 @@ export async function deployCommands(): Promise<void> {
     setworldbossData.toJSON(),
     setSporeCrashData.toJSON(),
     bossAdminData.toJSON(),
+    setAiChannelData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");

@@ -118,6 +118,8 @@ export interface GuildConfig {
   disabledDefaultBosses?: string[];
   /** false = ปิดระบบบอสทั้งหมด (ไม่ spawn อัตโนมัติ, ไม่ spawn_now) */
   bossSystemEnabled?: boolean;
+  /** ช่องแชทสำหรับคุยกับ AI (SporeNet AI Companion) */
+  aiChannelId?: string;
 }
 
 export interface PlayerData {
@@ -379,6 +381,16 @@ export function setGameChannel(guildId: string, channelId: string): void {
 
 export function getGameChannel(guildId: string): string | undefined {
   return _store.guilds[guildId]?.gameChannelId;
+}
+
+export function setAiChannel(guildId: string, channelId: string): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  _store.guilds[guildId]!.aiChannelId = channelId;
+  saveStore(_store);
+}
+
+export function getAiChannel(guildId: string): string | undefined {
+  return _store.guilds[guildId]?.aiChannelId;
 }
 
 export function getShopItems(guildId: string): ShopItem[] {
