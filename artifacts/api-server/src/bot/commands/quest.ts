@@ -39,7 +39,7 @@ function progressBar(progress: number, target: number, length = 10): string {
 
 async function handleView(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!(await requireGameChannel(interaction))) return;
-  await interaction.deferReply();
+  await interaction.deferReply({ ephemeral: true });
 
   const userId = interaction.user.id;
   const today = getThaiDateString();
@@ -116,7 +116,7 @@ async function handleView(interaction: ChatInputCommandInteraction): Promise<voi
 
 async function handleClaim(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!(await requireGameChannel(interaction))) return;
-  await interaction.deferReply();
+  await interaction.deferReply({ ephemeral: true });
 
   const userId = interaction.user.id;
   const today = getThaiDateString();
