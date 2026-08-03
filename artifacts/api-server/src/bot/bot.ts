@@ -73,6 +73,7 @@ import * as setworldbossCmd from "./commands/setworldboss.js";
 import * as setSporeCrashCmd from "./commands/setSporeCrash.js";
 import * as bossAdminCmd from "./commands/boss-admin.js";
 import * as setAiChannelCmd from "./commands/setaichannel.js";
+import * as horoscopeCmd from "./commands/horoscope.js";
 import {
   handleCrashBetButton,
   handleCrashBetModal,
@@ -126,6 +127,7 @@ commands.set("setworldboss", setworldbossCmd);
 commands.set("setsporecrash", setSporeCrashCmd);
 commands.set("boss-admin", bossAdminCmd);
 commands.set("setaichannel", setAiChannelCmd);
+  commands.set("horoscope", horoscopeCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
