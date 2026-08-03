@@ -1,0 +1,2 @@
+- [GitHub push workflow](github-push-workflow.md) — sync the local snapshot with origin/main before pushing; use secure askpass auth for GitHub writes.
+- [Ecosystem cycle rules](ecosystem-cycle-rules.md) — natural spores regenerate every five hours; each fertilizer reduces the active wait by one minute, capped at one hour.

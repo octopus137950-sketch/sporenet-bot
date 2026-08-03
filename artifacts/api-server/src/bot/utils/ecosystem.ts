@@ -10,7 +10,9 @@ import {
 
 export const BASE_REGEN = 100_000;
 export const FERTILIZER_REGEN = 500;
-export const HOUR_MS = 3_600_000;
+export const CYCLE_MS = 5 * 3_600_000;
+export const MIN_CYCLE_WAIT_MS = 3_600_000;
+export const FERTILIZER_TIME_REDUCTION_MS = 60_000;
 
 const WEATHER_DETAILS: Record<
   EcosystemWeather,
@@ -60,9 +62,22 @@ export function calculateRegen(state: EcosystemState): number {
   );
 }
 
+export function getCycleWaitMs(state: EcosystemState): number {
+  const maximumReduction = CYCLE_MS - MIN_CYCLE_WAIT_MS;
+  const reduction = Math.min(
+    state.hourlyFertilizeCount * FERTILIZER_TIME_REDUCTION_MS,
+    maximumReduction,
+  );
+  return CYCLE_MS - reduction;
+}
+
+export function getCycleReductionMs(state: EcosystemState): number {
+  return CYCLE_MS - getCycleWaitMs(state);
+}
+
 export function getNextCycleAt(state = getEcosystemState(), now = Date.now()): number {
-  const next = state.lastCycleAt + HOUR_MS;
-  return next > now ? next : Math.ceil(now / HOUR_MS) * HOUR_MS;
+  void now;
+  return state.lastCycleAt + getCycleWaitMs(state);
 }
 
 function randomWeather(): EcosystemWeather {
@@ -76,18 +91,23 @@ function randomIntensity(weather: EcosystemWeather): EcosystemState["weatherInte
   return tiers[Math.floor(Math.random() * tiers.length)]!;
 }
 
-export interface HourlyCycleResult {
+export interface CycleResult {
   previousWeather: EcosystemState;
   newWeather: EcosystemState;
   regenerated: number;
   fertilizerCount: number;
 }
 
-export function applyHourlyCycle(now = Date.now()): HourlyCycleResult {
+export function applyEcosystemCycle(now = Date.now()): CycleResult {
   const previousWeather = { ...getEcosystemState() };
   const regenerated = calculateRegen(previousWeather);
   const fertilizerCount = previousWeather.hourlyFertilizeCount;
   const newWeather = randomWeather();
+  const scheduledCycleAt = getNextCycleAt(previousWeather, now);
+  // If the process was offline for more than one full cycle, restart the
+  // schedule from now instead of replaying a backlog of announcements.
+  const cycleAnchor =
+    now - scheduledCycleAt > CYCLE_MS ? now : scheduledCycleAt;
   const nextState: EcosystemState = {
     currentSpores: Math.min(
       previousWeather.maxSpores,
@@ -97,7 +117,7 @@ export function applyHourlyCycle(now = Date.now()): HourlyCycleResult {
     hourlyFertilizeCount: 0,
     currentWeather: newWeather,
     weatherIntensity: randomIntensity(newWeather),
-    lastCycleAt: Math.floor(now / HOUR_MS) * HOUR_MS,
+    lastCycleAt: cycleAnchor,
   };
   saveEcosystemState(nextState);
   return {
@@ -135,7 +155,7 @@ export function buildEcosystemEmbed(now = Date.now()): EmbedBuilder {
         inline: true,
       },
       {
-        name: "🌱 ปุ๋ยสะสมชั่วโมงนี้",
+        name: "🌱 ปุ๋ยสะสมรอบนี้",
         value: `**${state.hourlyFertilizeCount.toLocaleString()}** ครั้ง`,
         inline: true,
       },
@@ -150,13 +170,13 @@ export function buildEcosystemEmbed(now = Date.now()): EmbedBuilder {
         inline: false,
       },
     )
-    .setFooter({ text: "ระบบจะสุ่มสภาพอากาศใหม่ทุกต้นชั่วโมง" })
+    .setFooter({ text: "ระบบจะเติมสปอร์ทุก 5 ชั่วโมง และปุ๋ยจะช่วยลดเวลารอ" })
     .setTimestamp(now);
 }
 
-export async function announceHourlyCycle(
+export async function announceEcosystemCycle(
   client: Client,
-  result: HourlyCycleResult,
+  result: CycleResult,
 ): Promise<void> {
   const weather = getWeatherDetails(
     result.newWeather.currentWeather,
@@ -169,7 +189,7 @@ export async function announceHourlyCycle(
     `(จากปุ๋ย ${result.fertilizerCount.toLocaleString()} ครั้ง)\n` +
     `⚡ ตัวคูณการเติบโตรอบนี้: **x${weather.multiplier}** เท่า!`;
   const embed = new DiscordEmbedBuilder()
-    .setTitle("🌎 ระบบนิเวศเปลี่ยนแปลงรายชั่วโมง")
+    .setTitle("🌎 ระบบนิเวศเปลี่ยนแปลงประจำรอบ")
     .setDescription(description)
     .setColor(weather.color)
     .addFields({
