@@ -8,6 +8,7 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import { getPlayer, savePlayer } from "../data/store.js";
+import { incrementQuestProgress } from "./questTracker.js";
 
 const MIN_BET = 10;
 const MAX_BET = 50_000;
@@ -127,6 +128,10 @@ export async function handleCasinoModal(interaction: ModalSubmitInteraction): Pr
 
   player.sporePoints += rawWin;
   savePlayer(player);
+
+  incrementQuestProgress(interaction.client, interaction.guildId ?? "", interaction.user.id, "casino", 1).catch(
+    (e) => console.error("[casinoHandler] quest track error:", e)
+  );
 
   const reelDisplay = `[ ${reels[0]} | ${reels[1]} | ${reels[2]} ]`;
 

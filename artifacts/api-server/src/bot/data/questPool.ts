@@ -2,7 +2,7 @@
 // questPool.ts — Daily Quest Pool & Weighted Randomization
 // ============================================================
 
-export type QuestType = "farm" | "chat" | "voice";
+export type QuestType = "farm" | "chat" | "voice" | "monster" | "boss" | "casino" | "transfer";
 export type QuestDifficulty = "easy" | "medium" | "hard" | "legendary";
 
 export interface QuestDef {
@@ -426,6 +426,213 @@ export const QUEST_POOL: QuestDef[] = [
     difficulty: "legendary",
     emoji: "👑",
     unit: "นาที",
+  },
+
+  // ════════════════════════════════════════════
+  // ⚔️ MONSTER (เอาชนะมอนสเตอร์ใน /farm)
+  // ════════════════════════════════════════════
+
+  {
+    id: "monster_1",
+    type: "monster",
+    description: "เอาชนะมอนสเตอร์ในป่า 1 ครั้ง",
+    target: 1,
+    reward: 50,
+    weight: 48,
+    difficulty: "easy",
+    emoji: "⚔️",
+    unit: "ครั้ง",
+  },
+  {
+    id: "monster_2",
+    type: "monster",
+    description: "เอาชนะมอนสเตอร์ในป่า 2 ครั้ง",
+    target: 2,
+    reward: 80,
+    weight: 44,
+    difficulty: "easy",
+    emoji: "⚔️",
+    unit: "ครั้ง",
+  },
+  {
+    id: "monster_3",
+    type: "monster",
+    description: "เอาชนะมอนสเตอร์ในป่า 3 ครั้ง",
+    target: 3,
+    reward: 160,
+    weight: 30,
+    difficulty: "medium",
+    emoji: "⚔️",
+    unit: "ครั้ง",
+  },
+  {
+    id: "monster_5",
+    type: "monster",
+    description: "เอาชนะมอนสเตอร์ในป่า 5 ครั้ง",
+    target: 5,
+    reward: 320,
+    weight: 12,
+    difficulty: "hard",
+    emoji: "⚔️",
+    unit: "ครั้ง",
+  },
+  {
+    id: "monster_8",
+    type: "monster",
+    description: "เอาชนะมอนสเตอร์ 8 ครั้ง (นักล่าแห่งป่าเห็ด)",
+    target: 8,
+    reward: 600,
+    weight: 4,
+    difficulty: "legendary",
+    emoji: "👑",
+    unit: "ครั้ง",
+  },
+
+  // ════════════════════════════════════════════
+  // 🐉 BOSS (โจมตี World Boss)
+  // ════════════════════════════════════════════
+
+  {
+    id: "boss_1",
+    type: "boss",
+    description: "โจมตี World Boss 1 ครั้ง",
+    target: 1,
+    reward: 80,
+    weight: 46,
+    difficulty: "easy",
+    emoji: "🐉",
+    unit: "ครั้ง",
+  },
+  {
+    id: "boss_3",
+    type: "boss",
+    description: "โจมตี World Boss 3 ครั้ง",
+    target: 3,
+    reward: 250,
+    weight: 28,
+    difficulty: "medium",
+    emoji: "🐉",
+    unit: "ครั้ง",
+  },
+  {
+    id: "boss_5",
+    type: "boss",
+    description: "โจมตี World Boss 5 ครั้ง",
+    target: 5,
+    reward: 500,
+    weight: 11,
+    difficulty: "hard",
+    emoji: "🐉",
+    unit: "ครั้ง",
+  },
+  {
+    id: "boss_10",
+    type: "boss",
+    description: "โจมตี World Boss 10 ครั้ง (นักรบแห่งตำนาน)",
+    target: 10,
+    reward: 1000,
+    weight: 3,
+    difficulty: "legendary",
+    emoji: "👑",
+    unit: "ครั้ง",
+  },
+
+  // ════════════════════════════════════════════
+  // 🎰 CASINO (เล่นสล็อตแมชชีน)
+  // ════════════════════════════════════════════
+
+  {
+    id: "casino_1",
+    type: "casino",
+    description: "เล่นสล็อตแมชชีน 1 ครั้ง",
+    target: 1,
+    reward: 30,
+    weight: 50,
+    difficulty: "easy",
+    emoji: "🎰",
+    unit: "ครั้ง",
+  },
+  {
+    id: "casino_3",
+    type: "casino",
+    description: "เล่นสล็อตแมชชีน 3 ครั้ง",
+    target: 3,
+    reward: 80,
+    weight: 44,
+    difficulty: "easy",
+    emoji: "🎰",
+    unit: "ครั้ง",
+  },
+  {
+    id: "casino_5",
+    type: "casino",
+    description: "เล่นสล็อตแมชชีน 5 ครั้ง",
+    target: 5,
+    reward: 170,
+    weight: 29,
+    difficulty: "medium",
+    emoji: "🎰",
+    unit: "ครั้ง",
+  },
+  {
+    id: "casino_10",
+    type: "casino",
+    description: "เล่นสล็อตแมชชีน 10 ครั้ง",
+    target: 10,
+    reward: 350,
+    weight: 12,
+    difficulty: "hard",
+    emoji: "🎰",
+    unit: "ครั้ง",
+  },
+  {
+    id: "casino_20",
+    type: "casino",
+    description: "เล่นสล็อตแมชชีน 20 ครั้ง (เจ้าพ่อคาสิโน)",
+    target: 20,
+    reward: 750,
+    weight: 3,
+    difficulty: "legendary",
+    emoji: "👑",
+    unit: "ครั้ง",
+  },
+
+  // ════════════════════════════════════════════
+  // 💸 TRANSFER (โอนสปอร์)
+  // ════════════════════════════════════════════
+
+  {
+    id: "transfer_1",
+    type: "transfer",
+    description: "โอนสปอร์ให้ผู้เล่นคนอื่น 1 ครั้ง",
+    target: 1,
+    reward: 40,
+    weight: 48,
+    difficulty: "easy",
+    emoji: "💸",
+    unit: "ครั้ง",
+  },
+  {
+    id: "transfer_3",
+    type: "transfer",
+    description: "โอนสปอร์ให้ผู้เล่นคนอื่น 3 ครั้ง",
+    target: 3,
+    reward: 180,
+    weight: 26,
+    difficulty: "medium",
+    emoji: "💸",
+    unit: "ครั้ง",
+  },
+  {
+    id: "transfer_5",
+    type: "transfer",
+    description: "โอนสปอร์ให้ผู้เล่นคนอื่น 5 ครั้ง (นักการกุศล)",
+    target: 5,
+    reward: 400,
+    weight: 10,
+    difficulty: "hard",
+    emoji: "💸",
+    unit: "ครั้ง",
   },
 ];
 

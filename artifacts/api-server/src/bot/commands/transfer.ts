@@ -8,6 +8,7 @@ import {
 import { getPlayer, savePlayer, getLogChannel, getInventory, transferItem } from "../data/store.js";
 import { getItemById } from "../data/itemsPool.js";
 import { requireGameChannel } from "../utils/channelGuard.js";
+import { incrementQuestProgress } from "../events/questTracker.js";
 
 export const data = new SlashCommandBuilder()
   .setName("transfer")
@@ -136,6 +137,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     receiver.sporePoints += amount;
     savePlayer(sender);
     savePlayer(receiver);
+
+    incrementQuestProgress(interaction.client, guild.id, interaction.user.id, "transfer", 1).catch(
+      (e) => console.error("[transfer] quest track error:", e)
+    );
 
     resultFields.push(
       { name: "🍄 สปอร์ที่โอน", value: `**${amount.toLocaleString()}** สปอร์`, inline: false },

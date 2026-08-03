@@ -4,6 +4,7 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import { getPlayer } from "../data/store.js";
+import { incrementQuestProgress } from "../events/questTracker.js";
 import {
   isBossActive,
   processBossAttack,
@@ -42,6 +43,11 @@ export async function execute(
     await interaction.reply({ content: "❌ เกิดข้อผิดพลาด ลองใหม่อีกครั้ง", ephemeral: true });
     return;
   }
+
+  // Track quest progress for boss attack
+  incrementQuestProgress(interaction.client, guild.id, interaction.user.id, "boss", 1).catch(
+    (e) => console.error("[attack] quest track error:", e)
+  );
 
   // Check if boss just died
   if (result.dead) {
