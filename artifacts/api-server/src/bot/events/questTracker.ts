@@ -5,11 +5,10 @@
 // Also hooks into the achievement checker for cumulative stats.
 // ============================================================
 
-import { Client, Guild, TextBasedChannel, EmbedBuilder, Message } from "discord.js";
+import { Client, Guild, EmbedBuilder, Message } from "discord.js";
 import {
   getPlayerQuestData,
   savePlayerQuestData,
-  getGameChannel,
   PlayerQuestData,
 } from "../data/store.js";
 import {
@@ -156,23 +155,20 @@ async function sendCompletionNotification(
   reward: number
 ): Promise<void> {
   try {
-    const channelId = getGameChannel(guild.id);
-    if (!channelId) return;
-
-    const ch = guild.channels.cache.get(channelId) as TextBasedChannel | undefined;
-    if (!ch || !("send" in ch)) return;
+    const member = await guild.members.fetch(userId).catch(() => null);
+    if (!member) return;
 
     const embed = new EmbedBuilder()
       .setTitle("✅ ภารกิจสำเร็จ!")
       .setDescription(
-        `<@${userId}> ทำภารกิจ **${description}** สำเร็จแล้ว! 🎉\n` +
-        `พิมพ์ \`/quest claim\` เพื่อรับรางวัล **${reward.toLocaleString()} สปอร์**`
+        `คุณทำภารกิจ **${description}** สำเร็จแล้ว! 🎉\n` +
+        `พิมพ์ \`/quest claim\` ใน **${guild.name}** เพื่อรับรางวัล **${reward.toLocaleString()} สปอร์**`
       )
       .setColor(0x57f287)
       .setTimestamp();
 
-    await ch.send({ embeds: [embed] });
-  } catch { /* ignore send failures */ }
+    await member.send({ embeds: [embed] });
+  } catch { /* ignore if DMs are closed */ }
 }
 
 export { DIFFICULTY_EMOJI, DIFFICULTY_LABEL };
