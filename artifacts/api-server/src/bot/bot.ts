@@ -74,12 +74,16 @@ import * as setSporeCrashCmd from "./commands/setSporeCrash.js";
 import * as bossAdminCmd from "./commands/boss-admin.js";
 import * as setAiChannelCmd from "./commands/setaichannel.js";
 import * as horoscopeCmd from "./commands/horoscope.js";
+import * as fertilizeCmd from "./commands/fertilize.js";
+import * as weatherCmd from "./commands/weather.js";
+import * as natureCmd from "./commands/nature.js";
 import {
   handleCrashBetButton,
   handleCrashBetModal,
   handleCrashCashOut,
 } from "./events/sporeCrashHandler.js";
 import { onAiChatMessage } from "./events/aiChatHandler.js";
+import { startEcosystemScheduler } from "./events/ecosystemScheduler.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -128,6 +132,9 @@ commands.set("setsporecrash", setSporeCrashCmd);
 commands.set("boss-admin", bossAdminCmd);
 commands.set("setaichannel", setAiChannelCmd);
   commands.set("horoscope", horoscopeCmd);
+commands.set("fertilize", fertilizeCmd);
+commands.set("weather", weatherCmd);
+commands.set("nature", natureCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -159,6 +166,7 @@ export async function startBot(): Promise<void> {
     startQuestVoiceLoop(client);
     startQuestDailyReset();
     initWorldBossScheduler(client);
+    startEcosystemScheduler(client);
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {

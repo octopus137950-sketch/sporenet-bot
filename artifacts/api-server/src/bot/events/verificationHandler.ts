@@ -7,7 +7,6 @@ import {
   TextInputStyle,
   EmbedBuilder,
   GuildMember,
-  TextBasedChannel,
 } from "discord.js";
 import {
   getVerificationPanel,
@@ -119,7 +118,7 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
   if (logChannelId && interaction.guild) {
     try {
       const ch = await interaction.guild.channels.fetch(logChannelId);
-      if (ch && (ch as TextBasedChannel).send) {
+      if (ch && "send" in ch) {
         const user = interaction.user;
         const avatarUrl = user.displayAvatarURL({ size: 128 });
 
@@ -134,7 +133,7 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
           embed.addFields({ name: label, value: value || "-", inline: false });
         }
 
-        await (ch as TextBasedChannel).send({
+        await ch.send({
           content: `<@${user.id}> ✅ ได้รับยศเรียบร้อยแล้ว`,
           embeds: [embed],
         });
@@ -150,7 +149,7 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
     if (gameChannelId) {
       try {
         const gameCh = await interaction.guild.channels.fetch(gameChannelId);
-        if (gameCh && (gameCh as TextBasedChannel).send) {
+        if (gameCh && "send" in gameCh) {
           const user = interaction.user;
           const announceEmbed = new EmbedBuilder()
             .setTitle("🎉 สมาชิกใหม่เข้าร่วมแล้ว!")
@@ -164,7 +163,7 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
             .setFooter({ text: `สปอร์รวม: ${player.sporePoints.toLocaleString()} แต้ม` })
             .setTimestamp();
 
-          await (gameCh as TextBasedChannel).send({ embeds: [announceEmbed] });
+          await gameCh.send({ embeds: [announceEmbed] });
         }
       } catch (e) {
         console.error("Failed to send game channel verification announcement:", e);

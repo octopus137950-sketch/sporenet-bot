@@ -7,7 +7,13 @@ import {
   ButtonStyle,
   TextChannel,
 } from "discord.js";
-import { getPlayer, savePlayer, getLogChannel } from "../data/store.js";
+import {
+  getPlayer,
+  savePlayer,
+  getLogChannel,
+  getEcosystemState,
+  harvestNaturalSpores,
+} from "../data/store.js";
 import { requireGameChannel } from "../utils/channelGuard.js";
 import { setPendingBattle } from "../data/monsterState.js";
 import { incrementQuestProgress } from "../events/questTracker.js";
@@ -188,6 +194,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const guild = interaction.guild;
   const player = getPlayer(userId);
   const now = Date.now();
+
+  if (getEcosystemState().currentSpores <= 0) {
+    await interaction.editReply(
+      "สปอร์ในธรรมชาติหมดเกลี้ยงแล้ว! ช่วยกันกด /fertilize เพื่อเร่งการเกิดในชั่วโมงถัดไป!",
+    );
+    return;
+  }
+
   const elapsed = Math.floor((now - player.lastFarmTime) / 1000);
 
   if (elapsed < COOLDOWN_SECONDS) {
@@ -218,6 +232,22 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const stolen = Math.floor(player.sporePoints * 0.1);
     pointChange = -stolen;
     resultText = stolen > 0 ? `**-${stolen} สปอร์** (10% ที่มี)` : "**ท่านไม่มีแต้มให้ขโมย!**";
+  }
+
+  if (pointChange > 0) {
+    const requestedHarvest = pointChange;
+    const harvested = harvestNaturalSpores(requestedHarvest);
+    pointChange = harvested;
+    resultText =
+      harvested > 0
+        ? `**+${harvested} สปอร์** ${
+            harvested < requestedHarvest
+              ? "(สปอร์ธรรมชาติมีจำกัด)"
+              : levelBonus > 0
+                ? `(+${levelBonus} โบนัสเลเวล)`
+                : ""
+          }`
+        : "**สปอร์ในธรรมชาติหมดระหว่างการเก็บเกี่ยว**";
   }
 
   player.sporePoints = Math.max(0, player.sporePoints + pointChange);

@@ -132,6 +132,20 @@ export interface PlayerData {
   dailyStreak: number;
 }
 
+// ─── Global Ecosystem State ───────────────────────────────────
+
+export type EcosystemWeather = "Sunny" | "Normal" | "Rainy";
+
+export interface EcosystemState {
+  currentSpores: number;
+  maxSpores: number;
+  hourlyFertilizeCount: number;
+  currentWeather: EcosystemWeather;
+  weatherIntensity: 30 | 60 | 90 | 100;
+  /** Start of the most recently completed hourly cycle. */
+  lastCycleAt: number;
+}
+
 // ─── Daily Quest Data ────────────────────────────────────────
 
 export interface PlayerQuestEntry {
@@ -205,6 +219,7 @@ export interface Store {
   panels: Record<string, ReactionRolePanel>;
   guilds: Record<string, GuildConfig>;
   players: Record<string, PlayerData>;
+  ecosystem: EcosystemState;
   verificationPanels: Record<string, VerificationPanel>;
   verificationSubmissions: VerificationSubmission[];
   questData: Record<string, PlayerQuestData>;
@@ -219,6 +234,14 @@ function emptyStore(): Store {
     panels: {},
     guilds: {},
     players: {},
+    ecosystem: {
+      currentSpores: 1_000_000,
+      maxSpores: 1_000_000,
+      hourlyFertilizeCount: 0,
+      currentWeather: "Normal",
+      weatherIntensity: 100,
+      lastCycleAt: Math.floor(Date.now() / 3_600_000) * 3_600_000,
+    },
     verificationPanels: {},
     verificationSubmissions: [],
     questData: {},
@@ -262,7 +285,10 @@ function loadStore(): Store {
     const parsed = JSON.parse(raw) as Partial<Store>;
 
     // Migrate legacy achievements
-    const rawAchievements = (parsed.achievements ?? {}) as Record<string, Record<string, unknown>[]>;
+    const rawAchievements = (parsed.achievements ?? {}) as unknown as Record<
+      string,
+      Record<string, unknown>[]
+    >;
     const achievements: Record<string, AchievementConfig[]> = {};
     for (const [guildId, list] of Object.entries(rawAchievements)) {
       achievements[guildId] = list.map(migrateLegacyAchievement);
@@ -286,6 +312,15 @@ function loadStore(): Store {
       panels:                  parsed.panels ?? {},
       guilds:                  parsed.guilds ?? {},
       players:                 parsed.players ?? {},
+      ecosystem: {
+        currentSpores:         parsed.ecosystem?.currentSpores ?? 1_000_000,
+        maxSpores:             parsed.ecosystem?.maxSpores ?? 1_000_000,
+        hourlyFertilizeCount:  parsed.ecosystem?.hourlyFertilizeCount ?? 0,
+        currentWeather:       parsed.ecosystem?.currentWeather ?? "Normal",
+        weatherIntensity:     parsed.ecosystem?.weatherIntensity ?? 100,
+        lastCycleAt:           parsed.ecosystem?.lastCycleAt
+          ?? Math.floor(Date.now() / 3_600_000) * 3_600_000,
+      },
       verificationPanels:      parsed.verificationPanels ?? {},
       verificationSubmissions: parsed.verificationSubmissions ?? [],
       questData:               parsed.questData ?? {},
@@ -306,6 +341,29 @@ function saveStore(store: Store): void {
 let _store: Store = loadStore();
 
 export function getStore(): Store { return _store; }
+
+export function getEcosystemState(): EcosystemState {
+  return _store.ecosystem;
+}
+
+export function incrementFertilizeCount(): EcosystemState {
+  _store.ecosystem.hourlyFertilizeCount += 1;
+  saveStore(_store);
+  return _store.ecosystem;
+}
+
+export function harvestNaturalSpores(requestedAmount: number): number {
+  const amount = Math.max(0, Math.floor(requestedAmount));
+  const harvested = Math.min(amount, _store.ecosystem.currentSpores);
+  _store.ecosystem.currentSpores -= harvested;
+  if (harvested > 0) saveStore(_store);
+  return harvested;
+}
+
+export function saveEcosystemState(state: EcosystemState): void {
+  _store.ecosystem = state;
+  saveStore(_store);
+}
 
 // ─── Panels ─────────────────────────────────────────────────
 

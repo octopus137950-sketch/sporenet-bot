@@ -3,6 +3,7 @@ import {
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ChannelType,
+  TextChannel,
 } from "discord.js";
 import { deleteVerificationPanel, getVerificationPanel } from "../data/store.js";
 
@@ -39,7 +40,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   try {
     // ลบข้อความในแชท
-    const msg = await channel.messages.fetch(messageId);
+    const msg = await (channel as TextChannel).messages.fetch(messageId);
     await msg.delete();
   } catch (err) {
     console.error("Error deleting message:", err);

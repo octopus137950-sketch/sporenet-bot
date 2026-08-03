@@ -40,6 +40,9 @@ import { data as setSporeCrashData } from "./commands/setSporeCrash.js";
 import { data as bossAdminData } from "./commands/boss-admin.js";
 import { data as setAiChannelData } from "./commands/setaichannel.js";
 import { data as horoscopeData } from "./commands/horoscope.js";
+import { data as fertilizeData } from "./commands/fertilize.js";
+import { data as weatherData } from "./commands/weather.js";
+import { data as natureData } from "./commands/nature.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -93,6 +96,9 @@ export async function deployCommands(): Promise<void> {
     bossAdminData.toJSON(),
     setAiChannelData.toJSON(),
     horoscopeData.toJSON(),
+    fertilizeData.toJSON(),
+    weatherData.toJSON(),
+    natureData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");

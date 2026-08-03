@@ -2,7 +2,6 @@ import {
   Client,
   VoiceState,
   EmbedBuilder,
-  TextBasedChannel,
   Guild,
 } from "discord.js";
 import { getPlayer, savePlayer, getVoiceRewardConfig } from "../data/store.js";
@@ -45,7 +44,7 @@ async function sendLeaveNotification(
     if (session.earnedSpore === 0 && session.earnedExp === 0) return;
 
     const ch = await guild.channels.fetch(config.notifyChannelId).catch(() => null);
-    if (!ch || !(ch as TextBasedChannel).send) return;
+    if (!ch || !("send" in ch)) return;
 
     const member = await guild.members.fetch(userId).catch(() => null);
     const username = member?.displayName ?? `User ${userId}`;
@@ -63,7 +62,7 @@ async function sendLeaveNotification(
       )
       .setTimestamp();
 
-    await (ch as TextBasedChannel).send({ embeds: [embed] });
+    await ch.send({ embeds: [embed] });
   } catch (e) {
     console.error("Failed to send voice leave notification:", e);
   }
