@@ -77,6 +77,7 @@ import * as horoscopeCmd from "./commands/horoscope.js";
 import * as fertilizeCmd from "./commands/fertilize.js";
 import * as weatherCmd from "./commands/weather.js";
 import * as natureCmd from "./commands/nature.js";
+import * as gachaCmd from "./commands/gacha.js";
 import {
   handleCrashBetButton,
   handleCrashBetModal,
@@ -135,6 +136,7 @@ commands.set("setaichannel", setAiChannelCmd);
 commands.set("fertilize", fertilizeCmd);
 commands.set("weather", weatherCmd);
 commands.set("nature", natureCmd);
+commands.set("gacha", gachaCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];

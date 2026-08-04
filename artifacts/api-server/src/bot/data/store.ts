@@ -181,6 +181,7 @@ export interface PlayerData {
   lastFarmTime: number;
   lastDailyTime: number;
   dailyStreak: number;
+  lastGachaTime: number;
 }
 
 // ─── Global Ecosystem State ───────────────────────────────────
@@ -359,10 +360,25 @@ function loadStore(): Store {
       };
     }
 
+    const rawPlayers = (parsed.players ?? {}) as Record<string, Partial<PlayerData>>;
+    const players: Record<string, PlayerData> = {};
+    for (const [userId, player] of Object.entries(rawPlayers)) {
+      players[userId] = {
+        userId: player.userId ?? userId,
+        sporePoints: player.sporePoints ?? 0,
+        farmLevel: player.farmLevel ?? 1,
+        farmExp: player.farmExp ?? 0,
+        lastFarmTime: player.lastFarmTime ?? 0,
+        lastDailyTime: player.lastDailyTime ?? 0,
+        dailyStreak: player.dailyStreak ?? 0,
+        lastGachaTime: player.lastGachaTime ?? 0,
+      };
+    }
+
     return {
       panels:                  parsed.panels ?? {},
       guilds:                  parsed.guilds ?? {},
-      players:                 parsed.players ?? {},
+      players,
       ecosystem: {
         currentSpores:         parsed.ecosystem?.currentSpores ?? 1_000_000,
         maxSpores:             parsed.ecosystem?.maxSpores ?? 1_000_000,
@@ -651,6 +667,7 @@ export function getPlayer(userId: string): PlayerData {
       lastFarmTime: 0,
       lastDailyTime: 0,
       dailyStreak: 0,
+      lastGachaTime: 0,
     };
   }
   return _store.players[userId]!;

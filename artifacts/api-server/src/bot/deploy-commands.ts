@@ -43,6 +43,7 @@ import { data as horoscopeData } from "./commands/horoscope.js";
 import { data as fertilizeData } from "./commands/fertilize.js";
 import { data as weatherData } from "./commands/weather.js";
 import { data as natureData } from "./commands/nature.js";
+import { data as gachaData } from "./commands/gacha.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -99,6 +100,7 @@ export async function deployCommands(): Promise<void> {
     fertilizeData.toJSON(),
     weatherData.toJSON(),
     natureData.toJSON(),
+    gachaData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");
