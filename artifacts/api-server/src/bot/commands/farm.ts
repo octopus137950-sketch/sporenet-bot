@@ -266,7 +266,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   // ── Quest tracking: increment farm quest progress ────────────
   if (guild) {
-    incrementQuestProgress(interaction.client, guild.id, userId, "farm", 1).catch(
+    incrementQuestProgress(interaction.client, guild.id, userId, "farm", 1, interaction).catch(
       (e) => console.error("[farm] quest increment error:", e)
     );
 

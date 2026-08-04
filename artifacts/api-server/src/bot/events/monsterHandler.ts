@@ -28,7 +28,7 @@ export async function handleMonsterFight(interaction: ButtonInteraction): Promis
     player.sporePoints += gain;
     savePlayer(player);
 
-    incrementQuestProgress(interaction.client, interaction.guildId ?? "", userId, "monster", 1).catch(
+    incrementQuestProgress(interaction.client, interaction.guildId ?? "", userId, "monster", 1, interaction).catch(
       (e) => console.error("[monsterHandler] quest track error:", e)
     );
 

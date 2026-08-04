@@ -129,7 +129,7 @@ export async function handleCasinoModal(interaction: ModalSubmitInteraction): Pr
   player.sporePoints += rawWin;
   savePlayer(player);
 
-  incrementQuestProgress(interaction.client, interaction.guildId ?? "", interaction.user.id, "casino", 1).catch(
+  incrementQuestProgress(interaction.client, interaction.guildId ?? "", interaction.user.id, "casino", 1, interaction).catch(
     (e) => console.error("[casinoHandler] quest track error:", e)
   );
 

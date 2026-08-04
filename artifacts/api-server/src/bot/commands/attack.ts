@@ -45,7 +45,7 @@ export async function execute(
   }
 
   // Track quest progress for boss attack
-  incrementQuestProgress(interaction.client, guild.id, interaction.user.id, "boss", 1).catch(
+  incrementQuestProgress(interaction.client, guild.id, interaction.user.id, "boss", 1, interaction).catch(
     (e) => console.error("[attack] quest track error:", e)
   );
 

@@ -138,7 +138,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     savePlayer(sender);
     savePlayer(receiver);
 
-    incrementQuestProgress(interaction.client, guild.id, interaction.user.id, "transfer", 1).catch(
+    incrementQuestProgress(interaction.client, guild.id, interaction.user.id, "transfer", 1, interaction).catch(
       (e) => console.error("[transfer] quest track error:", e)
     );
 

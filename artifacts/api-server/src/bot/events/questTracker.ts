@@ -5,7 +5,14 @@
 // Also hooks into the achievement checker for cumulative stats.
 // ============================================================
 
-import { Client, Guild, EmbedBuilder, Message } from "discord.js";
+import {
+  Client,
+  EmbedBuilder,
+  Message,
+  ChatInputCommandInteraction,
+  ButtonInteraction,
+  ModalSubmitInteraction,
+} from "discord.js";
 import {
   getPlayerQuestData,
   savePlayerQuestData,
@@ -20,6 +27,11 @@ import {
 } from "../data/questPool.js";
 import { getThaiDateString } from "../utils/thaiTime.js";
 import { trackStatAndCheck } from "../utils/achievementChecker.js";
+
+type QuestProgressInteraction =
+  | ChatInputCommandInteraction
+  | ButtonInteraction
+  | ModalSubmitInteraction;
 
 // ─── Voice session tracking ───────────────────────────────────
 const questVoiceSessions = new Map<string, number>();
@@ -90,7 +102,8 @@ export async function incrementQuestProgress(
   guildId: string,
   userId: string,
   type: QuestType,
-  amount: number
+  amount: number,
+  interaction?: QuestProgressInteraction,
 ): Promise<void> {
   const today = getThaiDateString();
   let data = ensureQuestData(userId, today);
@@ -111,7 +124,7 @@ export async function incrementQuestProgress(
       entry.completed = true;
 
       if (guild) {
-        sendCompletionNotification(guild, userId, def.description, def.reward).catch(
+        sendCompletionNotification(interaction, def.description, def.reward).catch(
           (e) => console.error("[questTracker] notification error:", e)
         );
       }
@@ -149,26 +162,28 @@ export function ensureQuestData(userId: string, today: string): PlayerQuestData 
 }
 
 async function sendCompletionNotification(
-  guild: Guild,
-  userId: string,
+  interaction: QuestProgressInteraction | undefined,
   description: string,
   reward: number
 ): Promise<void> {
+  if (!interaction) return;
+
   try {
-    const member = await guild.members.fetch(userId).catch(() => null);
-    if (!member) return;
+    if (!interaction.replied && !interaction.deferred) return;
 
     const embed = new EmbedBuilder()
       .setTitle("✅ ภารกิจสำเร็จ!")
       .setDescription(
         `คุณทำภารกิจ **${description}** สำเร็จแล้ว! 🎉\n` +
-        `พิมพ์ \`/quest claim\` ใน **${guild.name}** เพื่อรับรางวัล **${reward.toLocaleString()} สปอร์**`
+        `พิมพ์ \`/quest claim\` ในห้องเกมนี้เพื่อรับรางวัล **${reward.toLocaleString()} สปอร์**`
       )
       .setColor(0x57f287)
       .setTimestamp();
 
-    await member.send({ embeds: [embed] });
-  } catch { /* ignore if DMs are closed */ }
+    await interaction.followUp({ embeds: [embed], ephemeral: true });
+  } catch (error) {
+    console.error("[questTracker] failed to send ephemeral completion notification:", error);
+  }
 }
 
 export { DIFFICULTY_EMOJI, DIFFICULTY_LABEL };
