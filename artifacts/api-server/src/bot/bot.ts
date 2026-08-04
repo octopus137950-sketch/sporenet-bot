@@ -85,6 +85,10 @@ import {
 } from "./events/sporeCrashHandler.js";
 import { onAiChatMessage } from "./events/aiChatHandler.js";
 import { startEcosystemScheduler } from "./events/ecosystemScheduler.js";
+import { startWorldMushroomScheduler } from "./events/worldMushroomScheduler.js";
+import * as waterCmd from "./commands/water.js";
+import * as protectCmd from "./commands/protect.js";
+import * as worldmushroomCmd from "./commands/worldmushroom.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -137,6 +141,9 @@ commands.set("fertilize", fertilizeCmd);
 commands.set("weather", weatherCmd);
 commands.set("nature", natureCmd);
 commands.set("gacha", gachaCmd);
+commands.set("water", waterCmd);
+commands.set("protect", protectCmd);
+commands.set("worldmushroom", worldmushroomCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -169,6 +176,7 @@ export async function startBot(): Promise<void> {
     startQuestDailyReset();
     initWorldBossScheduler(client);
     startEcosystemScheduler(client);
+    startWorldMushroomScheduler(client);
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {

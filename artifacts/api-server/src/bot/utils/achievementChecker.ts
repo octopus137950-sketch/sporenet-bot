@@ -24,6 +24,7 @@ import {
   AchievementConditionType,
   PlayerStats,
 } from "../data/store.js";
+import { applyWorldMushroomSporeBonus } from "./worldMushroom.js";
 
 // ─── Public API ───────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ async function grantAchievement(
 
   if (ach.sporeReward > 0) {
     const player = getPlayer(userId);
-    player.sporePoints += ach.sporeReward;
+    player.sporePoints += applyWorldMushroomSporeBonus(guild.id, ach.sporeReward);
     savePlayer(player);
   }
 

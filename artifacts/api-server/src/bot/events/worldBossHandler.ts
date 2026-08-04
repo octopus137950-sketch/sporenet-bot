@@ -22,7 +22,12 @@ import {
   isBossSystemEnabled,
   getDisabledDefaultBosses,
   getInventory,
+  getWorldMushroom,
 } from "../data/store.js";
+import {
+  applyWorldMushroomSporeBonus,
+  getWorldMushroomBonuses,
+} from "../utils/worldMushroom.js";
 
 /** สุ่มไอเทมดรอปจากบอส — โอกาส 2% (สูงกว่าฟาร์มปกติ 0.75%) */
 function rollBossItemDrop(): typeof ITEMS_POOL[number] | null {
@@ -289,7 +294,10 @@ export function processBossAttack(
       attackBonus += item.buffValue;
     }
   }
-  const multiplier = 1 + attackBonus / 100;
+  const worldMushroomBonus = getWorldMushroomBonuses(
+    getWorldMushroom(guildId).level,
+  ).bossDamageBonusPercent;
+  const multiplier = 1 + (attackBonus + worldMushroomBonus) / 100;
 
   const maxDmg = 10 + 5 * (userLevel - 1);
   const baseDmg = Math.floor(Math.random() * maxDmg) + 1;
@@ -343,7 +351,7 @@ export async function handleVictory(client: Client, guildId: string): Promise<vo
   const rewards: Array<{ userId: string; damage: number; pct: number; earned: number }> = [];
   for (const [uid, dmg] of sorted) {
     const pct = totalDmg > 0 ? dmg / totalDmg : 0;
-    const earned = Math.floor(pct * pool);
+    const earned = applyWorldMushroomSporeBonus(guildId, Math.floor(pct * pool));
     if (earned > 0) {
       const player = getPlayer(uid);
       player.sporePoints += earned;

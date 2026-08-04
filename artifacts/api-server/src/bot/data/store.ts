@@ -171,6 +171,34 @@ export interface GuildConfig {
   bossSystemEnabled?: boolean;
   /** ช่องแชทสำหรับคุยกับ AI (SporeNet AI Companion) */
   aiChannelId?: string;
+  worldMushroom?: WorldMushroomState;
+}
+
+export interface WorldMushroomContributor {
+  userId: string;
+  donatedSpores: number;
+}
+
+export interface WorldMushroomSeasonResult {
+  seasonNumber: number;
+  endedAt: number;
+  topContributors: WorldMushroomContributor[];
+}
+
+export interface WorldMushroomState {
+  level: number;
+  exp: number;
+  seasonNumber: number;
+  seasonStartedAt: number;
+  nextResetAt: number;
+  contributors: Record<string, number>;
+  lastPestAt: number;
+  activePest?: {
+    startedAt: number;
+    expiresAt: number;
+    protectedBy?: string;
+  };
+  lastSeasonResult?: WorldMushroomSeasonResult;
 }
 
 export interface PlayerData {
@@ -460,6 +488,67 @@ export function getAllPanels(): ReactionRolePanel[] {
 
 export function getGuildConfig(guildId: string): GuildConfig {
   return _store.guilds[guildId] ?? {};
+}
+
+const WORLD_MUSHROOM_SEASON_MS = 60 * 24 * 60 * 60 * 1_000;
+
+function createWorldMushroomState(now = Date.now()): WorldMushroomState {
+  return {
+    level: 1,
+    exp: 0,
+    seasonNumber: 1,
+    seasonStartedAt: now,
+    nextResetAt: now + WORLD_MUSHROOM_SEASON_MS,
+    contributors: {},
+    lastPestAt: 0,
+  };
+}
+
+export function getWorldMushroom(guildId: string): WorldMushroomState {
+  const guild = _store.guilds[guildId] ?? (_store.guilds[guildId] = {});
+  if (!guild.worldMushroom) {
+    guild.worldMushroom = createWorldMushroomState();
+    saveStore(_store);
+  } else {
+    const current = guild.worldMushroom;
+    let changed = false;
+    if (!current.level || current.level < 1) {
+      current.level = 1;
+      changed = true;
+    }
+    if (!Number.isFinite(current.exp) || current.exp < 0) {
+      current.exp = 0;
+      changed = true;
+    }
+    if (!current.seasonNumber || current.seasonNumber < 1) {
+      current.seasonNumber = 1;
+      changed = true;
+    }
+    if (!current.seasonStartedAt) {
+      current.seasonStartedAt = Date.now();
+      changed = true;
+    }
+    if (!current.nextResetAt) {
+      current.nextResetAt = current.seasonStartedAt + WORLD_MUSHROOM_SEASON_MS;
+      changed = true;
+    }
+    if (!current.contributors) {
+      current.contributors = {};
+      changed = true;
+    }
+    if (!current.lastPestAt) {
+      current.lastPestAt = 0;
+      changed = true;
+    }
+    if (changed) saveStore(_store);
+  }
+  return guild.worldMushroom;
+}
+
+export function saveWorldMushroom(guildId: string, state: WorldMushroomState): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  _store.guilds[guildId]!.worldMushroom = state;
+  saveStore(_store);
 }
 
 export function setWelcomeConfig(guildId: string, config: WelcomeGoodbyeConfig): void {

@@ -12,6 +12,7 @@ import { requireGameChannel } from "../utils/channelGuard.js";
 import { getQuestById, DIFFICULTY_EMOJI, DIFFICULTY_LABEL } from "../data/questPool.js";
 import { ensureQuestData, incrementQuestProgress } from "../events/questTracker.js";
 import { getThaiDateString, msUntilMidnightThai } from "../utils/thaiTime.js";
+import { applyWorldMushroomSporeBonus } from "../utils/worldMushroom.js";
 
 export const data = new SlashCommandBuilder()
   .setName("quest")
@@ -155,7 +156,8 @@ async function handleClaim(interaction: ChatInputCommandInteraction): Promise<vo
 
   // Give spore to player
   const player = getPlayer(userId);
-  player.sporePoints += totalReward;
+  const boostedReward = applyWorldMushroomSporeBonus(interaction.guildId ?? "", totalReward);
+  player.sporePoints += boostedReward;
   savePlayer(player);
 
   // Save updated quest data
@@ -168,7 +170,7 @@ async function handleClaim(interaction: ChatInputCommandInteraction): Promise<vo
     .setDescription(
       `${interaction.user} ได้รับรางวัลจาก **${claimable.length} ภารกิจ**!\n\n` +
         rewardLines.join("\n") +
-        `\n\n💰 รวมทั้งหมด: **+${totalReward.toLocaleString()} สปอร์**` +
+        `\n\n💰 รวมทั้งหมด: **+${boostedReward.toLocaleString()} สปอร์**` +
         (allDone ? "\n\n👑 **ทำภารกิจครบทุกข้อวันนี้แล้ว! ยอดเยี่ยม!**" : "")
     )
     .setColor(allDone ? 0xffd700 : 0x57f287)

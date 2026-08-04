@@ -9,6 +9,7 @@ import {
 } from "discord.js";
 import { getPlayer, savePlayer } from "../data/store.js";
 import { incrementQuestProgress } from "./questTracker.js";
+import { applyWorldMushroomSporeBonus } from "../utils/worldMushroom.js";
 
 const MIN_BET = 10;
 const MAX_BET = 50_000;
@@ -124,9 +125,13 @@ export async function handleCasinoModal(interaction: ModalSubmitInteraction): Pr
   const reels: [string, string, string] = [rollSymbol(), rollSymbol(), rollSymbol()];
   const payout = calcPayout(reels, bet);
   const rawWin = Math.floor(bet * payout.multiplier);
-  const netGain = rawWin - bet;
+  const boostedWin = applyWorldMushroomSporeBonus(
+    interaction.guildId ?? "",
+    rawWin,
+  );
+  const netGain = boostedWin - bet;
 
-  player.sporePoints += rawWin;
+  player.sporePoints += boostedWin;
   savePlayer(player);
 
   incrementQuestProgress(interaction.client, interaction.guildId ?? "", interaction.user.id, "casino", 1, interaction).catch(

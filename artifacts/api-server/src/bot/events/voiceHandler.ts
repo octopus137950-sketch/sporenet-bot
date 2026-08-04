@@ -14,6 +14,7 @@ import {
 } from "../data/store.js";
 import { onQuestVoiceJoin, onQuestVoiceLeave } from "./questTracker.js";
 import { trackStatAndCheck } from "../utils/achievementChecker.js";
+import { applyWorldMushroomSporeBonus } from "../utils/worldMushroom.js";
 
 interface VoiceSession {
   joinTime: number;
@@ -84,6 +85,7 @@ async function sendLeaveNotification(
 }
 
 function awardPendingVoiceRewards(
+  guildId: string,
   memberId: string,
   session: VoiceSession,
   config: VoiceRewardConfig,
@@ -95,7 +97,11 @@ function awardPendingVoiceRewards(
   if (pendingIntervals <= 0) return;
 
   const player = getPlayer(memberId);
-  player.sporePoints += pendingIntervals * config.giveSpore;
+  const earnedSpore = applyWorldMushroomSporeBonus(
+    guildId,
+    pendingIntervals * config.giveSpore,
+  );
+  player.sporePoints += earnedSpore;
   player.farmExp += pendingIntervals * config.giveExp;
 
   while (player.farmExp >= player.farmLevel * 100) {
@@ -104,7 +110,7 @@ function awardPendingVoiceRewards(
   }
 
   savePlayer(player);
-  session.earnedSpore += pendingIntervals * config.giveSpore;
+  session.earnedSpore += earnedSpore;
   session.earnedExp += pendingIntervals * config.giveExp;
   session.rewardedIntervals = completedIntervals;
 }
@@ -146,7 +152,7 @@ export function handleVoiceStateUpdate(
     sessions.delete(key);
     const config = getVoiceRewardConfig(guildId);
     if (config?.enabled && !config.blockedRoomIds.includes(session.channelId)) {
-      awardPendingVoiceRewards(userId, session, config, now);
+      awardPendingVoiceRewards(guildId, userId, session, config, now);
     }
     sendLeaveNotification(newState.guild, userId, session, now).catch(console.error);
 
@@ -204,7 +210,7 @@ async function distributeVoiceRewards(client: Client): Promise<void> {
         }
 
         session.channelId = voiceChannel.id;
-        awardPendingVoiceRewards(member.id, session, config, now);
+        awardPendingVoiceRewards(guildId, member.id, session, config, now);
       }
     }
   }

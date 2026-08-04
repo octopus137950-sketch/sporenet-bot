@@ -20,6 +20,7 @@ import { incrementQuestProgress } from "../events/questTracker.js";
 import { trackStatAndCheck } from "../utils/achievementChecker.js";
 import { rollItemDrop } from "../data/itemsPool.js";
 import { addItemToInventory } from "../data/store.js";
+import { applyWorldMushroomSporeBonus } from "../utils/worldMushroom.js";
 
 export const data = new SlashCommandBuilder()
   .setName("farm")
@@ -235,7 +236,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   if (pointChange > 0) {
-    const requestedHarvest = pointChange;
+    const requestedHarvest = applyWorldMushroomSporeBonus(guild?.id ?? "", pointChange);
     const harvested = harvestNaturalSpores(requestedHarvest);
     pointChange = harvested;
     resultText =
