@@ -2,7 +2,6 @@ import { ButtonInteraction, EmbedBuilder } from "discord.js";
 import { getPlayer, savePlayer } from "../data/store.js";
 import { getPendingBattle, clearPendingBattle } from "../data/monsterState.js";
 import { incrementQuestProgress } from "./questTracker.js";
-import { applyWorldMushroomSporeBonus } from "../utils/worldMushroom.js";
 
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -25,10 +24,7 @@ export async function handleMonsterFight(interaction: ButtonInteraction): Promis
 
   let embed: EmbedBuilder;
   if (won) {
-    const gain = applyWorldMushroomSporeBonus(
-      interaction.guildId ?? "",
-      randInt(battle.winMin, battle.winMax),
-    );
+    const gain = randInt(battle.winMin, battle.winMax);
     player.sporePoints += gain;
     savePlayer(player);
 

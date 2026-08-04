@@ -17,7 +17,6 @@ import {
 } from "discord.js";
 import { getPlayer, savePlayer } from "../data/store.js";
 import { logger } from "../../lib/logger.js";
-import { applyWorldMushroomSporeBonus } from "../utils/worldMushroom.js";
 
 const MIN_BET = 10;
 const MAX_BET = 100_000;
@@ -262,10 +261,7 @@ export async function handleCrashCashOut(interaction: ButtonInteraction): Promis
   activeGames.delete(userId);
 
   // จ่ายรางวัล
-  const payout = applyWorldMushroomSporeBonus(
-    interaction.guildId ?? "",
-    Math.floor(game.bet * cashOutMultiplier),
-  );
+  const payout = Math.floor(game.bet * cashOutMultiplier);
   const player = getPlayer(userId);
   player.sporePoints += payout;
   savePlayer(player);

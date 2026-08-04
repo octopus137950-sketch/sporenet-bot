@@ -15,7 +15,6 @@ import {
   savePlayer,
   getGameChannel,
 } from "../data/store.js";
-import { applyWorldMushroomSporeBonus } from "../utils/worldMushroom.js";
 
 const VERIFY_SPORE_REWARD = 1_000;
 
@@ -111,11 +110,7 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
 
   // ── Grant 1,000 spore reward ──────────────────────────────
   const player = getPlayer(interaction.user.id);
-  const boostedReward = applyWorldMushroomSporeBonus(
-    interaction.guildId ?? "",
-    VERIFY_SPORE_REWARD,
-  );
-  player.sporePoints += boostedReward;
+  player.sporePoints += VERIFY_SPORE_REWARD;
   savePlayer(player);
 
   // ── Send log to verification log channel ──────────────────
@@ -162,7 +157,7 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
             .setDescription(
               `ยินดีต้อนรับ <@${user.id}> สู่เซิร์ฟเวอร์! 🍄\n` +
               `ผ่านการยืนยันตัวตนเรียบร้อยแล้ว และได้รับ\n` +
-              `🍄 **${boostedReward.toLocaleString()} สปอร์** เข้ากระเป๋าทันที!`
+              `🍄 **${VERIFY_SPORE_REWARD.toLocaleString()} สปอร์** เข้ากระเป๋าทันที!`
             )
             .setThumbnail(user.displayAvatarURL())
             .setFooter({ text: `สปอร์รวม: ${player.sporePoints.toLocaleString()} แต้ม` })
@@ -180,6 +175,6 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
   await interaction.editReply({
     content:
       `✅ ยืนยันตัวตนสำเร็จแล้ว! คุณได้รับยศ <@&${panel.roleIdToGrant}>\n` +
-      `🍄 รับรางวัล **${boostedReward.toLocaleString()} สปอร์** เข้ากระเป๋าทันที ยินดีต้อนรับ! 🎉`,
+      `🍄 รับรางวัล **${VERIFY_SPORE_REWARD.toLocaleString()} สปอร์** เข้ากระเป๋าทันที ยินดีต้อนรับ! 🎉`,
   });
 }

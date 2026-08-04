@@ -19,8 +19,6 @@ import {
 } from "../utils/worldMushroom.js";
 
 const PEST_WINDOW_MS = 60_000;
-const MIN_PEST_GAP_MS = 5 * 24 * 60 * 60 * 1_000;
-const PEST_CHANCE_PER_TICK = 1 / (7 * 24 * 60);
 const HIGH_LORD_ROLE_NAME = "👑 High Lord of Mushroom";
 
 let schedulerStarted = false;
@@ -87,19 +85,27 @@ async function resolvePest(client: Client, guildId: string): Promise<void> {
   }).catch(() => undefined);
 }
 
-async function startPest(client: Client, guild: Guild): Promise<void> {
-  const state = getWorldMushroom(guild.id);
-  if (state.activePest) return;
+export async function triggerPest(
+  client: Client,
+  guildId: string,
+): Promise<"started" | "active" | "no-channel"> {
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) return "no-channel";
+
+  let state = getWorldMushroom(guild.id);
+  if (state.activePest) {
+    if (state.activePest.expiresAt > Date.now()) return "active";
+    await resolvePest(client, guild.id);
+    state = getWorldMushroom(guild.id);
+  }
+  if (!await getGameTextChannel(guild)) return "no-channel";
 
   const now = Date.now();
-  if (state.lastPestAt && now - state.lastPestAt < MIN_PEST_GAP_MS) return;
-  if (Math.random() >= PEST_CHANCE_PER_TICK) return;
-  if (!await getGameTextChannel(guild)) return;
-
   state.lastPestAt = now;
   state.activePest = { startedAt: now, expiresAt: now + PEST_WINDOW_MS };
   saveWorldMushroom(guild.id, state);
   await announcePest(client, guild);
+  return "started";
 }
 
 async function grantSeasonRole(guild: Guild): Promise<Role | null> {
@@ -185,7 +191,6 @@ async function processGuild(client: Client, guild: Guild): Promise<void> {
     await resolvePest(client, guild.id);
   }
   await resetSeason(client, guild);
-  await startPest(client, guild);
 }
 
 export function startWorldMushroomScheduler(client: Client): void {

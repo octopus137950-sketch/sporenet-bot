@@ -9,7 +9,6 @@ import {
 } from "../data/store.js";
 import { requireGameChannel } from "../utils/channelGuard.js";
 import { getThaiDateString, msUntilMidnightThai } from "../utils/thaiTime.js";
-import { applyWorldMushroomSporeBonus } from "../utils/worldMushroom.js";
 
 type GachaTier = {
   level: number;
@@ -146,13 +145,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const expReward = rewardType === "exp"
     ? rollReward(tier.expMin, tier.expMax, luck)
     : 0;
-  const boostedSporeReward = applyWorldMushroomSporeBonus(
-    interaction.guildId ?? "",
-    sporeReward,
-  );
-
   if (rewardType === "spore") {
-    player.sporePoints += boostedSporeReward;
+    player.sporePoints += sporeReward;
   } else {
     player.farmExp += expReward;
   }
@@ -184,7 +178,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     .setThumbnail(interaction.user.displayAvatarURL())
     .addFields(
       rewardType === "spore"
-        ? { name: "🍄 รางวัลที่ได้รับ", value: `**+${boostedSporeReward.toLocaleString()} สปอร์**`, inline: true }
+        ? { name: "🍄 รางวัลที่ได้รับ", value: `**+${sporeReward.toLocaleString()} สปอร์**`, inline: true }
         : { name: "🎯 รางวัลที่ได้รับ", value: `**+${expReward.toLocaleString()} EXP**`, inline: true },
       { name: "📦 กล่องที่เปิด", value: `${tier.emoji} ${tier.name} (ปลดล็อก Lv.${tier.level})`, inline: false },
       { name: "📈 ความก้าวหน้า", value: progressText, inline: false },

@@ -5,7 +5,6 @@ import {
 } from "discord.js";
 import { getPlayer, savePlayer } from "../data/store.js";
 import { requireGameChannel } from "../utils/channelGuard.js";
-import { applyWorldMushroomSporeBonus } from "../utils/worldMushroom.js";
 
 export const data = new SlashCommandBuilder()
   .setName("daily")
@@ -82,8 +81,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   player.dailyStreak += 1;
-  const baseReward = getDailyReward(player.dailyStreak);
-  const reward = applyWorldMushroomSporeBonus(interaction.guildId ?? "", baseReward);
+  const reward = getDailyReward(player.dailyStreak);
   player.sporePoints += reward;
   player.lastDailyTime = now;
   savePlayer(player);

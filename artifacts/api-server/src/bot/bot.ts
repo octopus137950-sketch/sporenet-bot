@@ -89,6 +89,7 @@ import { startWorldMushroomScheduler } from "./events/worldMushroomScheduler.js"
 import * as waterCmd from "./commands/water.js";
 import * as protectCmd from "./commands/protect.js";
 import * as worldmushroomCmd from "./commands/worldmushroom.js";
+import * as pestCmd from "./commands/pest.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -144,6 +145,7 @@ commands.set("gacha", gachaCmd);
 commands.set("water", waterCmd);
 commands.set("protect", protectCmd);
 commands.set("worldmushroom", worldmushroomCmd);
+commands.set("pest", pestCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
