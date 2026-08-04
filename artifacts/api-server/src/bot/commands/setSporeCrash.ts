@@ -42,7 +42,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       "💀 **x10.0** — ~1-2% (แจ็กพอตแตก)\n\n"
     )
     .setColor(0xffa500)
-    .setFooter({ text: "เดิมพันขั้นต่ำ 10 • สูงสุด 100,000 สปอร์ | ระบบ Fair Play — ไม่ระเบิดที่ x1.00" })
+    .setFooter({ text: "เดิมพันขั้นต่ำ 1 • ไม่จำกัดสูงสุด | ระบบ Fair Play — ไม่ระเบิดที่ x1.00" })
     .setTimestamp();
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(

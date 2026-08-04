@@ -45,7 +45,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       "4. ถ้าเลือกถูก รับคืน ×2 ของเดิมพัน",
     )
     .setColor(0x5865f2)
-    .setFooter({ text: "เดิมพันขั้นต่ำ 10 • สูงสุด 100,000 สปอร์ • มีช่องรางวัลเพียง 1 ช่อง" })
+    .setFooter({ text: "เดิมพันขั้นต่ำ 1 • ไม่จำกัดสูงสุด • มีช่องรางวัลเพียง 1 ช่อง" })
     .setTimestamp();
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(

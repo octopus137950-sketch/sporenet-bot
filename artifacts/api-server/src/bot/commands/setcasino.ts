@@ -47,7 +47,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         "ไม่มีอะไรเลย — ×0 (เสียเดิมพัน)"
     )
     .setColor(0xffd700)
-    .setFooter({ text: "เดิมพันขั้นต่ำ 10 สปอร์ • ใช้สปอร์จากกระเป๋าของคุณ" })
+    .setFooter({ text: "เดิมพันขั้นต่ำ 1 สปอร์ • ไม่จำกัดสูงสุด • ใช้สปอร์จากกระเป๋าของคุณ" })
     .setTimestamp();
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(

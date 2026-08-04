@@ -11,8 +11,7 @@ import {
 } from "discord.js";
 import { getPlayer, savePlayer } from "../data/store.js";
 
-const MIN_BET = 10;
-const MAX_BET = 100_000;
+const MIN_BET = 1;
 const DOOR_COUNT = 3;
 
 interface LuckyDoorsGame {
@@ -41,11 +40,11 @@ export async function handleLuckyDoorsButton(interaction: ButtonInteraction): Pr
 
   const betInput = new TextInputBuilder()
     .setCustomId("bet_amount")
-    .setLabel(`จำนวนสปอร์ (${MIN_BET}–${MAX_BET.toLocaleString()})`)
+    .setLabel(`จำนวนสปอร์ (ขั้นต่ำ ${MIN_BET} • ไม่จำกัดสูงสุด)`)
     .setStyle(TextInputStyle.Short)
     .setPlaceholder("เช่น 100")
     .setMinLength(1)
-    .setMaxLength(6)
+    .setMaxLength(4000)
     .setRequired(true);
 
   modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(betInput));
@@ -60,10 +59,11 @@ export async function handleLuckyDoorsModal(interaction: ModalSubmitInteraction)
     return;
   }
 
-  const bet = Number.parseInt(interaction.fields.getTextInputValue("bet_amount").trim(), 10);
-  if (!Number.isInteger(bet) || bet < MIN_BET || bet > MAX_BET) {
+  const betStr = interaction.fields.getTextInputValue("bet_amount").trim();
+  const bet = Number(betStr);
+  if (!/^\d+$/.test(betStr) || !Number.isSafeInteger(bet) || bet < MIN_BET) {
     await interaction.editReply(
-      `❌ จำนวนเดิมพันไม่ถูกต้อง ต้องเป็นตัวเลขระหว่าง **${MIN_BET.toLocaleString()}** – **${MAX_BET.toLocaleString()}** สปอร์`,
+      `❌ จำนวนเดิมพันไม่ถูกต้อง ต้องเป็นจำนวนเต็มอย่างน้อย **${MIN_BET}** สปอร์ และไม่จำกัดจำนวนสูงสุด`,
     );
     return;
   }
@@ -157,4 +157,4 @@ export async function handleLuckyDoorsPick(interaction: ButtonInteraction): Prom
   await interaction.update({ embeds: [resultEmbed], components: [] });
 }
 
-export { MIN_BET as LUCKY_DOORS_MIN_BET, MAX_BET as LUCKY_DOORS_MAX_BET };
+export { MIN_BET as LUCKY_DOORS_MIN_BET };

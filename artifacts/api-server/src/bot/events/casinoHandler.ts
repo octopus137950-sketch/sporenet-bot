@@ -10,8 +10,7 @@ import {
 import { getPlayer, savePlayer } from "../data/store.js";
 import { incrementQuestProgress } from "./questTracker.js";
 
-const MIN_BET = 10;
-const MAX_BET = 50_000;
+const MIN_BET = 1;
 
 const SYMBOLS = [
   { emoji: "💎", weight: 3 },
@@ -76,11 +75,11 @@ export async function handleCasinoButton(interaction: ButtonInteraction): Promis
 
   const betInput = new TextInputBuilder()
     .setCustomId("bet_amount")
-    .setLabel(`จำนวนสปอร์ที่ต้องการวางเดิมพัน (${MIN_BET}–${MAX_BET.toLocaleString()})`)
+    .setLabel(`จำนวนสปอร์ที่ต้องการวางเดิมพัน (ขั้นต่ำ ${MIN_BET} • ไม่จำกัดสูงสุด)`)
     .setStyle(TextInputStyle.Short)
     .setPlaceholder("เช่น 100")
     .setMinLength(1)
-    .setMaxLength(6)
+    .setMaxLength(4000)
     .setRequired(true);
 
   modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(betInput));
@@ -91,11 +90,11 @@ export async function handleCasinoModal(interaction: ModalSubmitInteraction): Pr
   await interaction.deferReply({ ephemeral: true });
 
   const betStr = interaction.fields.getTextInputValue("bet_amount").trim();
-  const bet = parseInt(betStr, 10);
+  const bet = Number(betStr);
 
-  if (isNaN(bet) || bet < MIN_BET || bet > MAX_BET) {
+  if (!/^\d+$/.test(betStr) || !Number.isSafeInteger(bet) || bet < MIN_BET) {
     await interaction.editReply(
-      `❌ จำนวนเดิมพันไม่ถูกต้อง\nต้องเป็นตัวเลขระหว่าง **${MIN_BET}** – **${MAX_BET.toLocaleString()}** สปอร์`
+      `❌ จำนวนเดิมพันไม่ถูกต้อง\nต้องเป็นจำนวนเต็มอย่างน้อย **${MIN_BET}** สปอร์ และไม่จำกัดจำนวนสูงสุด`
     );
     return;
   }

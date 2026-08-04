@@ -18,8 +18,7 @@ import {
 import { getPlayer, savePlayer } from "../data/store.js";
 import { logger } from "../../lib/logger.js";
 
-const MIN_BET = 10;
-const MAX_BET = 100_000;
+const MIN_BET = 1;
 /** อัตราเพิ่มตัวคูณต่อ tick (6% ต่อ 0.8 วินาที) */
 const GROWTH_RATE = 1.06;
 const TICK_MS = 800;
@@ -134,11 +133,11 @@ export async function handleCrashBetButton(interaction: ButtonInteraction): Prom
 
   const betInput = new TextInputBuilder()
     .setCustomId("crash_bet_amount")
-    .setLabel(`จำนวนสปอร์ที่ต้องการเดิมพัน (${MIN_BET}–${MAX_BET.toLocaleString()})`)
+    .setLabel(`จำนวนสปอร์ที่ต้องการเดิมพัน (ขั้นต่ำ ${MIN_BET} • ไม่จำกัดสูงสุด)`)
     .setStyle(TextInputStyle.Short)
     .setPlaceholder("เช่น 500")
     .setMinLength(1)
-    .setMaxLength(7)
+    .setMaxLength(4000)
     .setRequired(true);
 
   modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(betInput));
@@ -156,11 +155,11 @@ export async function handleCrashBetModal(interaction: ModalSubmitInteraction): 
   }
 
   const betStr = interaction.fields.getTextInputValue("crash_bet_amount").trim();
-  const bet = parseInt(betStr, 10);
+  const bet = Number(betStr);
 
-  if (isNaN(bet) || bet < MIN_BET || bet > MAX_BET) {
+  if (!/^\d+$/.test(betStr) || !Number.isSafeInteger(bet) || bet < MIN_BET) {
     await interaction.editReply(
-      `❌ จำนวนเดิมพันไม่ถูกต้อง\nต้องเป็นตัวเลขระหว่าง **${MIN_BET}** – **${MAX_BET.toLocaleString()}** สปอร์`
+      `❌ จำนวนเดิมพันไม่ถูกต้อง\nต้องเป็นจำนวนเต็มอย่างน้อย **${MIN_BET}** สปอร์ และไม่จำกัดจำนวนสูงสุด`
     );
     return;
   }
