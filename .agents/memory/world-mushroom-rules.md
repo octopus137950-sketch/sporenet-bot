@@ -7,4 +7,4 @@ The World Mushroom is scoped per Discord server and runs in 60-day seasons. Dona
 
 **Why:** The system is cooperative and seasonal, so progress and rankings must not be shared across servers or persist indefinitely between seasons.
 
-**How to apply:** Keep `/water`, admin-triggered pest events, seasonal Top 3 rewards, and `/worldmushroom` status tied to the guild’s world-mushroom state. World Mushroom level grants +1% spore rewards only to `/farm` and +2% World Boss damage per level. Pest failure reduces one level; it does not erase the remaining EXP.
+**How to apply:** Keep `/water`, admin-triggered pest events, seasonal Top 3 rewards, and `/worldmushroom` status tied to the guild’s world-mushroom state. World Mushroom level grants +1% spore rewards only to `/farm` and +2% World Boss damage per level starting at Lv.2; Lv.1 has no bonus. Pest failure reduces one level; it does not erase the remaining EXP.

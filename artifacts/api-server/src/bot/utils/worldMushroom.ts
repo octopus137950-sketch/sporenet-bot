@@ -11,8 +11,8 @@ export function getWorldMushroomBonuses(level: number): {
   bossDamageBonusPercent: number;
 } {
   return {
-    sporeBonusPercent: Math.max(0, level),
-    bossDamageBonusPercent: Math.max(0, level * 2),
+    sporeBonusPercent: Math.max(0, level - 1),
+    bossDamageBonusPercent: Math.max(0, (level - 1) * 2),
   };
 }
 
