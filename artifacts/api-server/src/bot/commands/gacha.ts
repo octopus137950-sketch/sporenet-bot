@@ -1,11 +1,9 @@
 import {
   ChatInputCommandInteraction,
   EmbedBuilder,
-  TextChannel,
   SlashCommandBuilder,
 } from "discord.js";
 import {
-  getGameChannel,
   getPlayer,
   savePlayer,
 } from "../data/store.js";
@@ -110,7 +108,7 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!(await requireGameChannel(interaction))) return;
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   const player = getPlayer(interaction.user.id);
   if (player.farmLevel < 2) {
@@ -140,11 +138,19 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const tier = getTier(player.farmLevel);
   const luck = rollLuck();
-  const sporeReward = rollReward(tier.sporeMin, tier.sporeMax, luck);
-  const expReward = rollReward(tier.expMin, tier.expMax, luck);
+  const rewardType = Math.random() < 0.5 ? "spore" : "exp";
+  const sporeReward = rewardType === "spore"
+    ? rollReward(tier.sporeMin, tier.sporeMax, luck)
+    : 0;
+  const expReward = rewardType === "exp"
+    ? rollReward(tier.expMin, tier.expMax, luck)
+    : 0;
 
-  player.sporePoints += sporeReward;
-  player.farmExp += expReward;
+  if (rewardType === "spore") {
+    player.sporePoints += sporeReward;
+  } else {
+    player.farmExp += expReward;
+  }
   player.lastGachaTime = Date.now();
 
   let levelUps = 0;
@@ -172,8 +178,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     .setColor(luck.critical ? 0xff1f3d : luck.name === "Great" ? 0x3498db : 0x57f287)
     .setThumbnail(interaction.user.displayAvatarURL())
     .addFields(
-      { name: "🍄 สปอร์ที่ได้รับ", value: `**+${sporeReward.toLocaleString()}**`, inline: true },
-      { name: "⭐ EXP ที่ได้รับ", value: `**+${expReward.toLocaleString()}**`, inline: true },
+      rewardType === "spore"
+        ? { name: "🍄 รางวัลที่ได้รับ", value: `**+${sporeReward.toLocaleString()} สปอร์**`, inline: true }
+        : { name: "🎯 รางวัลที่ได้รับ", value: `**+${expReward.toLocaleString()} EXP**`, inline: true },
       { name: "📦 กล่องที่เปิด", value: `${tier.emoji} ${tier.name} (ปลดล็อก Lv.${tier.level})`, inline: false },
       { name: "📈 ความก้าวหน้า", value: progressText, inline: false },
       { name: "⏳ กาชาครั้งถัดไป", value: "หลังเที่ยงคืนไทย", inline: true },
@@ -182,17 +189,4 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     .setTimestamp();
 
   await interaction.editReply({ embeds: [embed] });
-
-  if (luck.critical && interaction.guild) {
-    const gameChannelId = getGameChannel(interaction.guild.id);
-    if (gameChannelId) {
-      const channel = await interaction.guild.channels.fetch(gameChannelId).catch(() => null);
-      if (channel && channel instanceof TextChannel) {
-        await channel.send({
-          content: `🎉 ขอแสดงความยินดีกับ <@${interaction.user.id}> ที่เปิดได้ **CRITICAL JACKPOT!**`,
-          embeds: [embed],
-        }).catch(() => undefined);
-      }
-    }
-  }
 }
