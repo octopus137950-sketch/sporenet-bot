@@ -15,6 +15,11 @@ import { handleMemberAdd } from "./events/memberAdd.js";
 import { handleMemberRemove } from "./events/memberRemove.js";
 import { handleCasinoButton, handleCasinoModal } from "./events/casinoHandler.js";
 import {
+  handleLuckyDoorsButton,
+  handleLuckyDoorsModal,
+  handleLuckyDoorsPick,
+} from "./events/luckyDoorsHandler.js";
+import {
   handleShopOpen,
   handleShopBack,
   handleShopSelect,
@@ -53,6 +58,7 @@ import * as leaderboardCmd from "./commands/leaderboard.js";
 import * as dailyCmd from "./commands/daily.js";
 import * as transferCmd from "./commands/transfer.js";
 import * as setcasinoCmd from "./commands/setcasino.js";
+import * as setluckydoorsCmd from "./commands/setluckydoors.js";
 import * as setgamechannelCmd from "./commands/setgamechannel.js";
 import * as setshoppanelCmd from "./commands/setshoppanel.js";
 import * as helpCmd from "./commands/help.js";
@@ -146,6 +152,7 @@ commands.set("water", waterCmd);
 commands.set("protect", protectCmd);
 commands.set("worldmushroom", worldmushroomCmd);
 commands.set("pest", pestCmd);
+commands.set("setluckydoors", setluckydoorsCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -206,6 +213,10 @@ export async function startBot(): Promise<void> {
           await handleCasinoButton(interaction);
         } else if (id === "crash_bet") {
           await handleCrashBetButton(interaction);
+        } else if (id === "luckydoors_bet") {
+          await handleLuckyDoorsButton(interaction);
+        } else if (id.startsWith("luckydoors_pick:")) {
+          await handleLuckyDoorsPick(interaction);
         } else if (id.startsWith("crash_cashout:")) {
           await handleCrashCashOut(interaction);
         } else if (id === "shop_open") {
@@ -242,6 +253,8 @@ export async function startBot(): Promise<void> {
           await handleCasinoModal(interaction);
         } else if (interaction.customId === "crash_bet_modal") {
           await handleCrashBetModal(interaction);
+        } else if (interaction.customId === "luckydoors_bet_modal") {
+          await handleLuckyDoorsModal(interaction);
         }
         return;
       }

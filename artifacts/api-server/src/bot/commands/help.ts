@@ -68,6 +68,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           "**แผงร้านค้า** — กดปุ่มซื้อสินค้าและรับยศอัตโนมัติ",
           "**แผงคาสิโน 🎰** — สล็อตแมชชีน วางเดิมพันสปอร์แล้วลุ้นเลย",
           "**แผง Spore Crash 🚀** — วางเดิมพัน กดถอนให้ทันก่อนยานระเบิด!",
+          "**แผง Lucky Doors 🚪** — วางเดิมพันแล้วเลือก 1 ใน 3 ช่อง ถูกรับคืน ×2",
         ].join("\n"),
         inline: false,
       },

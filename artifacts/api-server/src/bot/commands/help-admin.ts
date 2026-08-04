@@ -80,6 +80,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           "→ สร้างแผงมินิเกม Spore Crash 🚀 ในห้องปัจจุบัน",
           "→ ผู้เล่นกดวางเดิมพัน กดถอนเงินก่อนยานระเบิด",
           "✏️ ตัวอย่าง: `/setsporecrash` (ใช้ค่า default)",
+          "**`/setluckydoors [หัวข้อ] [คำอธิบาย]`**",
+          "→ สร้างแผง Lucky Doors 🚪 ให้ผู้เล่นวางเดิมพันและเลือก 1 ใน 3 ช่อง",
+          "→ เลือกถูกได้รับสปอร์คืน ×2 เลือกผิดเสียเดิมพัน",
+          "✏️ ตัวอย่าง: `/setluckydoors` (ใช้ค่า default)",
         ].join("\n"),
         inline: false,
       }
