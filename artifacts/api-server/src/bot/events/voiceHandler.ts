@@ -8,6 +8,8 @@ import {
   getPlayer,
   savePlayer,
   getVoiceRewardConfig,
+  tryAcquireVoiceLeaveLock,
+  tryAcquireVoiceRewardCycleLock,
   type VoiceRewardConfig,
 } from "../data/store.js";
 import { onQuestVoiceJoin, onQuestVoiceLeave } from "./questTracker.js";
@@ -135,21 +137,25 @@ export function handleVoiceStateUpdate(
     onQuestVoiceJoin(guildId, userId);
   } else if (leftVoice) {
     const session = sessions.get(key);
+    if (!session) return;
+    if (!tryAcquireVoiceLeaveLock(guildId, userId)) {
+      // Another bot process is handling the same Discord event.
+      sessions.delete(key);
+      return;
+    }
     sessions.delete(key);
-    if (session) {
-      const config = getVoiceRewardConfig(guildId);
-      if (config?.enabled && !config.blockedRoomIds.includes(session.channelId)) {
-        awardPendingVoiceRewards(userId, session, config, now);
-      }
-      sendLeaveNotification(newState.guild, userId, session, now).catch(console.error);
+    const config = getVoiceRewardConfig(guildId);
+    if (config?.enabled && !config.blockedRoomIds.includes(session.channelId)) {
+      awardPendingVoiceRewards(userId, session, config, now);
+    }
+    sendLeaveNotification(newState.guild, userId, session, now).catch(console.error);
 
-      // Achievement tracking: accumulate voice time in seconds
-      const secondsSpent = Math.floor((now - session.joinTime) / 1000);
-      if (secondsSpent > 0) {
-        trackStatAndCheck(client, guildId, userId, "voiceTimeSeconds", secondsSpent).catch(
-          (e) => console.error("[voiceHandler] achievement voice check error:", e)
-        );
-      }
+    // Achievement tracking: accumulate voice time in seconds
+    const secondsSpent = Math.floor((now - session.joinTime) / 1000);
+    if (secondsSpent > 0) {
+      trackStatAndCheck(client, guildId, userId, "voiceTimeSeconds", secondsSpent).catch(
+        (e) => console.error("[voiceHandler] achievement voice check error:", e)
+      );
     }
     // Quest tracking: accumulate minutes on leave
     onQuestVoiceLeave(guildId, userId, client);
@@ -170,6 +176,8 @@ async function distributeVoiceRewards(client: Client): Promise<void> {
     const intervalMs = Math.max(1, config.timeLoopMinutes) * 60 * 1000;
     const lastDist = lastDistribution.get(guildId) ?? 0;
     if (now - lastDist < intervalMs) continue;
+    const cycleKey = Math.floor(now / intervalMs);
+    if (!tryAcquireVoiceRewardCycleLock(guildId, cycleKey, intervalMs + 60_000)) continue;
 
     lastDistribution.set(guildId, now);
 

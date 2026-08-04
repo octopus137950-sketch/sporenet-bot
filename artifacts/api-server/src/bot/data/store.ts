@@ -3,10 +3,61 @@ import path from "path";
 
 const DATA_DIR = process.env["DATA_DIR"] ?? path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "bot_data.json");
+const LOCK_DIR = path.join(DATA_DIR, "locks");
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(LOCK_DIR, { recursive: true });
 console.log(`📦 [store] DATA_DIR = ${DATA_DIR}`);
 console.log(`📄 [store] DATA_FILE = ${DATA_FILE}`);
+
+function tryAcquireLock(scope: string, key: string, ttlMs: number): boolean {
+  const scopeDir = path.join(LOCK_DIR, scope);
+  const lockPath = path.join(scopeDir, `${key}.lock`);
+  fs.mkdirSync(scopeDir, { recursive: true });
+
+  try {
+    const fd = fs.openSync(lockPath, "wx");
+    fs.writeFileSync(fd, `${process.pid}:${Date.now()}`);
+    fs.closeSync(fd);
+
+    const timer = setTimeout(() => {
+      try {
+        fs.rmSync(lockPath, { force: true });
+      } catch {
+        // A stale lock will be cleaned up by the next acquisition attempt.
+      }
+    }, ttlMs);
+    timer.unref?.();
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") return false;
+
+    try {
+      const ageMs = Date.now() - fs.statSync(lockPath).mtimeMs;
+      if (ageMs > ttlMs) {
+        fs.rmSync(lockPath, { force: true });
+        return tryAcquireLock(scope, key, ttlMs);
+      }
+    } catch {
+      // Another process may be creating/removing the lock right now.
+    }
+    return false;
+  }
+}
+
+/** Prevents two bot processes from handling one user's voice leave event. */
+export function tryAcquireVoiceLeaveLock(guildId: string, userId: string): boolean {
+  return tryAcquireLock("voice-leave", `${guildId}-${userId}`, 30_000);
+}
+
+/** Prevents two bot processes from distributing the same voice reward cycle. */
+export function tryAcquireVoiceRewardCycleLock(
+  guildId: string,
+  cycleKey: number,
+  ttlMs: number,
+): boolean {
+  return tryAcquireLock("voice-reward-cycle", `${guildId}-${cycleKey}`, ttlMs);
+}
 
 export interface RoleEntry {
   emoji: string;
