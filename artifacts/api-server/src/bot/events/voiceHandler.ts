@@ -4,14 +4,21 @@ import {
   EmbedBuilder,
   Guild,
 } from "discord.js";
-import { getPlayer, savePlayer, getVoiceRewardConfig } from "../data/store.js";
+import {
+  getPlayer,
+  savePlayer,
+  getVoiceRewardConfig,
+  type VoiceRewardConfig,
+} from "../data/store.js";
 import { onQuestVoiceJoin, onQuestVoiceLeave } from "./questTracker.js";
 import { trackStatAndCheck } from "../utils/achievementChecker.js";
 
 interface VoiceSession {
   joinTime: number;
+  channelId: string;
   earnedSpore: number;
   earnedExp: number;
+  rewardedIntervals: number;
 }
 
 // key: `${guildId}:${userId}`
@@ -36,12 +43,12 @@ function formatDuration(ms: number): string {
 async function sendLeaveNotification(
   guild: Guild,
   userId: string,
-  session: VoiceSession
+  session: VoiceSession,
+  leftAt: number,
 ): Promise<void> {
   try {
     const config = getVoiceRewardConfig(guild.id);
     if (!config?.enabled || !config.notifyChannelId) return;
-    if (session.earnedSpore === 0 && session.earnedExp === 0) return;
 
     const ch = await guild.channels.fetch(config.notifyChannelId).catch(() => null);
     if (!ch || !("send" in ch)) return;
@@ -58,14 +65,46 @@ async function sendLeaveNotification(
       .addFields(
         { name: "🍄 สปอร์ที่ได้รับ", value: `**+${session.earnedSpore.toLocaleString()}** สปอร์`, inline: true },
         { name: "⭐ EXP ที่ได้รับ", value: `**+${session.earnedExp.toLocaleString()}** EXP`, inline: true },
-        { name: "⏱️ เวลาในห้องเสียง", value: formatDuration(Date.now() - session.joinTime), inline: true }
+        { name: "⏱️ เวลาในห้องเสียง", value: formatDuration(leftAt - session.joinTime), inline: true }
       )
+      .setFooter({
+        text:
+          session.earnedSpore > 0 || session.earnedExp > 0
+            ? "ระบบแจก reward ให้ครบตามรอบเวลาที่กำหนดแล้ว"
+            : "เซสชันนี้ยังไม่ครบเวลารับ reward รอบแรก",
+      })
       .setTimestamp();
 
     await ch.send({ embeds: [embed] });
   } catch (e) {
     console.error("Failed to send voice leave notification:", e);
   }
+}
+
+function awardPendingVoiceRewards(
+  memberId: string,
+  session: VoiceSession,
+  config: VoiceRewardConfig,
+  now: number,
+): void {
+  const intervalMs = Math.max(1, config.timeLoopMinutes) * 60_000;
+  const completedIntervals = Math.floor((now - session.joinTime) / intervalMs);
+  const pendingIntervals = completedIntervals - session.rewardedIntervals;
+  if (pendingIntervals <= 0) return;
+
+  const player = getPlayer(memberId);
+  player.sporePoints += pendingIntervals * config.giveSpore;
+  player.farmExp += pendingIntervals * config.giveExp;
+
+  while (player.farmExp >= player.farmLevel * 100) {
+    player.farmExp -= player.farmLevel * 100;
+    player.farmLevel += 1;
+  }
+
+  savePlayer(player);
+  session.earnedSpore += pendingIntervals * config.giveSpore;
+  session.earnedExp += pendingIntervals * config.giveExp;
+  session.rewardedIntervals = completedIntervals;
 }
 
 export function handleVoiceStateUpdate(
@@ -79,22 +118,33 @@ export function handleVoiceStateUpdate(
   const userId = member.id;
   const guildId = newState.guild.id;
   const key = sessionKey(guildId, userId);
+  const now = Date.now();
 
   const joinedVoice = !oldState.channelId && newState.channelId;
   const leftVoice = oldState.channelId && !newState.channelId;
 
   if (joinedVoice) {
-    sessions.set(key, { joinTime: Date.now(), earnedSpore: 0, earnedExp: 0 });
+    sessions.set(key, {
+      joinTime: now,
+      channelId: newState.channelId!,
+      earnedSpore: 0,
+      earnedExp: 0,
+      rewardedIntervals: 0,
+    });
     // Quest tracking: record voice join
     onQuestVoiceJoin(guildId, userId);
   } else if (leftVoice) {
     const session = sessions.get(key);
     sessions.delete(key);
     if (session) {
-      sendLeaveNotification(newState.guild, userId, session).catch(console.error);
+      const config = getVoiceRewardConfig(guildId);
+      if (config?.enabled && !config.blockedRoomIds.includes(session.channelId)) {
+        awardPendingVoiceRewards(userId, session, config, now);
+      }
+      sendLeaveNotification(newState.guild, userId, session, now).catch(console.error);
 
       // Achievement tracking: accumulate voice time in seconds
-      const secondsSpent = Math.floor((Date.now() - session.joinTime) / 1000);
+      const secondsSpent = Math.floor((now - session.joinTime) / 1000);
       if (secondsSpent > 0) {
         trackStatAndCheck(client, guildId, userId, "voiceTimeSeconds", secondsSpent).catch(
           (e) => console.error("[voiceHandler] achievement voice check error:", e)
@@ -103,6 +153,9 @@ export function handleVoiceStateUpdate(
     }
     // Quest tracking: accumulate minutes on leave
     onQuestVoiceLeave(guildId, userId, client);
+  } else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+    const session = sessions.get(key);
+    if (session) session.channelId = newState.channelId;
   }
   // Moved between channels — session continues unchanged
 }
@@ -114,7 +167,7 @@ async function distributeVoiceRewards(client: Client): Promise<void> {
     const config = getVoiceRewardConfig(guildId);
     if (!config?.enabled) continue;
 
-    const intervalMs = config.timeLoopMinutes * 60 * 1000;
+    const intervalMs = Math.max(1, config.timeLoopMinutes) * 60 * 1000;
     const lastDist = lastDistribution.get(guildId) ?? 0;
     if (now - lastDist < intervalMs) continue;
 
@@ -132,29 +185,18 @@ async function distributeVoiceRewards(client: Client): Promise<void> {
 
         // If no session (user was in channel before bot started), create one now
         if (!session) {
-          session = { joinTime: now, earnedSpore: 0, earnedExp: 0 };
+          session = {
+            joinTime: now,
+            channelId: voiceChannel.id,
+            earnedSpore: 0,
+            earnedExp: 0,
+            rewardedIntervals: 0,
+          };
           sessions.set(key, session);
         }
 
-        // Only reward if user has been in the channel for at least the full interval
-        const timeInChannel = now - session.joinTime;
-        if (timeInChannel < intervalMs) continue;
-
-        const player = getPlayer(member.id);
-        player.sporePoints += config.giveSpore;
-        player.farmExp += config.giveExp;
-
-        const expNeeded = player.farmLevel * 100;
-        if (player.farmExp >= expNeeded) {
-          player.farmExp -= expNeeded;
-          player.farmLevel += 1;
-        }
-
-        savePlayer(player);
-
-        // Update session accumulator (session is always defined here)
-        session.earnedSpore += config.giveSpore;
-        session.earnedExp += config.giveExp;
+        session.channelId = voiceChannel.id;
+        awardPendingVoiceRewards(member.id, session, config, now);
       }
     }
   }
