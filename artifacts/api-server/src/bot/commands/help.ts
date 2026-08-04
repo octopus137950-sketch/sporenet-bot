@@ -39,7 +39,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           "`/pest` — เรียกอีเวนต์ศัตรูพืช (แอดมินเท่านั้น)",
           "`/wallet [@ผู้เล่น]` — ดูกระเป๋าสปอร์ สถิติ และไอเทมของตัวเอง หรือคนอื่น",
           "`/leaderboard` — อันดับผู้เล่นที่มีสปอร์สูงสุดในเซิร์ฟ",
-          "`/transfer @ผู้เล่น` — โอนสปอร์ และ/หรือส่งไอเทมให้เพื่อน",
+          "`/transfer @ผู้เล่น` — โอนสปอร์ ไอเทม และ/หรือยศให้เพื่อน",
         ].join("\n"),
         inline: false,
       },

@@ -3,6 +3,9 @@ import {
   ChatInputCommandInteraction,
   AutocompleteInteraction,
   EmbedBuilder,
+  GuildMember,
+  PermissionFlagsBits,
+  Role,
   TextChannel,
 } from "discord.js";
 import { getPlayer, savePlayer, getLogChannel, getInventory, transferItem } from "../data/store.js";
@@ -12,7 +15,7 @@ import { incrementQuestProgress } from "../events/questTracker.js";
 
 export const data = new SlashCommandBuilder()
   .setName("transfer")
-  .setDescription("💸 โอนสปอร์และ/หรือไอเทมให้ผู้เล่นคนอื่น")
+  .setDescription("💸 โอนสปอร์ ไอเทม และ/หรือยศให้ผู้เล่นคนอื่น")
   .addUserOption((o) =>
     o.setName("to").setDescription("ผู้รับ").setRequired(true)
   )
@@ -27,6 +30,11 @@ export const data = new SlashCommandBuilder()
       .setDescription("ไอเทมที่ต้องการโอน (พิมพ์เพื่อค้นหาจากกระเป๋าของคุณ)")
       .setRequired(false)
       .setAutocomplete(true)
+  )
+  .addRoleOption((o) =>
+    o.setName("role")
+      .setDescription("ยศที่ต้องการโอน (ต้องเป็นยศที่คุณมีและบอทจัดการได้)")
+      .setRequired(false)
   );
 
 /** Autocomplete: แสดงไอเทมที่ไม่ได้สวมใส่จากกระเป๋าของผู้ใช้ */
@@ -72,6 +80,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const target = interaction.options.getUser("to", true);
   const amount = interaction.options.getInteger("amount");
   const itemId = interaction.options.getString("item");
+  const selectedRole = interaction.options.getRole("role");
 
   if (target.id === interaction.user.id) {
     await interaction.editReply("❌ ไม่สามารถโอนให้ตัวเองได้");
@@ -81,8 +90,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await interaction.editReply("❌ ไม่สามารถโอนให้บอทได้");
     return;
   }
-  if (!amount && !itemId) {
-    await interaction.editReply("❌ กรุณาระบุ **จำนวนสปอร์** หรือ **ไอเทม** ที่ต้องการโอนอย่างน้อยหนึ่งอย่าง");
+  if (!amount && !itemId && !selectedRole) {
+    await interaction.editReply("❌ กรุณาระบุ **จำนวนสปอร์**, **ไอเทม** หรือ **ยศ** ที่ต้องการโอนอย่างน้อยหนึ่งอย่าง");
     return;
   }
 
@@ -123,12 +132,114 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     }
   }
 
+  let senderMember: GuildMember | undefined;
+  let targetMember: GuildMember | undefined;
+  let botMember: GuildMember | undefined;
+  let role: Role | undefined;
+
+  if (selectedRole) {
+    role = await guild.roles.fetch(selectedRole.id).catch(() => null) ?? undefined;
+    if (!role) {
+      await interaction.editReply("❌ ไม่สามารถโหลดข้อมูลยศนี้จากเซิร์ฟเวอร์ได้ กรุณาลองใหม่");
+      return;
+    }
+    senderMember = await guild.members.fetch(interaction.user.id).catch(() => undefined);
+    targetMember = await guild.members.fetch(target.id).catch(() => undefined);
+    botMember = await guild.members.fetchMe().catch(() => undefined);
+
+    if (!senderMember || !targetMember || !botMember) {
+      await interaction.editReply("❌ ไม่สามารถตรวจสอบสมาชิกในเซิร์ฟเวอร์ได้ กรุณาลองใหม่");
+      return;
+    }
+    if (role.id === guild.id || role.managed) {
+      await interaction.editReply("❌ ไม่สามารถโอนยศระบบหรือยศที่จัดการโดยบอท/Integration ได้");
+      return;
+    }
+    if (
+      role.permissions.has(PermissionFlagsBits.Administrator) ||
+      role.permissions.has(PermissionFlagsBits.ManageGuild) ||
+      role.permissions.has(PermissionFlagsBits.ManageRoles) ||
+      role.permissions.has(PermissionFlagsBits.ManageChannels)
+    ) {
+      await interaction.editReply("❌ ไม่สามารถโอนยศที่มีสิทธิ์ผู้ดูแลเซิร์ฟเวอร์ได้");
+      return;
+    }
+    if (!senderMember.roles.cache.has(role.id)) {
+      await interaction.editReply(`❌ คุณไม่มียศ <@&${role.id}> จึงไม่สามารถโอนได้`);
+      return;
+    }
+    if (targetMember.roles.cache.has(role.id)) {
+      await interaction.editReply(`❌ ผู้รับมียศ <@&${role.id}> อยู่แล้ว`);
+      return;
+    }
+    if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+      await interaction.editReply("❌ บอทไม่มีสิทธิ์ Manage Roles จึงโอนยศไม่ได้");
+      return;
+    }
+    if (role.position >= botMember.roles.highest.position) {
+      await interaction.editReply("❌ ยศนี้อยู่สูงกว่าหรือเท่ากับยศสูงสุดของบอท บอทจึงโอนไม่ได้");
+      return;
+    }
+  }
+
   // ── Execute — ผ่าน validation ทั้งหมดแล้ว จึงค่อยแก้ข้อมูล ─────────────────
 
   const resultFields: { name: string; value: string; inline?: boolean }[] = [
     { name: "📤 ผู้โอน", value: `<@${interaction.user.id}>`, inline: true },
     { name: "📥 ผู้รับ", value: `<@${target.id}>`, inline: true },
   ];
+
+  // โอนไอเทม
+  let itemTransferred = false;
+  if (itemId && itemToTransfer) {
+    const success = transferItem(interaction.user.id, target.id, itemId);
+    if (!success) {
+      await interaction.editReply("❌ เกิดข้อผิดพลาดในการโอนไอเทม (ข้อมูลเปลี่ยนแปลงระหว่างดำเนินการ กรุณาลองใหม่)");
+      return;
+    }
+    itemTransferred = true;
+
+    resultFields.push(
+      { name: "✨ ไอเทมที่โอน", value: `${itemToTransfer.emoji} **${itemToTransfer.name}**`, inline: false },
+      { name: "🔮 เอฟเฟกต์", value: itemToTransfer.lore, inline: false }
+    );
+
+    const logId = getLogChannel(guild.id);
+    if (logId) {
+      const logCh = guild.channels.cache.get(logId) as TextChannel | undefined;
+      logCh?.send({
+        content: `🎒 **${interaction.user.username}** โอนไอเทม **${itemToTransfer.emoji} ${itemToTransfer.name}** ให้ **${target.username}**`,
+      }).catch(() => null);
+    }
+  }
+
+  // โอนยศ Discord
+  if (role && senderMember && targetMember) {
+    try {
+      await targetMember.roles.add(role, `Role transfer from ${interaction.user.tag}`);
+      await senderMember.roles.remove(role, `Role transfer to ${target.tag}`);
+    } catch {
+      await targetMember.roles.remove(role).catch(() => undefined);
+      if (itemTransferred && itemId) {
+        transferItem(target.id, interaction.user.id, itemId);
+      }
+      await interaction.editReply("❌ โอนยศไม่สำเร็จ บอทอาจไม่มีสิทธิ์จัดการยศนี้");
+      return;
+    }
+
+    resultFields.push(
+      { name: "🏷️ ยศที่โอน", value: `<@&${role.id}>`, inline: false },
+      { name: "🔒 สถานะยศ", value: "ผู้รับได้รับยศแล้ว และผู้โอนถูกถอดยศนี้", inline: false }
+    );
+
+    const logId = getLogChannel(guild.id);
+    if (logId) {
+      const logCh = guild.channels.cache.get(logId) as TextChannel | undefined;
+      logCh?.send({
+        content: `🏷️ **${interaction.user.username}** โอนยศ **${role.name}** ให้ **${target.username}**`,
+      }).catch(() => null);
+    }
+  }
 
   // โอนสปอร์
   if (amount !== null && amount !== undefined) {
@@ -156,43 +267,38 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     }
   }
 
-  // โอนไอเทม
-  if (itemId && itemToTransfer) {
-    const success = transferItem(interaction.user.id, target.id, itemId);
-    if (!success) {
-      await interaction.editReply("❌ เกิดข้อผิดพลาดในการโอนไอเทม (ข้อมูลเปลี่ยนแปลงระหว่างดำเนินการ กรุณาลองใหม่)");
-      return;
-    }
-
-    resultFields.push(
-      { name: "✨ ไอเทมที่โอน", value: `${itemToTransfer.emoji} **${itemToTransfer.name}**`, inline: false },
-      { name: "🔮 เอฟเฟกต์", value: itemToTransfer.lore, inline: false }
-    );
-
-    const logId = getLogChannel(guild.id);
-    if (logId) {
-      const logCh = guild.channels.cache.get(logId) as TextChannel | undefined;
-      logCh?.send({
-        content: `🎒 **${interaction.user.username}** โอนไอเทม **${itemToTransfer.emoji} ${itemToTransfer.name}** ให้ **${target.username}**`,
-      }).catch(() => null);
-    }
-  }
-
   // ── สรุปผล ─────────────────────────────────────────────────────
-  const title = amount && itemId
-    ? "💸🎒 โอนสปอร์และไอเทมสำเร็จ!"
-    : amount
-    ? "💸 โอนสปอร์สำเร็จ!"
-    : "🎒 โอนไอเทมสำเร็จ!";
+  const transferParts = [
+    amount !== null && amount !== undefined,
+    Boolean(itemId),
+    Boolean(role),
+  ].filter(Boolean).length;
+  const title =
+    transferParts === 3
+      ? "💸🎒🏷️ โอนสปอร์ ไอเทม และยศสำเร็จ!"
+      : transferParts === 2 && amount !== null && amount !== undefined && itemId
+      ? "💸🎒 โอนสปอร์และไอเทมสำเร็จ!"
+      : transferParts === 2 && amount !== null && amount !== undefined && role
+      ? "💸🏷️ โอนสปอร์และยศสำเร็จ!"
+      : transferParts === 2 && itemId && role
+      ? "🎒🏷️ โอนไอเทมและยศสำเร็จ!"
+      : amount !== null && amount !== undefined
+      ? "💸 โอนสปอร์สำเร็จ!"
+      : itemId
+      ? "🎒 โอนไอเทมสำเร็จ!"
+      : "🏷️ โอนยศสำเร็จ!";
 
   const embed = new EmbedBuilder()
     .setTitle(title)
-    .setColor(amount && itemId ? 0xfee75c : amount ? 0x57f287 : 0x5865f2)
+    .setColor(role ? 0xffd700 : amount && itemId ? 0xfee75c : amount ? 0x57f287 : 0x5865f2)
     .addFields(resultFields)
     .setTimestamp();
 
-  if (itemId) {
-    embed.setFooter({ text: "ไอเทมที่โอนจะยังไม่สวมใส่โดยอัตโนมัติ — ผู้รับต้องเปิด /wallet เพื่อสวมใส่เอง" });
+  const footerNotes = [];
+  if (itemId) footerNotes.push("ไอเทมจะยังไม่สวมใส่อัตโนมัติ");
+  if (role) footerNotes.push("ผู้รับได้รับยศแล้ว");
+  if (footerNotes.length > 0) {
+    embed.setFooter({ text: footerNotes.join(" • ") });
   }
 
   await interaction.editReply({ embeds: [embed] });
