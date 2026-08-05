@@ -70,8 +70,6 @@ export const data = new SlashCommandBuilder()
           .setMaxLength(50)
       );
     addConditionOptions(sub, 1, true);
-    addConditionOptions(sub, 2, false);
-    addConditionOptions(sub, 3, false);
     sub
       .addIntegerOption((opt) =>
         opt
@@ -92,6 +90,8 @@ export const data = new SlashCommandBuilder()
           .setDescription("(ไม่บังคับ) เลือกยศ Discord ที่จะมอบให้เมื่อปลดล็อก")
           .setRequired(false)
       );
+    addConditionOptions(sub, 2, false);
+    addConditionOptions(sub, 3, false);
     return sub;
   })
 
