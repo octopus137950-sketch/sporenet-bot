@@ -144,7 +144,17 @@ export async function incrementQuestProgress(
 
 export function ensureQuestData(userId: string, today: string): PlayerQuestData {
   const existing = getPlayerQuestData(userId);
-  if (existing && existing.date === today) return existing;
+  if (
+    existing &&
+    existing.date === today &&
+    existing.quests.length === 3 &&
+    existing.quests.every((entry) => {
+      const def = getQuestById(entry.questId);
+      return def !== undefined;
+    })
+  ) {
+    return existing;
+  }
 
   const defs = rollQuests(3);
   const freshData: PlayerQuestData = {

@@ -2,7 +2,7 @@
 // questPool.ts — Daily Quest Pool & Weighted Randomization
 // ============================================================
 
-export type QuestType = "farm" | "chat" | "voice" | "monster" | "boss" | "casino" | "transfer";
+export type QuestType = "farm" | "chat" | "voice" | "monster" | "casino" | "transfer";
 export type QuestDifficulty = "easy" | "medium" | "hard" | "legendary";
 
 export interface QuestDef {
@@ -489,55 +489,6 @@ export const QUEST_POOL: QuestDef[] = [
   },
 
   // ════════════════════════════════════════════
-  // 🐉 BOSS (โจมตี World Boss)
-  // ════════════════════════════════════════════
-
-  {
-    id: "boss_1",
-    type: "boss",
-    description: "โจมตี World Boss 1 ครั้ง",
-    target: 1,
-    reward: 80,
-    weight: 46,
-    difficulty: "easy",
-    emoji: "🐉",
-    unit: "ครั้ง",
-  },
-  {
-    id: "boss_3",
-    type: "boss",
-    description: "โจมตี World Boss 3 ครั้ง",
-    target: 3,
-    reward: 250,
-    weight: 28,
-    difficulty: "medium",
-    emoji: "🐉",
-    unit: "ครั้ง",
-  },
-  {
-    id: "boss_5",
-    type: "boss",
-    description: "โจมตี World Boss 5 ครั้ง",
-    target: 5,
-    reward: 500,
-    weight: 11,
-    difficulty: "hard",
-    emoji: "🐉",
-    unit: "ครั้ง",
-  },
-  {
-    id: "boss_10",
-    type: "boss",
-    description: "โจมตี World Boss 10 ครั้ง (นักรบแห่งตำนาน)",
-    target: 10,
-    reward: 1000,
-    weight: 3,
-    difficulty: "legendary",
-    emoji: "👑",
-    unit: "ครั้ง",
-  },
-
-  // ════════════════════════════════════════════
   // 🎰 CASINO (เล่นสล็อตแมชชีน)
   // ════════════════════════════════════════════
 
@@ -632,6 +583,78 @@ export const QUEST_POOL: QuestDef[] = [
     weight: 10,
     difficulty: "hard",
     emoji: "💸",
+    unit: "ครั้ง",
+  },
+
+  // ════════════════════════════════════════════
+  // 🌟 BONUS DAILY QUESTS
+  // ภารกิจเหล่านี้ทำได้จากระบบที่เปิดใช้งานอยู่ทุกวัน
+  // ════════════════════════════════════════════
+
+  {
+    id: "farm_7",
+    type: "farm",
+    description: "ออกฟาร์มเห็ดให้ครบ 7 ครั้ง (นักสำรวจป่า)",
+    target: 7,
+    reward: 135,
+    weight: 30,
+    difficulty: "medium",
+    emoji: "🌲",
+    unit: "ครั้ง",
+  },
+  {
+    id: "chat_60",
+    type: "chat",
+    description: "พิมพ์ข้อความในเซิร์ฟเวอร์ให้ครบ 60 ข้อความ (ชาวชุมชน)",
+    target: 60,
+    reward: 210,
+    weight: 24,
+    difficulty: "medium",
+    emoji: "🤝",
+    unit: "ข้อความ",
+  },
+  {
+    id: "voice_105",
+    type: "voice",
+    description: "สิงห้องเสียงให้ครบ 1 ชั่วโมง 45 นาที (เพื่อนร่วมถ้ำ)",
+    target: 105,
+    reward: 185,
+    weight: 23,
+    difficulty: "medium",
+    emoji: "🎧",
+    unit: "นาที",
+  },
+  {
+    id: "monster_4",
+    type: "monster",
+    description: "เอาชนะมอนสเตอร์ในป่า 4 ครั้ง (ผู้พิทักษ์ป่าเห็ด)",
+    target: 4,
+    reward: 230,
+    weight: 22,
+    difficulty: "medium",
+    emoji: "🛡️",
+    unit: "ครั้ง",
+  },
+  {
+    id: "casino_7",
+    type: "casino",
+    description: "เล่นสล็อตแมชชีน 7 ครั้ง (นักเสี่ยงโชค)",
+    target: 7,
+    reward: 240,
+    weight: 22,
+    difficulty: "medium",
+    emoji: "🎲",
+    unit: "ครั้ง",
+  },
+  {
+    id: "transfer_2",
+    type: "transfer",
+    description: "โอนสปอร์ให้ผู้เล่นคนอื่น 2 ครั้ง (ผู้แบ่งปัน)",
+    target: 2,
+    reward: 110,
+    weight: 30,
+    difficulty: "medium",
+    emoji: "🎁",
     unit: "ครั้ง",
   },
 ];
