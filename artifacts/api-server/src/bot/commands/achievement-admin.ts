@@ -10,18 +10,47 @@ import {
   ChatInputCommandInteraction,
   EmbedBuilder,
   PermissionFlagsBits,
+  SlashCommandSubcommandBuilder,
 } from "discord.js";
 import {
   getGuildAchievements,
   getAchievementById,
   saveAchievement,
   deleteAchievement,
-  parseConditionsString,
   AchievementConfig,
   AchievementCondition,
   AchievementConditionType,
 } from "../data/store.js";
 import { conditionLabel } from "../utils/achievementChecker.js";
+
+const CONDITION_TYPE_CHOICES: { name: string; value: AchievementConditionType }[] = [
+  { name: "💬 จำนวนข้อความ", value: "chat_count" },
+  { name: "🍄 จำนวนครั้งที่ฟาร์ม", value: "farm_count" },
+  { name: "⏱️ เวลาในห้องเสียง (วินาที)", value: "voice_time" },
+  { name: "📋 จำนวนเควสที่ทำสำเร็จ", value: "quest_completed" },
+];
+
+function addConditionOptions(
+  sub: SlashCommandSubcommandBuilder,
+  index: number,
+  required: boolean,
+): SlashCommandSubcommandBuilder {
+  sub.addStringOption((opt) =>
+    opt
+      .setName(`condition${index}_type`)
+      .setDescription(`ประเภทเงื่อนไขข้อที่ ${index}`)
+      .setRequired(required)
+      .addChoices(...CONDITION_TYPE_CHOICES)
+  );
+  sub.addIntegerOption((opt) =>
+    opt
+      .setName(`condition${index}_value`)
+      .setDescription(`จำนวนเป้าหมายของเงื่อนไขข้อที่ ${index}`)
+      .setRequired(required)
+      .setMinValue(1)
+  );
+  return sub;
+}
 
 export const data = new SlashCommandBuilder()
   .setName("achievement-admin")
@@ -29,7 +58,7 @@ export const data = new SlashCommandBuilder()
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
   // ── create ────────────────────────────────────────────────
-  .addSubcommand((sub) =>
+  .addSubcommand((sub) => {
     sub
       .setName("create")
       .setDescription("สร้างยศความสำเร็จใหม่ (รองรับหลายเงื่อนไข)")
@@ -39,13 +68,11 @@ export const data = new SlashCommandBuilder()
           .setDescription("ชื่อยศ/ฉายา เช่น 'นักสุดโหด'")
           .setRequired(true)
           .setMaxLength(50)
-      )
-      .addStringOption((opt) =>
-        opt
-          .setName("conditions")
-          .setDescription("Ex: chat_count:3000,farm_count:200 | types: voice_time/chat_count/farm_count/quest_completed")
-          .setRequired(true)
-      )
+      );
+    addConditionOptions(sub, 1, true);
+    addConditionOptions(sub, 2, false);
+    addConditionOptions(sub, 3, false);
+    sub
       .addIntegerOption((opt) =>
         opt
           .setName("spore_reward")
@@ -59,16 +86,17 @@ export const data = new SlashCommandBuilder()
           .setDescription("ซ่อนชื่อและเงื่อนไขจากผู้เล่นจนกว่าจะมีคนปลดล็อก?")
           .setRequired(true)
       )
-      .addStringOption((opt) =>
+      .addRoleOption((opt) =>
         opt
-          .setName("discord_role_id")
-          .setDescription("(ไม่บังคับ) ID ของยศ Discord ที่จะมอบให้เมื่อปลดล็อก")
+          .setName("discord_role")
+          .setDescription("(ไม่บังคับ) เลือกยศ Discord ที่จะมอบให้เมื่อปลดล็อก")
           .setRequired(false)
-      )
-  )
+      );
+    return sub;
+  })
 
   // ── edit ──────────────────────────────────────────────────
-  .addSubcommand((sub) =>
+  .addSubcommand((sub) => {
     sub
       .setName("edit")
       .setDescription("แก้ไขยศความสำเร็จที่มีอยู่")
@@ -84,13 +112,11 @@ export const data = new SlashCommandBuilder()
           .setDescription("ชื่อยศใหม่ (ถ้าต้องการเปลี่ยน)")
           .setRequired(false)
           .setMaxLength(50)
-      )
-      .addStringOption((opt) =>
-        opt
-          .setName("conditions")
-          .setDescription("Ex: chat_count:3000,farm_count:200 — แทนที่เงื่อนไขเดิมทั้งหมด")
-          .setRequired(false)
-      )
+      );
+    addConditionOptions(sub, 1, false);
+    addConditionOptions(sub, 2, false);
+    addConditionOptions(sub, 3, false);
+    sub
       .addIntegerOption((opt) =>
         opt
           .setName("spore_reward")
@@ -104,13 +130,20 @@ export const data = new SlashCommandBuilder()
           .setDescription("เปลี่ยนสถานะความลับ")
           .setRequired(false)
       )
-      .addStringOption((opt) =>
+      .addRoleOption((opt) =>
         opt
-          .setName("discord_role_id")
-          .setDescription("ID ยศ Discord ใหม่ (พิมพ์ 'none' เพื่อลบออก)")
+          .setName("discord_role")
+          .setDescription("เลือกยศ Discord ใหม่ (ถ้าไม่ใส่จะคงค่าเดิม)")
           .setRequired(false)
       )
-  )
+      .addBooleanOption((opt) =>
+        opt
+          .setName("remove_discord_role")
+          .setDescription("เอายศ Discord ที่ผูกไว้ออกหรือไม่")
+          .setRequired(false)
+      );
+    return sub;
+  })
 
   // ── delete ────────────────────────────────────────────────
   .addSubcommand((sub) =>
@@ -181,14 +214,40 @@ function conditionShortLabel(cond: AchievementCondition): string {
 }
 
 const CONDITION_FORMAT_HELP =
-  "**รูปแบบเงื่อนไข:** `ประเภท:ค่า,ประเภท:ค่า,...`\n" +
-  "**ประเภทที่รองรับ:**\n" +
-  "• `voice_time` — เวลาห้องเสียง (วินาที)\n" +
-  "• `chat_count` — จำนวนข้อความ\n" +
-  "• `farm_count` — จำนวนการฟาร์ม\n" +
-  "• `quest_completed` — จำนวนเควสสำเร็จ\n\n" +
-  "**ตัวอย่าง:** `chat_count:3000,farm_count:200`\n" +
-  "**50 ชั่วโมงในห้องเสียง:** `voice_time:180000`";
+  "กรุณาเลือกประเภทเงื่อนไขและใส่จำนวนเป้าหมายให้ครบเป็นคู่\n" +
+  "เพิ่มได้สูงสุด 3 เงื่อนไข และผู้เล่นต้องทำครบทุกข้อ";
+
+function getConditionsFromOptions(
+  interaction: ChatInputCommandInteraction,
+  requiredFirst: boolean,
+): AchievementCondition[] | null {
+  const conditions: AchievementCondition[] = [];
+
+  for (let index = 1; index <= 3; index += 1) {
+    const type = interaction.options.getString(`condition${index}_type`);
+    const value = interaction.options.getInteger(`condition${index}_value`);
+
+    if (type === null && value === null) {
+      if (index === 1 && requiredFirst) return null;
+      continue;
+    }
+    if (type === null || value === null) return null;
+    conditions.push({ type: type as AchievementConditionType, value });
+  }
+
+  return conditions.length > 0 ? conditions : null;
+}
+
+async function getAssignableRole(
+  roleId: string,
+  interaction: ChatInputCommandInteraction,
+) {
+  const role = await interaction.guild?.roles.fetch(roleId).catch(() => null);
+  if (!role || role.managed || role.id === interaction.guildId) return null;
+  const member = await interaction.guild?.members.fetchMe().catch(() => null);
+  if (!member || role.position >= member.roles.highest.position) return null;
+  return role;
+}
 
 // ─── Execute ─────────────────────────────────────────────────
 
@@ -211,12 +270,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 async function handleCreate(interaction: ChatInputCommandInteraction): Promise<void> {
   const guildId          = interaction.guild!.id;
   const titleName        = interaction.options.getString("title_name", true);
-  const conditionsRaw    = interaction.options.getString("conditions", true);
   const sporeReward      = interaction.options.getInteger("spore_reward", true);
   const isSecret         = interaction.options.getBoolean("is_secret", true);
-  const roleIdRaw        = interaction.options.getString("discord_role_id");
+  const selectedRole     = interaction.options.getRole("discord_role");
 
-  const conditions = parseConditionsString(conditionsRaw);
+  const conditions = getConditionsFromOptions(interaction, true);
   if (!conditions) {
     await interaction.reply({
       embeds: [
@@ -224,10 +282,21 @@ async function handleCreate(interaction: ChatInputCommandInteraction): Promise<v
           .setTitle("❌ รูปแบบเงื่อนไขไม่ถูกต้อง")
           .setColor(0xed4245)
           .setDescription(
-            `ไม่สามารถอ่านเงื่อนไข \`${conditionsRaw}\` ได้\n\n` +
+            "ต้องเลือกประเภทและใส่จำนวนของเงื่อนไขข้อที่ 1 ให้ครบ\n\n" +
             CONDITION_FORMAT_HELP
           ),
       ],
+      ephemeral: true,
+    });
+    return;
+  }
+
+  const assignableRole = selectedRole
+    ? await getAssignableRole(selectedRole.id, interaction)
+    : null;
+  if (selectedRole && !assignableRole) {
+    await interaction.reply({
+      content: "❌ ยศนี้เป็นยศระบบ/ยศ Integration หรืออยู่สูงกว่ายศบอท จึงมอบให้ผู้เล่นไม่ได้",
       ephemeral: true,
     });
     return;
@@ -242,7 +311,7 @@ async function handleCreate(interaction: ChatInputCommandInteraction): Promise<v
     isSecret,
     isDiscovered:    false,
     firstUnlockedBy: null,
-    discordRoleId:   roleIdRaw ?? undefined,
+    discordRoleId:   assignableRole?.id,
     createdAt:       Date.now(),
   };
 
@@ -261,7 +330,7 @@ async function handleCreate(interaction: ChatInputCommandInteraction): Promise<v
         value: conditions.map((c) => `• ${conditionShortLabel(c)}`).join("\n"),
         inline: false,
       },
-      { name: "🏷️ Discord Role ID", value: roleIdRaw ?? "ไม่ได้กำหนด", inline: true },
+      { name: "🏷️ ยศ Discord", value: assignableRole ? `<@&${assignableRole.id}>` : "ไม่ได้กำหนด", inline: true },
     )
     .setFooter({ text: "บันทึก ID ไว้เพื่อใช้แก้ไขหรือลบในภายหลัง" })
     .setTimestamp();
@@ -285,20 +354,33 @@ async function handleEdit(interaction: ChatInputCommandInteraction): Promise<voi
   }
 
   const newTitle         = interaction.options.getString("title_name");
-  const newConditionsRaw = interaction.options.getString("conditions");
   const newReward        = interaction.options.getInteger("spore_reward");
   const newSecret        = interaction.options.getBoolean("is_secret");
-  const newRoleRaw       = interaction.options.getString("discord_role_id");
+  const newRole          = interaction.options.getRole("discord_role");
+  const removeRole       = interaction.options.getBoolean("remove_discord_role") ?? false;
 
-  if (newTitle  !== null) ach.titleName  = newTitle;
-  if (newReward !== null) ach.sporeReward = newReward;
-  if (newSecret !== null) ach.isSecret   = newSecret;
-  if (newRoleRaw !== null) {
-    ach.discordRoleId = newRoleRaw.toLowerCase() === "none" ? undefined : newRoleRaw;
+  let replacementRoleId: string | undefined = ach.discordRoleId;
+  if (removeRole) {
+    replacementRoleId = undefined;
+  } else if (newRole) {
+    const assignableRole = await getAssignableRole(newRole.id, interaction);
+    if (!assignableRole) {
+      await interaction.reply({
+        content: "❌ ยศนี้เป็นยศระบบ/ยศ Integration หรืออยู่สูงกว่ายศบอท จึงมอบให้ผู้เล่นไม่ได้",
+        ephemeral: true,
+      });
+      return;
+    }
+    replacementRoleId = assignableRole.id;
   }
 
-  if (newConditionsRaw !== null) {
-    const parsed = parseConditionsString(newConditionsRaw);
+  let replacementConditions: AchievementCondition[] | undefined;
+  const conditionOptionsUsed = [1, 2, 3].some((index) =>
+    interaction.options.getString(`condition${index}_type`) !== null ||
+    interaction.options.getInteger(`condition${index}_value`) !== null
+  );
+  if (conditionOptionsUsed) {
+    const parsed = getConditionsFromOptions(interaction, false);
     if (!parsed) {
       await interaction.reply({
         embeds: [
@@ -306,7 +388,7 @@ async function handleEdit(interaction: ChatInputCommandInteraction): Promise<voi
             .setTitle("❌ รูปแบบเงื่อนไขไม่ถูกต้อง")
             .setColor(0xed4245)
             .setDescription(
-              `ไม่สามารถอ่านเงื่อนไข \`${newConditionsRaw}\` ได้\n\n` +
+              "กรุณาเลือกประเภทและใส่จำนวนของทุกเงื่อนไขให้ครบเป็นคู่\n\n" +
               CONDITION_FORMAT_HELP
             ),
         ],
@@ -314,8 +396,14 @@ async function handleEdit(interaction: ChatInputCommandInteraction): Promise<voi
       });
       return;
     }
-    ach.conditions = parsed;
+    replacementConditions = parsed;
   }
+
+  if (newTitle !== null) ach.titleName = newTitle;
+  if (newReward !== null) ach.sporeReward = newReward;
+  if (newSecret !== null) ach.isSecret = newSecret;
+  ach.discordRoleId = replacementRoleId;
+  if (replacementConditions) ach.conditions = replacementConditions;
 
   saveAchievement(ach);
 
@@ -332,7 +420,7 @@ async function handleEdit(interaction: ChatInputCommandInteraction): Promise<voi
         value: ach.conditions.map((c) => `• ${conditionShortLabel(c)}`).join("\n"),
         inline: false,
       },
-      { name: "🏷️ Discord Role ID", value: ach.discordRoleId ?? "ไม่ได้กำหนด", inline: true },
+      { name: "🏷️ ยศ Discord", value: ach.discordRoleId ? `<@&${ach.discordRoleId}>` : "ไม่ได้กำหนด", inline: true },
     )
     .setTimestamp();
 
