@@ -55,7 +55,7 @@ SporeNet Bot provides the Mushroom Kingdom community with an economy and progres
 Pull and build:
 
 ```bash
-pkill -f index.mjs ; cd ~/sporenet-bot && git pull && cd artifacts/api-server && node build.mjs
+pkill -f '[i]ndex.mjs' || true; cd ~/sporenet-bot && git pull origin main && cd artifacts/api-server && node build.mjs
 ```
 
 Start the bot:
@@ -63,6 +63,14 @@ Start the bot:
 ```bash
 cd ~/sporenet-bot && set -a && source .env && set +a && nohup node artifacts/api-server/dist/index.mjs > ~/bot.log 2>&1 &
 ```
+
+If the bot does not respond after starting, run it in the foreground first to see the actual startup error:
+
+```bash
+cd ~/sporenet-bot && set -a && source .env && set +a && node artifacts/api-server/dist/index.mjs
+```
+
+The expected startup messages include `Server listening`, `deploy slash commands สำเร็จ!`, and `บอทออนไลน์แล้ว!`. Press `Ctrl+C` only after confirming it comes online, then use the background start command above.
 
 ## Pointers
 
