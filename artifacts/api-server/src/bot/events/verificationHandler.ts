@@ -14,6 +14,7 @@ import {
   getPlayer,
   savePlayer,
   getGameChannel,
+  getAiChannel,
 } from "../data/store.js";
 
 const VERIFY_SPORE_REWARD = 1_000;
@@ -167,6 +168,40 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
         }
       } catch (e) {
         console.error("Failed to send game channel verification announcement:", e);
+      }
+    }
+  }
+
+  // ── King Mushroom welcome in the AI channel ──────────────
+  if (interaction.guild) {
+    const aiChannelId = getAiChannel(interaction.guild.id);
+    if (aiChannelId) {
+      try {
+        const aiChannel = await interaction.guild.channels.fetch(aiChannelId);
+        if (aiChannel && "send" in aiChannel) {
+          const user = interaction.user;
+          const welcomeEmbed = new EmbedBuilder()
+            .setAuthor({
+              name: "👑 ราชาเห็ดสปอร์",
+              iconURL: interaction.client.user.displayAvatarURL(),
+            })
+            .setTitle("🍄 สมาชิกใหม่แห่งอาณาจักรเห็ด")
+            .setDescription(
+              `<@${user.id}> ยินดีต้อนรับสู่ดินแดนของข้า!\n` +
+              `ยืนยันตัวตนเรียบร้อยแล้วนะ เจ้าเห็ดน้อย ขอให้สนุกกับการผจญภัยใน SporeNet!`
+            )
+            .setColor(0x9b59b6)
+            .setThumbnail(user.displayAvatarURL())
+            .setFooter({ text: "ราชาเห็ดสปอร์ยินดีต้อนรับเจ้าเข้าสู่อาณาจักร" })
+            .setTimestamp();
+
+          await aiChannel.send({
+            content: `<@${user.id}>`,
+            embeds: [welcomeEmbed],
+          });
+        }
+      } catch (e) {
+        console.error("Failed to send AI channel verification welcome:", e);
       }
     }
   }
