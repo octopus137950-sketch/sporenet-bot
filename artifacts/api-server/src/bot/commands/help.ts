@@ -8,7 +8,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const avatar = interaction.client.user?.displayAvatarURL() ?? null;
 
   const mainEmbed = new EmbedBuilder()
-    .setTitle("📖 คู่มือผู้เล่น — The SporeNet")
+    .setTitle("📖 คู่มือผู้เล่น — The Mushroom Kingdom")
     .setDescription(
       "ยินดีต้อนรับสู่ **ป่าเวทมนตร์แห่งสปอร์** 🍄\n" +
       "นี่คือคำสั่งทั้งหมดที่ผู้เล่นใช้ได้ ลองอ่านให้ครบก่อนเริ่มเลยนะ!\n\u200b"
@@ -92,7 +92,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         inline: false,
       }
     )
-    .setFooter({ text: "The SporeNet • ป่าเวทมนตร์แห่งสปอร์ | สำหรับคำสั่งแอดมิน ใช้ /help-admin" })
+    .setFooter({ text: "The Mushroom Kingdom • ป่าเวทมนตร์แห่งสปอร์ | สำหรับคำสั่งแอดมิน ใช้ /help-admin" })
     .setTimestamp();
 
   await interaction.reply({ embeds: [mainEmbed], ephemeral: true });

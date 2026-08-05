@@ -188,7 +188,7 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
             .setTitle("🍄 สมาชิกใหม่แห่งอาณาจักรเห็ด")
             .setDescription(
               `<@${user.id}> ยินดีต้อนรับสู่ดินแดนของข้า!\n` +
-              `ยืนยันตัวตนเรียบร้อยแล้วนะ เจ้าเห็ดน้อย ขอให้สนุกกับการผจญภัยใน SporeNet!`
+              `ยืนยันตัวตนเรียบร้อยแล้วนะ เจ้าเห็ดน้อย ขอให้สนุกกับการผจญภัยใน The Mushroom Kingdom!`
             )
             .setColor(0x9b59b6)
             .setThumbnail(user.displayAvatarURL())

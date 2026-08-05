@@ -15,7 +15,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   // ── Embed 1: Economy & Items ──────────────────────────────────────────────
   const economyEmbed = new EmbedBuilder()
-    .setTitle("🛠️ คู่มือแอดมิน — The SporeNet")
+    .setTitle("🛠️ คู่มือแอดมิน — The Mushroom Kingdom")
     .setDescription("คำสั่งทั้งหมดแบ่งตามหมวดหมู่ พร้อมตัวอย่างการใช้งาน\n\u200b")
     .setColor(0xfee75c)
     .addFields(
@@ -200,7 +200,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         inline: false,
       }
     )
-    .setFooter({ text: "The SporeNet • คู่มือแอดมิน | คำสั่งผู้เล่นทั่วไป ใช้ /help" })
+    .setFooter({ text: "The Mushroom Kingdom • คู่มือแอดมิน | คำสั่งผู้เล่นทั่วไป ใช้ /help" })
     .setTimestamp();
 
   await interaction.editReply({
