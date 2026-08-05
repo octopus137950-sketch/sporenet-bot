@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { randomUUID } from "crypto";
 
 const DATA_DIR = process.env["DATA_DIR"] ?? path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "bot_data.json");
@@ -172,6 +173,14 @@ export interface GuildConfig {
   /** ช่องแชทสำหรับคุยกับ AI (SporeNet AI Companion) */
   aiChannelId?: string;
   worldMushroom?: WorldMushroomState;
+  marketplace?: MarketplaceConfig;
+}
+
+export interface MarketplaceConfig {
+  channelId: string;
+  enabled: boolean;
+  listingDurationMs: number;
+  feePercent: number;
 }
 
 export interface WorldMushroomContributor {
@@ -295,6 +304,41 @@ export interface InventoryItem {
   isEquipped: boolean;
 }
 
+export type MarketplaceListingStatus = "active" | "sold" | "cancelled" | "expired";
+
+export interface MarketplaceListing {
+  listingId: string;
+  guildId: string;
+  channelId: string;
+  messageId?: string;
+  sellerId: string;
+  itemId: string;
+  price: number;
+  fee: number;
+  sellerReceives: number;
+  status: MarketplaceListingStatus;
+  createdAt: number;
+  expiresAt: number;
+  buyerId?: string;
+  completedAt?: number;
+  messageDeletedAt?: number;
+}
+
+export interface MarketplaceHistoryEntry {
+  historyId: string;
+  listingId: string;
+  guildId: string;
+  sellerId: string;
+  buyerId?: string;
+  itemId: string;
+  price: number;
+  fee: number;
+  sellerReceives: number;
+  status: "sold" | "cancelled" | "expired";
+  createdAt: number;
+  completedAt: number;
+}
+
 export interface Store {
   panels: Record<string, ReactionRolePanel>;
   guilds: Record<string, GuildConfig>;
@@ -307,6 +351,8 @@ export interface Store {
   playerAchievements: PlayerAchievement[];
   playerStats: Record<string, PlayerStats>;
   inventories: Record<string, InventoryItem[]>;
+  marketplaceListings: Record<string, MarketplaceListing>;
+  marketplaceHistory: MarketplaceHistoryEntry[];
 }
 
 function emptyStore(): Store {
@@ -329,6 +375,8 @@ function emptyStore(): Store {
     playerAchievements: [],
     playerStats: {},
     inventories: {},
+    marketplaceListings: {},
+    marketplaceHistory: [],
   };
 }
 
@@ -423,6 +471,8 @@ function loadStore(): Store {
       playerAchievements:      parsed.playerAchievements ?? [],
       playerStats,
       inventories: (parsed.inventories ?? {}) as Record<string, InventoryItem[]>,
+      marketplaceListings: (parsed.marketplaceListings ?? {}) as Record<string, MarketplaceListing>,
+      marketplaceHistory: (parsed.marketplaceHistory ?? []) as MarketplaceHistoryEntry[],
     };
   } catch {
     return emptyStore();
@@ -595,6 +645,202 @@ export function setGameChannel(guildId: string, channelId: string): void {
 
 export function getGameChannel(guildId: string): string | undefined {
   return _store.guilds[guildId]?.gameChannelId;
+}
+
+const DEFAULT_MARKETPLACE_DURATION_MS = 7 * 24 * 60 * 60 * 1_000;
+const DEFAULT_MARKETPLACE_FEE_PERCENT = 5;
+
+export function getMarketplaceConfig(guildId: string): MarketplaceConfig | undefined {
+  return _store.guilds[guildId]?.marketplace;
+}
+
+export function setMarketplaceConfig(guildId: string, config: MarketplaceConfig): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  _store.guilds[guildId]!.marketplace = config;
+  saveStore(_store);
+}
+
+export function createMarketplaceListing(
+  guildId: string,
+  channelId: string,
+  sellerId: string,
+  itemId: string,
+  price: number,
+): MarketplaceListing | undefined {
+  const inventory = getInventory(sellerId);
+  const slot = inventory.find((entry) => entry.itemId === itemId && !entry.isEquipped);
+  if (!slot) return undefined;
+
+  const config = getMarketplaceConfig(guildId);
+  const now = Date.now();
+  const fee = Math.floor(price * (config?.feePercent ?? DEFAULT_MARKETPLACE_FEE_PERCENT) / 100);
+  const listing: MarketplaceListing = {
+    listingId: randomUUID(),
+    guildId,
+    channelId,
+    sellerId,
+    itemId,
+    price,
+    fee,
+    sellerReceives: price - fee,
+    status: "active",
+    createdAt: now,
+    expiresAt: now + (config?.listingDurationMs ?? DEFAULT_MARKETPLACE_DURATION_MS),
+  };
+
+  inventory.splice(inventory.indexOf(slot), 1);
+  _store.inventories[sellerId] = inventory;
+  _store.marketplaceListings[listing.listingId] = listing;
+  saveStore(_store);
+  return listing;
+}
+
+export function setMarketplaceListingMessageId(listingId: string, messageId: string): boolean {
+  const listing = _store.marketplaceListings[listingId];
+  if (!listing) return false;
+  listing.messageId = messageId;
+  saveStore(_store);
+  return true;
+}
+
+export function getMarketplaceListing(listingId: string): MarketplaceListing | undefined {
+  return _store.marketplaceListings[listingId];
+}
+
+export function getMarketplaceListings(guildId: string): MarketplaceListing[] {
+  return Object.values(_store.marketplaceListings)
+    .filter((listing) => listing.guildId === guildId);
+}
+
+export type MarketplaceTransactionResult =
+  | { ok: true; listing: MarketplaceListing }
+  | { ok: false; reason: "not_found" | "not_active" | "expired" | "own_listing" | "insufficient_spores" };
+
+export function buyMarketplaceListing(
+  listingId: string,
+  buyerId: string,
+): MarketplaceTransactionResult {
+  const listing = _store.marketplaceListings[listingId];
+  if (!listing) return { ok: false, reason: "not_found" };
+  if (listing.status !== "active") return { ok: false, reason: "not_active" };
+  if (listing.expiresAt <= Date.now()) return { ok: false, reason: "expired" };
+  if (listing.sellerId === buyerId) return { ok: false, reason: "own_listing" };
+
+  const buyer = getPlayer(buyerId);
+  if (buyer.sporePoints < listing.price) return { ok: false, reason: "insufficient_spores" };
+
+  const seller = getPlayer(listing.sellerId);
+  buyer.sporePoints -= listing.price;
+  seller.sporePoints += listing.sellerReceives;
+  getInventory(buyerId).push({ itemId: listing.itemId, isEquipped: false });
+
+  const completedAt = Date.now();
+  listing.status = "sold";
+  listing.buyerId = buyerId;
+  listing.completedAt = completedAt;
+  listing.messageDeletedAt = completedAt + 60 * 60 * 1_000;
+  _store.marketplaceHistory.push({
+    historyId: randomUUID(),
+    listingId: listing.listingId,
+    guildId: listing.guildId,
+    sellerId: listing.sellerId,
+    buyerId,
+    itemId: listing.itemId,
+    price: listing.price,
+    fee: listing.fee,
+    sellerReceives: listing.sellerReceives,
+    status: "sold",
+    createdAt: listing.createdAt,
+    completedAt,
+  });
+  saveStore(_store);
+  return { ok: true, listing };
+}
+
+export type MarketplaceListingUpdateResult =
+  | { ok: true; listing: MarketplaceListing }
+  | { ok: false; reason: "not_found" | "not_active" | "not_owner" };
+
+export function cancelMarketplaceListing(
+  listingId: string,
+  requesterId: string,
+): MarketplaceListingUpdateResult {
+  const listing = _store.marketplaceListings[listingId];
+  if (!listing) return { ok: false, reason: "not_found" };
+  if (listing.status !== "active") return { ok: false, reason: "not_active" };
+  if (listing.sellerId !== requesterId) return { ok: false, reason: "not_owner" };
+  if (listing.expiresAt <= Date.now()) {
+    return expireMarketplaceListing(listingId);
+  }
+
+  const completedAt = Date.now();
+  getInventory(requesterId).push({ itemId: listing.itemId, isEquipped: false });
+  listing.status = "cancelled";
+  listing.completedAt = completedAt;
+  listing.messageDeletedAt = completedAt + 60 * 60 * 1_000;
+  _store.marketplaceHistory.push({
+    historyId: randomUUID(),
+    listingId: listing.listingId,
+    guildId: listing.guildId,
+    sellerId: listing.sellerId,
+    itemId: listing.itemId,
+    price: listing.price,
+    fee: listing.fee,
+    sellerReceives: listing.sellerReceives,
+    status: "cancelled",
+    createdAt: listing.createdAt,
+    completedAt,
+  });
+  saveStore(_store);
+  return { ok: true, listing };
+}
+
+export function expireMarketplaceListing(listingId: string): MarketplaceListingUpdateResult {
+  const listing = _store.marketplaceListings[listingId];
+  if (!listing) return { ok: false, reason: "not_found" };
+  if (listing.status !== "active") return { ok: false, reason: "not_active" };
+  if (listing.expiresAt > Date.now()) return { ok: false, reason: "not_active" };
+
+  const completedAt = Date.now();
+  getInventory(listing.sellerId).push({ itemId: listing.itemId, isEquipped: false });
+  listing.status = "expired";
+  listing.completedAt = completedAt;
+  listing.messageDeletedAt = completedAt + 60 * 60 * 1_000;
+  _store.marketplaceHistory.push({
+    historyId: randomUUID(),
+    listingId: listing.listingId,
+    guildId: listing.guildId,
+    sellerId: listing.sellerId,
+    itemId: listing.itemId,
+    price: listing.price,
+    fee: listing.fee,
+    sellerReceives: listing.sellerReceives,
+    status: "expired",
+    createdAt: listing.createdAt,
+    completedAt,
+  });
+  saveStore(_store);
+  return { ok: true, listing };
+}
+
+export function markMarketplaceMessageDeleted(listingId: string): boolean {
+  const listing = _store.marketplaceListings[listingId];
+  if (!listing || !listing.messageId) return false;
+  delete listing.messageId;
+  listing.messageDeletedAt = undefined;
+  saveStore(_store);
+  return true;
+}
+
+export function getMarketplaceHistory(
+  guildId: string,
+  userId: string,
+  limit = 20,
+): MarketplaceHistoryEntry[] {
+  return _store.marketplaceHistory
+    .filter((entry) => entry.guildId === guildId && (entry.sellerId === userId || entry.buyerId === userId))
+    .sort((a, b) => b.completedAt - a.completedAt)
+    .slice(0, limit);
 }
 
 export function setAiChannel(guildId: string, channelId: string): void {

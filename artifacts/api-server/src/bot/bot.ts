@@ -96,6 +96,11 @@ import * as waterCmd from "./commands/water.js";
 import * as protectCmd from "./commands/protect.js";
 import * as worldmushroomCmd from "./commands/worldmushroom.js";
 import * as pestCmd from "./commands/pest.js";
+import * as marketplaceCmd from "./commands/marketplace.js";
+import * as marketSellCmd from "./commands/marketSell.js";
+import * as marketHistoryCmd from "./commands/marketHistory.js";
+import { handleMarketplaceButton } from "./events/marketplaceHandler.js";
+import { startMarketplaceScheduler } from "./events/marketplaceScheduler.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -153,6 +158,9 @@ commands.set("protect", protectCmd);
 commands.set("worldmushroom", worldmushroomCmd);
 commands.set("pest", pestCmd);
 commands.set("setluckydoors", setluckydoorsCmd);
+commands.set("marketplace", marketplaceCmd);
+commands.set("market-sell", marketSellCmd);
+commands.set("market-history", marketHistoryCmd);
 
 export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -186,6 +194,7 @@ export async function startBot(): Promise<void> {
     initWorldBossScheduler(client);
     startEcosystemScheduler(client);
     startWorldMushroomScheduler(client);
+    startMarketplaceScheduler(client);
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
@@ -217,6 +226,8 @@ export async function startBot(): Promise<void> {
           await handleLuckyDoorsButton(interaction);
         } else if (id.startsWith("luckydoors_pick:")) {
           await handleLuckyDoorsPick(interaction);
+        } else if (id.startsWith("market_buy:") || id.startsWith("market_cancel:")) {
+          await handleMarketplaceButton(interaction);
         } else if (id.startsWith("crash_cashout:")) {
           await handleCrashCashOut(interaction);
         } else if (id === "shop_open") {

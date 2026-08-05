@@ -58,6 +58,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           "**`/setlog #ห้อง`**",
           "→ ตั้งห้อง log การซื้อขาย/ทำธุรกรรม",
           "✏️ ตัวอย่าง: `/setlog #📋-log-transactions`",
+          "**`/marketplace [channel]`**",
+          "→ ตั้งห้องตลาดกลางผู้เล่น ผู้เล่นใช้ `/market-sell` ได้เฉพาะห้องนี้",
+          "→ ประกาศมีปุ่มซื้อทันที และรายการจบแล้วจะถูกลบหลัง 1 ชั่วโมง",
         ].join("\n"),
         inline: false,
       }

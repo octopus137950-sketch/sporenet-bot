@@ -49,6 +49,9 @@ import { data as waterData } from "./commands/water.js";
 import { data as protectData } from "./commands/protect.js";
 import { data as worldmushroomData } from "./commands/worldmushroom.js";
 import { data as pestData } from "./commands/pest.js";
+import { data as marketplaceData } from "./commands/marketplace.js";
+import { data as marketSellData } from "./commands/marketSell.js";
+import { data as marketHistoryData } from "./commands/marketHistory.js";
 
 export async function deployCommands(): Promise<void> {
   const token = process.env["DISCORD_TOKEN"];
@@ -111,6 +114,9 @@ export async function deployCommands(): Promise<void> {
     protectData.toJSON(),
     worldmushroomData.toJSON(),
     pestData.toJSON(),
+    marketplaceData.toJSON(),
+    marketSellData.toJSON(),
+    marketHistoryData.toJSON(),
   ];
 
   console.log("🔄 กำลัง deploy slash commands...");
