@@ -1,24 +1,2346 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>SporeNet Mushroom Adventure</title>
-    <meta name="description" content="SporeNet Mushroom Adventure — built on Replit. Update this description to reflect the app." />
-    <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="SporeNet Mushroom Adventure" />
-    <meta property="og:description" content="SporeNet Mushroom Adventure — built on Replit. Update this description to reflect the app." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="SporeNet Mushroom Adventure" />
-    <meta name="twitter:description" content="SporeNet Mushroom Adventure — built on Replit. Update this description to reflect the app." />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mushroom Voxel - Endless Adventure</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Mitr:wght@400;600;700&display=swap');
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #1a1a2e; font-family: 'Mitr', sans-serif; }
+        
+        #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        .vignette {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 4; pointer-events: none;
+            box-shadow: inset 0 0 200px rgba(0,0,0,0.8);
+        }
+        
+        .ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none;
+            display: flex; justify-content: center; align-items: center;
+        }
+        
+        .card {
+            background: rgba(20, 30, 40, 0.7); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2); padding: 40px; border-radius: 25px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255,255,255,0.2);
+            text-align: center; width: 90%; max-width: 400px; pointer-events: auto; color: white;
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        h1 { font-size: 32px; color: #fff; text-shadow: 0 4px 15px rgba(231, 76, 60, 0.6); letter-spacing: 1px; }
+        h2 { font-size: 14px; color: #bdc3c7; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 2px; }
+        
+        input {
+            width: 100%; padding: 14px; margin: 10px 0;
+            background: rgba(0,0,0,0.5); border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px; color: white; font-size: 16px; text-align: center;
+            font-family: 'Mitr', sans-serif; outline: none; transition: 0.2s;
+        }
+        input:focus { border-color: #f1c40f; box-shadow: 0 0 15px rgba(241, 196, 15, 0.3); }
+
+        .btn {
+            width: 100%; padding: 14px; margin-top: 15px;
+            border: none; border-radius: 12px;
+            background: linear-gradient(180deg, #2ecc71 0%, #27ae60 100%);
+            color: white; font-size: 18px; font-weight: 600;
+            cursor: pointer; box-shadow: 0 6px 0 #1e8449, inset 0 1px 0 rgba(255,255,255,0.3); transition: 0.1s;
+            font-family: 'Mitr', sans-serif;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #1e8449, inset 0 1px 0 rgba(255,255,255,0.3); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: 0 6px 0 #1e8449; }
+        .btn-atk { background: linear-gradient(180deg, #e74c3c 0%, #c0392b 100%); box-shadow: 0 6px 0 #922b21, inset 0 1px 0 rgba(255,255,255,0.3); }
+        .btn-atk:active { box-shadow: 0 2px 0 #922b21, inset 0 1px 0 rgba(255,255,255,0.3); }
+        .btn-run { background: linear-gradient(180deg, #7f8c8d 0%, #57606f 100%); box-shadow: 0 6px 0 #2f3542, inset 0 1px 0 rgba(255,255,255,0.3); }
+        .btn-run:active { box-shadow: 0 2px 0 #2f3542, inset 0 1px 0 rgba(255,255,255,0.3); }
+        .btn-gold { background: linear-gradient(180deg, #f1c40f 0%, #f39c12 100%); box-shadow: 0 6px 0 #d35400, inset 0 1px 0 rgba(255,255,255,0.4); color: #000; }
+        .btn-gold:active { box-shadow: 0 2px 0 #d35400, inset 0 1px 0 rgba(255,255,255,0.4); }
+
+        .color-picker { display: flex; justify-content: center; gap: 15px; margin: 20px 0; }
+        .color-dot { 
+            width: 40px; height: 40px; border-radius: 50%; cursor: pointer; 
+            border: 3px solid transparent; transition: 0.2s; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 2px 5px rgba(255,255,255,0.3);
+        }
+        .color-dot:hover { transform: scale(1.1) translateY(-2px); }
+        .color-dot.selected { border-color: white; transform: scale(1.2); }
+
+        #game-hud { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        
+        .hud-stats {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 15px;
+            color: white; border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+            animation: slideIn 0.5s ease-out;
+        }
+        .hp-bar-bg { width: 160px; height: 12px; background: rgba(0,0,0,0.5); border-radius: 6px; margin-top: 5px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); }
+        .hp-bar-fill { height: 100%; background: linear-gradient(90deg, #c0392b, #e74c3c, #ff6b6b); transition: width 0.3s; box-shadow: 0 0 10px #e74c3c; }
+
+        .controls { position: absolute; bottom: 25px; right: 25px; pointer-events: auto; width: auto; }
+        .controls .btn { font-size: 18px !important; padding: 14px 22px !important; border-radius: 50px !important; box-shadow: 0 6px 0 #1e8449, 0 8px 25px rgba(0,0,0,0.5) !important; }
+        .controls .btn:disabled { opacity: 0.4; }
+
+        .popup-panel {
+            position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%) scale(0.9);
+            background: rgba(15, 15, 25, 0.92); backdrop-filter: blur(15px); border-radius: 14px;
+            padding: 14px 18px; text-align: center; color: white; display: none; pointer-events: auto;
+            width: 92%; max-width: 440px; box-shadow: 0 -8px 35px rgba(0,0,0,0.7);
+            border: 1px solid rgba(255,255,255,0.2); opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+        }
+        .popup-panel.active { display: block; opacity: 1; transform: translateX(-50%) scale(1); }
+        .popup-panel .btn { padding: 10px !important; font-size: 14px !important; }
+
+        .toast {
+            position: absolute; top: 20px; right: 20px;
+            transform: translateX(120%) scale(0.9);
+            background: rgba(15, 15, 25, 0.92); backdrop-filter: blur(10px); 
+            padding: 10px 16px; border-radius: 12px;
+            font-size: 13px; font-weight: 600; color: white; 
+            border-left: 4px solid #f1c40f;
+            opacity: 0; transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s; 
+            pointer-events: none; text-align: left; 
+            max-width: 240px; width: auto; z-index: 20;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+            line-height: 1.4;
+        }
+        .toast.show { opacity: 1; transform: translateX(0) scale(1); }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes slideIn {
+            0% { transform: translateX(-150%); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+    <div class="vignette"></div>
+
+    <div class="ui-layer">
+        <div id="screen-setup" class="card">
+            <h1>MUSHROOM RUN</h1>
+            <h2>Voxel Endless Adventure</h2>
+            <input type="text" id="hero-name" placeholder="ตั้งชื่อเจ้าเห็ด..." value="เห็ดทะลวงฟัน">
+            <div class="color-picker" id="color-picker">
+                <div class="color-dot selected" style="background: #e74c3c;" data-color="0xe74c3c"></div>
+                <div class="color-dot" style="background: #3498db;" data-color="0x3498db"></div>
+                <div class="color-dot" style="background: #f1c40f;" data-color="0xf1c40f"></div>
+                <div class="color-dot" style="background: #9b59b6;" data-color="0x9b59b6"></div>
+            </div>
+            <button class="btn" id="btn-start">เริ่มออกผจญภัย 🏕️</button>
+        </div>
+    </div>
+
+    <div id="game-hud">
+        <div class="hud-stats">
+            <div style="font-size: 18px; color: #2ecc71; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5);" id="display-name">Player</div>
+            <div style="font-size: 13px; opacity: 0.8; margin-top: 2px;">
+                ⭐ Level <span id="display-lv" style="color: #fff; font-weight: bold;">1</span>
+            </div>
+            <div style="font-size: 13px; opacity: 0.8; margin-top: 4px;">HP: <span id="hp-text" style="color: #fff; font-weight: bold;">100/100</span></div>
+            <div class="hp-bar-bg"><div id="hp-bar" class="hp-bar-fill"></div></div>
+            <div style="margin-top: 6px;">
+                <div style="font-size: 11px; opacity: 0.7; display: flex; justify-content: space-between;">
+                    <span>📊 EXP</span>
+                    <span id="farm-exp-text">0/100</span>
+                </div>
+                <div class="hp-bar-bg" style="width: 160px; height: 6px; margin-top: 2px;">
+                    <div id="farm-exp-bar" style="height: 100%; background: linear-gradient(90deg, #f39c12, #f1c40f); transition: width 0.3s; border-radius: 6px;"></div>
+                </div>
+            </div>
+            <div style="font-size: 18px; margin-top: 8px; color: #f1c40f; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">🍄 <span id="display-spore">0</span> spore</div>
+            <div style="font-size: 13px; margin-top: 4px; color: #e91e63; font-weight: bold; display: flex; gap: 12px;">
+                <span>🧪 <span id="display-potion">0</span></span>
+                <span>🎒 <span id="display-items">0</span></span>
+            </div>
+            <div id="buffs-display" style="font-size: 10px; margin-top: 4px; opacity: 0.7; line-height: 1.4;"></div>
+        </div>
+
+        <button id="btn-potion" style="position: absolute; bottom: 90px; left: 25px; pointer-events: auto; background: linear-gradient(180deg, #e91e63 0%, #c2185b 100%); color: white; border: none; border-radius: 50%; width: 56px; height: 56px; font-size: 24px; cursor: pointer; box-shadow: 0 4px 0 #880e4f, 0 6px 20px rgba(0,0,0,0.5); z-index: 6; transition: 0.1s;">🧪</button>
+
+        <div id="toast-container" style="position: absolute; top: 20px; right: 20px; z-index: 20; pointer-events: none; display: flex; flex-direction: column; gap: 8px; max-width: 240px;"></div>
+        <div id="toast-msg" class="toast"></div>
+
+        <div id="battle-panel" class="popup-panel" style="border-top: 4px solid #e74c3c;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="flex: 1; text-align: left;">
+                    <h3 id="battle-title" style="color: #ff7979; margin: 0 0 4px 0; font-size: 16px;">👾 มอนสเตอร์ขวางทาง!</h3>
+                    <p id="battle-desc" style="font-size: 11px; margin: 0 0 6px 0; opacity: 0.75; font-style: italic; line-height: 1.3;">...</p>
+                    <p style="font-size: 13px; margin: 0; opacity: 0.9;">❤️ Enemy HP: <span id="enemy-hp" style="font-size: 16px; font-weight: bold; color: #fff;">50</span></p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px; min-width: 90px;">
+                    <button class="btn btn-atk" style="margin:0;" id="btn-attack">⚔️ โจมตี</button>
+                    <button class="btn btn-run" style="margin:0;" id="btn-runaway">💨 หนี</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="item-panel" class="popup-panel" style="border-top: 4px solid #f1c40f;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="flex: 1; text-align: left;">
+                    <h3 id="item-title" style="color: #f1c40f; margin: 0 0 4px 0; font-size: 16px;">✨ พบสมบัติ!</h3>
+                    <p style="font-size: 11px; margin: 0; opacity: 0.75; font-style: italic; line-height: 1.3;" id="item-desc">เจอเห็ดลึกลับในป่า คุณจะเก็บมันหรือไม่?</p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px; min-width: 90px;">
+                    <button class="btn btn-gold" style="margin:0;" id="btn-collect">✨ เก็บ</button>
+                    <button class="btn btn-run" style="margin:0;" id="btn-ignore">🚫 ไม่เก็บ</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="btn-walk" class="btn">ออกเดินทาง 🚶‍♂️</button>
+        </div>
+    </div>
+
+    <script>
+        // ================= GLOBAL VARIABLES =================
+        let scene, camera, renderer;
+        let playerGroup, capMaterial, playerLegs = [], playerArms = [], playerStaff;
+        let selectedColor = 0xe74c3c;
+        
+        let chunks = [];
+        let particleSystems = []; 
+        const CHUNK_LEN = 12; 
+        let isWalking = false, inInteraction = false;
+        let cameraShake = 0; 
+        let isBattling = false; // กำลังอยู่ใน animation การโจมตี — กันกดซ้อน
+
+        let player = { 
+            name: "Player", 
+            // Level เดียว (ตามบอท — ไม่แยก farmLevel/battleLevel)
+            level: 1,
+            farmExp: 0, // EXP สะสม
+            // Battle stats (คำนวณจาก level)
+            hp: 100, maxHp: 100, atk: 25,
+            // สกุลเงิน: spore (เห็ด) ไม่ใช่ทองคำ
+            spore: 0,
+            // Inventory
+            potionCount: 0,        // จำนวนน้ำยาฟื้นฟู HP
+            items: [],             // ไอเทมบัฟที่สะสม (id list)
+            // Buffs สะสม (คำนวณจาก items ที่สวมใส่)
+            sporeBonusPercent: 0,
+            sporeBonusFlat: 0,
+            expBonusPercent: 0,
+            attackBonusPercent: 0
+        };
+        let currentEnemy = { hp: 0, atk: 0, mesh: null, originalColor: 0x9b59b6, type: null };
+        let currentChunkEvent = null;
+
+        // สูตรคำนวณ EXP ที่ต้องการต่อเลเวล (เหมือนบอท: level * 100)
+        function expNeededForLevel(lv) { return lv * 100; }
+
+        // สูตรคำนวณ battle stats จาก level
+        function maxHpForLevel(lv) { return 100 + (lv - 1) * 15; }
+        function atkForLevel(lv) { return 25 + (lv - 1) * 3; }
+
+        // อัปเดต battle stats ตาม level
+        function recalcStatsFromLevel() {
+            const newMaxHp = maxHpForLevel(player.level);
+            const newAtk = atkForLevel(player.level);
+            // ปรับ maxHp และ atk ตาม level
+            player.maxHp = newMaxHp;
+            player.atk = newAtk;
+            // ถ้า hp เกิน maxHp ให้ clamp
+            if(player.hp > player.maxHp) player.hp = player.maxHp;
+        }
+
+        // ================= MUSHROOM & MONSTER CONFIG =================
+        // ข้อมูลจาก sporenet-bot /farm: เห็ด 3 ชนิด + มอนสเตอร์ 4 ชนิด
+        const MUSHROOM_TYPES = {
+            straw: {
+                key: 'straw',
+                name: 'เห็ดฟางธรรมดา',
+                emoji: '🍄',
+                color: 0xa8e063,
+                glowColor: 0xa8e063,
+                sporeMin: 10, sporeMax: 15,
+                weight: 45, // ตาม /farm จริง
+                yOffset: 0.6,
+                desc: 'เห็ดฟางธรรมดาเล็กๆ ข้างขอนไม้ผุ บดทำยาได้เล็กน้อย'
+            },
+            magic: {
+                key: 'magic',
+                name: 'เห็ดเรืองแสงเวทมนตร์',
+                emoji: '✨',
+                color: 0x4fc3f7,
+                glowColor: 0x7cfc00,
+                sporeMin: 25, sporeMax: 40,
+                weight: 30,
+                yOffset: 0.8,
+                desc: 'เห็ดเรืองแสงเวทมนตร์เปล่งแสงวับๆ วามๆ ในถ้ำลึก'
+            },
+            golden: {
+                key: 'golden',
+                name: 'เห็ดทองคำโบราณ',
+                emoji: '👑',
+                color: 0xffd700,
+                glowColor: 0xffa500,
+                sporeMin: 100, sporeMax: 150,
+                weight: 5, // หายากมาก
+                yOffset: 1.0,
+                desc: 'เห็ดทองคำโบราณหายากแห่งราชวงศ์ ส่องแสงทองอร่าม!'
+            }
+        };
+
+        const MONSTER_TYPES = {
+            caterpillar: {
+                key: 'caterpillar',
+                name: 'หนอนเขียวป่า',
+                emoji: '🐛',
+                color: 0x90ee90,
+                hpBase: 30, hpPerLv: 8,
+                atkBase: 6, atkPerLv: 1,
+                sporeWinMin: 20, sporeWinMax: 35,
+                sporeLossMin: 10, sporeLossMax: 15,
+                weight: 50,
+                yOffset: 0.5,
+                desc: 'หนอนยักษ์สีเขียวน่าเกลียดโผล่ขึ้นมาจากดินขวางหน้า!'
+            },
+            bat: {
+                key: 'bat',
+                name: 'ค้างคาวเห็ดพิษ',
+                emoji: '🦇',
+                color: 0x9370db,
+                hpBase: 50, hpPerLv: 12,
+                atkBase: 10, atkPerLv: 2,
+                sporeWinMin: 40, sporeWinMax: 60,
+                sporeLossMin: 20, sporeLossMax: 30,
+                weight: 30,
+                yOffset: 1.2,
+                desc: 'ฝูงค้างคาวกินเห็ดพิษบินลงมาจู่โจมจากความมืด!'
+            },
+            boar: {
+                key: 'boar',
+                name: 'หมูป่าบ้าเลือด',
+                emoji: '🐗',
+                color: 0xcd5c5c,
+                hpBase: 80, hpPerLv: 18,
+                atkBase: 15, atkPerLv: 3,
+                sporeWinMin: 70, sporeWinMax: 100,
+                sporeLossMin: 30, sporeLossMax: 50,
+                weight: 15,
+                yOffset: 0.7,
+                desc: 'หมูป่าขนาดมหึมาพุ่งออกมาจากพุ่มไม้ตาแดงฉาน!'
+            },
+            dragon: {
+                key: 'dragon',
+                name: 'มังกรเห็ดโบราณ',
+                emoji: '🐉',
+                color: 0xff4500,
+                hpBase: 150, hpPerLv: 30,
+                atkBase: 25, atkPerLv: 5,
+                sporeWinMin: 150, sporeWinMax: 220,
+                sporeLossMin: 60, sporeLossMax: 90,
+                weight: 5,
+                yOffset: 1.4,
+                desc: 'มังกรตำนานแห่งป่าเห็ดปรากฏตัวขึ้น — โอกาสเจอหายากมาก!'
+            }
+        };
+
+        // 📦 BOX TYPES — กล่องสมบัติ 3 ระดับ
+        // สปอร์ที่ได้ = % ของสปอร์ที่มีอยู่
+        const BOX_TYPES = {
+            common: {
+                key: 'common',
+                name: 'กล่องสมบัติธรรมดา',
+                emoji: '📦',
+                color: 0x8d6e63,
+                glowColor: 0xa1887f,
+                sporePercent: 0.10,    // 10% ของสปอร์ที่มี
+                weight: 60,            // หาง่าย
+                yOffset: 0.5,
+                desc: 'กล่องไม้ธรรมดา — ดูเก่าแก่ อาจมีของดีอยู่ข้างใน'
+            },
+            iron: {
+                key: 'iron',
+                name: 'กล่องเหล็ก',
+                emoji: '🗝️',
+                color: 0x90a4ae,
+                glowColor: 0xcfd8dc,
+                sporePercent: 0.20,    // 20% ของสปอร์ที่มี
+                weight: 30,            // ปานกลาง
+                yOffset: 0.5,
+                desc: 'กล่องเหล็กแข็งแกร่ง — ต้องใช้กุญแจเปิด ของดีกว่ากล่องธรรมดา'
+            },
+            gold: {
+                key: 'gold',
+                name: 'กล่องทองคำ',
+                emoji: '💰',
+                color: 0xffd700,
+                glowColor: 0xffa500,
+                sporePercent: 0.30,    // 30% ของสปอร์ที่มี
+                weight: 10,            // หายาก
+                yOffset: 0.6,
+                desc: 'กล่องทองคำเปล่งประกาย — ขุมทรัพย์ที่รอคอยผู้กล้า!'
+            }
+        };
+
+        // 🧪 POTION — น้ำยาฟื้นฟู HP
+        const POTION = {
+            name: 'น้ำยาฟื้นฟู',
+            emoji: '🧪',
+            healPercent: 0.50,  // ฟื้น 50% ของ maxHp
+            desc: 'ฟื้นพลังชีวิต 50% ของ HP สูงสุด'
+        };
+
+        // ✨ ITEMS POOL — ไอเทมบัฟจาก sporenet-bot (ดรอป 0.75% เท่ากันทุกกล่อง)
+        const ITEMS_POOL = [
+            // attack_percent
+            { id: 'poison_blade', name: 'ใบมีดเห็ดพิษ', emoji: '🗡️', buffType: 'attack_percent', buffValue: 20, lore: '+20% พลังโจมตี' },
+            { id: 'mushroom_potion', name: 'ขวดน้ำยาเห็ดเข้มข้น', emoji: '⚗️', buffType: 'attack_percent', buffValue: 15, lore: '+15% พลังโจมตี' },
+            { id: 'thunder_hammer', name: 'ค้อนสายฟ้า', emoji: '⚡', buffType: 'attack_percent', buffValue: 30, lore: '+30% พลังโจมตี' },
+            { id: 'void_crystal', name: 'คริสตัลแห่งความว่างเปล่า', emoji: '🔮', buffType: 'attack_percent', buffValue: 25, lore: '+25% พลังโจมตี' },
+            { id: 'shadow_dagger', name: 'มีดสายลับเงา', emoji: '🌑', buffType: 'attack_percent', buffValue: 35, lore: '+35% พลังโจมตี' },
+            { id: 'dragon_scale_mail', name: 'เกราะเกล็ดมังกรราชา', emoji: '🐉', buffType: 'attack_percent', buffValue: 45, lore: '+45% พลังโจมตี' },
+            // spore_percent
+            { id: 'magic_basket', name: 'ตะกร้าสปอร์มนตร์', emoji: '🧺', buffType: 'spore_percent', buffValue: 25, lore: '+25% สปอร์จากการเก็บเห็ด' },
+            { id: 'spore_gauntlet', name: 'ถุงมือสปอร์', emoji: '🧤', buffType: 'spore_percent', buffValue: 15, lore: '+15% สปอร์' },
+            { id: 'blood_ruby', name: 'อัญมณีเลือดมังกร', emoji: '💎', buffType: 'spore_percent', buffValue: 40, lore: '+40% สปอร์' },
+            { id: 'lava_boots', name: 'รองเท้าอัคคีภัย', emoji: '🔥', buffType: 'spore_percent', buffValue: 20, lore: '+20% สปอร์' },
+            // spore_flat
+            { id: 'golden_ring', name: 'แหวนเห็ดทอง', emoji: '💍', buffType: 'spore_flat', buffValue: 15, lore: '+15 สปอร์คงที่/ครั้ง' },
+            { id: 'mystic_wand', name: 'ไม้กายสิทธิ์เห็ดลึกลับ', emoji: '🪄', buffType: 'spore_flat', buffValue: 20, lore: '+20 สปอร์คงที่/ครั้ง' },
+            { id: 'ancient_scroll', name: 'ม้วนคัมภีร์แห่งความมั่งคั่ง', emoji: '📜', buffType: 'spore_flat', buffValue: 50, lore: '+50 สปอร์คงที่/ครั้ง' },
+            { id: 'mermaid_tear', name: 'น้ำตานางเงือก', emoji: '💧', buffType: 'spore_flat', buffValue: 80, lore: '+80 สปอร์คงที่/ครั้ง' },
+            { id: 'ancient_coin', name: 'เหรียญทองพันปี', emoji: '🪙', buffType: 'spore_flat', buffValue: 100, lore: '+100 สปอร์คงที่/ครั้ง' },
+            // exp_percent
+            { id: 'sage_tome', name: 'คัมภีร์ฉลามเห็ด', emoji: '📖', buffType: 'exp_percent', buffValue: 50, lore: '+50% EXP' },
+            { id: 'fern_crown', name: 'มงกุฎใบเฟิร์นโบราณ', emoji: '🌿', buffType: 'exp_percent', buffValue: 30, lore: '+30% EXP' },
+            { id: 'ghost_cloak', name: 'เสื้อคลุมวิญญาณนักปราชญ์', emoji: '👻', buffType: 'exp_percent', buffValue: 60, lore: '+60% EXP' },
+            { id: 'mushroom_crown', name: 'มงกุฎราชาเห็ด', emoji: '👑', buffType: 'exp_percent', buffValue: 80, lore: '+80% EXP' },
+            { id: 'star_fragment', name: 'เศษดาวตก', emoji: '⭐', buffType: 'exp_percent', buffValue: 100, lore: '+100% EXP' },
+        ];
+
+        // สุ่มไอเทมดรอป — 0.75% เท่ากันทุกกล่อง (ตามบอท)
+        function rollItemDrop() {
+            if (Math.random() * 100 >= 0.75) return null;
+            return ITEMS_POOL[Math.floor(Math.random() * ITEMS_POOL.length)];
+        }
+
+        // สวมใส่ไอเทม → สะสม buff ถาวร
+        function equipItem(item) {
+            switch(item.buffType) {
+                case 'attack_percent': player.attackBonusPercent += item.buffValue; break;
+                case 'spore_percent':  player.sporeBonusPercent  += item.buffValue; break;
+                case 'spore_flat':     player.sporeBonusFlat     += item.buffValue; break;
+                case 'exp_percent':    player.expBonusPercent    += item.buffValue; break;
+            }
+            player.items.push(item.id);
+        }
+
+        // 🌱 คำนวณสปอร์ที่ได้จากการเก็บเห็ด (base + level bonus +2/lv + item buffs)
+        function calculateSporeGain(baseAmount) {
+            const levelBonus = (player.level - 1) * 2;
+            const percentMult = 1 + player.sporeBonusPercent / 100;
+            return Math.floor((baseAmount + levelBonus + player.sporeBonusFlat) * percentMult);
+        }
+
+        // ⭐ EXP_PER_FARM = 5 (เก็บเห็ด), EXP_MONSTER_WIN = 10 (ชนะมอนสเตอร์)
+        const EXP_PER_FARM = 5;
+        const EXP_MONSTER_WIN = 10;
+        function addExp(amount) {
+            // ปรับ EXP ตาม exp_bonus_percent จากไอเทม
+            const finalExp = Math.floor(amount * (1 + player.expBonusPercent / 100));
+            player.farmExp += finalExp;
+            let leveledUp = false;
+            while(player.farmExp >= expNeededForLevel(player.level)) {
+                player.farmExp -= expNeededForLevel(player.level);
+                player.level += 1;
+                leveledUp = true;
+            }
+            if(leveledUp) recalcStatsFromLevel();
+            return leveledUp;
+        }
+
+        // 🧪 ใช้น้ำยาฟื้นฟู HP
+        function usePotion() {
+            if(player.potionCount <= 0) {
+                showToast(`🧪 ไม่มีน้ำยาฟื้นฟู!`);
+                return;
+            }
+            if(player.hp >= player.maxHp) {
+                showToast(`❤️ HP เต็มแล้ว ไม่ต้องฟื้น!`);
+                return;
+            }
+            player.potionCount--;
+            const healAmount = Math.floor(player.maxHp * POTION.healPercent);
+            const actualHeal = Math.min(healAmount, player.maxHp - player.hp);
+            player.hp += actualHeal;
+            showToast(`🧪 ใช้น้ำยาฟื้นฟู +${actualHeal} HP (เหลือ ${player.potionCount} ขวด)`);
+            updateHUD();
+            // particle สีเขียวรอบตัว
+            createParticleBurst(new THREE.Vector3(playerGroup.position.x, 1, playerGroup.position.z), 0x2ecc71, 20);
+        }
+
+        // helpers: weighted random pick
+        function pickFromPool(pool) {
+            const keys = Object.keys(pool);
+            const total = keys.reduce((s,k) => s + pool[k].weight, 0);
+            let r = Math.random() * total;
+            for (const k of keys) {
+                r -= pool[k].weight;
+                if (r <= 0) return pool[k];
+            }
+            return pool[keys[0]];
+        }
+
+        // ================= INITIALIZATION =================
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            
+            // 🌌 Gradient Skybox
+            const skyGeo = new THREE.SphereGeometry(100, 32, 16);
+            const skyMat = new THREE.ShaderMaterial({
+                uniforms: {
+                    topColor: { value: new THREE.Color(0x1e3c72) },
+                    bottomColor: { value: new THREE.Color(0x7fb3d5) },
+                    offset: { value: 33 },
+                    exponent: { value: 0.6 }
+                },
+                vertexShader: `varying vec3 vWorldPosition; void main() { vec4 worldPosition = modelMatrix * vec4(position, 1.0); vWorldPosition = worldPosition.xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+                fragmentShader: `uniform vec3 topColor; uniform vec3 bottomColor; uniform float offset; uniform float exponent; varying vec3 vWorldPosition; void main() { float h = normalize(vWorldPosition + offset).y; gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0); }`,
+                side: THREE.BackSide
+            });
+            scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+            scene.fog = new THREE.Fog(0x7fb3d5, 25, 70);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+            camera.position.set(6.5, 9.0, 13.5); 
+            camera.lookAt(0, 1.5, 0); 
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            container.appendChild(renderer.domElement);
+
+            const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x223344, 0.6);
+            hemiLight.position.set(0, 20, 0);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfff5b6, 1.2);
+            dirLight.position.set(15, 25, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.left = -20; dirLight.shadow.camera.right = 20;
+            dirLight.shadow.camera.top = 20; dirLight.shadow.camera.bottom = -20;
+            dirLight.shadow.bias = -0.0005;
+            scene.add(dirLight);
+
+            createDistantMountains();
+            createClouds();
+            createAmbientParticles();
+
+            createPlayer();
+            
+            chunks.push(createChunk(4, true));   
+            chunks.push(createChunk(-8, false)); 
+            chunks.push(createChunk(-20, false));
+            chunks.push(createChunk(-32, false));
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // ================= WORLD BUILDING =================
+        function createDistantMountains() {
+            const mat = new THREE.MeshStandardMaterial({ color: 0x4a5c7a, flatShading: true, roughness: 1 });
+            const mountainGroup = new THREE.Group();
+            for(let i=0; i<10; i++) {
+                const h = 15 + Math.random() * 20;
+                const m = new THREE.Mesh(new THREE.ConeGeometry(10 + Math.random()*5, h, 4), mat);
+                m.position.set((Math.random()-0.5) * 100, h/2 - 5, -40 - Math.random()*30);
+                m.rotation.y = Math.random() * Math.PI;
+                mountainGroup.add(m);
+            }
+            scene.add(mountainGroup);
+        }
+
+        function createClouds() {
+            const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, roughness: 1, flatShading: true });
+            for(let i=0; i<15; i++) {
+                const cloud = new THREE.Group();
+                for(let j=0; j<3+Math.random()*3; j++) {
+                    const b = new THREE.Mesh(new THREE.IcosahedronGeometry(2 + Math.random()*1.5, 0), cloudMat);
+                    b.position.set(j*2.5 - 3, Math.random()*0.5, Math.random()*0.5);
+                    b.scale.y = 0.6;
+                    cloud.add(b);
+                }
+                cloud.position.set((Math.random()-0.5)*80, 20 + Math.random()*10, -20 - Math.random()*40);
+                scene.add(cloud);
+            }
+        }
+
+        function createAmbientParticles() {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            for ( let i = 0; i < 200; i++ ) {
+                vertices.push( Math.random() * 40 - 20, Math.random() * 15, Math.random() * 40 - 20 );
+            }
+            geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
+            const material = new THREE.PointsMaterial( { color: 0xfff5b6, size: 0.15, transparent: true, opacity: 0.6 } );
+            const points = new THREE.Points( geometry, material );
+            scene.add( points );
+        }
+
+        // ================= CHUNK & ENVIRONMENT =================
+        function createChunk(zPos, isEmptyStartingChunk) {
+            const chunk = new THREE.Group();
+            chunk.position.z = zPos;
+
+            const groundMat1 = new THREE.MeshStandardMaterial({ color: 0x4caf50, roughness: 1, flatShading: true });
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, CHUNK_LEN), groundMat1);
+            ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+            
+            const roadMat = new THREE.MeshStandardMaterial({ color: 0xd4a373, roughness: 0.9, flatShading: true });
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(4.5, CHUNK_LEN), roadMat);
+            road.rotation.x = -Math.PI / 2; road.position.y = 0.05; road.receiveShadow = true;
+            
+            chunk.add(ground, road);
+
+            if(Math.random() > 0.2) createProTree(chunk, -4.5, (Math.random()-0.5)*CHUNK_LEN);
+            if(Math.random() > 0.2) createProTree(chunk, 4.5, (Math.random()-0.5)*CHUNK_LEN);
+            if(Math.random() > 0.5) createSmallDecor(chunk, -3.5, (Math.random()-0.5)*CHUNK_LEN);
+            if(Math.random() > 0.5) createSmallDecor(chunk, 3.5, (Math.random()-0.5)*CHUNK_LEN);
+
+            if (!isEmptyStartingChunk) {
+                const hugeBush = createBeautifulHugeBush();
+                hugeBush.position.set(0, 0, 1.5); 
+                chunk.add(hugeBush);
+
+                // 25% มอนสเตอร์, 60% เห็ด, 15% กล่องสมบัติ
+                const roll = Math.random();
+                let entity, type, typeKey;
+                if (roll < 0.25) {
+                    // มอนสเตอร์
+                    const mt = pickFromPool(MONSTER_TYPES);
+                    typeKey = mt.key;
+                    type = 'monster';
+                    entity = createVoxelMonster(typeKey);
+                } else if (roll < 0.85) {
+                    // เห็ด (60%)
+                    const mt = pickFromPool(MUSHROOM_TYPES);
+                    typeKey = mt.key;
+                    type = 'mushroom';
+                    entity = createVoxelMushroom(typeKey);
+                } else {
+                    // กล่องสมบัติ (15%)
+                    const bt = pickFromPool(BOX_TYPES);
+                    typeKey = bt.key;
+                    type = 'box';
+                    entity = createVoxelBox(typeKey);
+                }
+                entity.position.set(0, entity.userData.yOffset, -2.5); 
+                chunk.add(entity);
+
+                chunk.userData = { 
+                    bush: hugeBush, 
+                    entity: entity, 
+                    type: type,
+                    typeKey: typeKey,
+                    active: true 
+                };
+            } else {
+                chunk.userData = { active: false };
+            }
+
+            scene.add(chunk);
+            return chunk;
+        }
+
+        function disposeChunk(chunk) {
+            chunk.traverse(child => {
+                if (child.isMesh) {
+                    child.geometry.dispose();
+                    if(Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                    else child.material.dispose();
+                }
+            });
+            scene.remove(chunk);
+        }
+
+        function createBeautifulHugeBush() {
+            const group = new THREE.Group();
+            const mat1 = new THREE.MeshStandardMaterial({ color: 0x1e8449, roughness: 0.8, flatShading: true });
+            const mat2 = new THREE.MeshStandardMaterial({ color: 0x27ae60, roughness: 0.8, flatShading: true });
+
+            for(let i = 0; i < 8; i++) {
+                const size = 1.5 + Math.random() * 2;
+                // เปลี่ยนเป็น Icosahedron (ทรงกลมเหลี่ยม) ให้ดูมนขึ้น
+                const leafBlock = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 0), Math.random() > 0.5 ? mat1 : mat2);
+                leafBlock.position.set((Math.random() - 0.5) * 3, 1 + Math.random() * 2, (Math.random() - 0.5) * 2.5);
+                leafBlock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+                leafBlock.castShadow = true; leafBlock.receiveShadow = true;
+                group.add(leafBlock);
+            }
+            return group;
+        }
+
+        function createProTree(parent, x, z) {
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037, flatShading: true });
+            const leavesMat1 = new THREE.MeshStandardMaterial({ color: 0x2ecc71, flatShading: true });
+            const leavesMat2 = new THREE.MeshStandardMaterial({ color: 0x27ae60, flatShading: true });
+
+            // ลำต้นทรงกระบอก
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 2.5, 6), trunkMat);
+            trunk.position.set(x, 1.25, z); trunk.castShadow = true; trunk.receiveShadow = true;
+            
+            const leaves = new THREE.Group();
+            // ใบไม้ทรงกลมเหลี่ยมซ้อนกัน
+            const l1 = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5, 0), leavesMat1);
+            l1.position.set(x, 3, z); l1.castShadow = true;
+            const l2 = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 0), leavesMat2);
+            l2.position.set(x + 0.8, 2.5, z); l2.castShadow = true;
+            const l3 = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 0), leavesMat2);
+            l3.position.set(x - 0.8, 2.5, z); l3.castShadow = true;
+            const l4 = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), leavesMat1);
+            l4.position.set(x, 4, z); l4.castShadow = true;
+            
+            leaves.add(l1, l2, l3, l4);
+            parent.add(trunk, leaves);
+        }
+
+        function createSmallDecor(parent, x, z) {
+            const isFlower = Math.random() > 0.4;
+            if(isFlower) {
+                const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 4), new THREE.MeshStandardMaterial({ color: 0x27ae60, flatShading: true }));
+                stem.position.set(x, 0.25, z);
+                
+                const colors = [0xe74c3c, 0xf1c40f, 0xffffff, 0xe67e22, 0xff7979];
+                const head = new THREE.Group();
+                const center = new THREE.Mesh(new THREE.SphereGeometry(0.15, 6, 4), new THREE.MeshStandardMaterial({ color: 0xf1c40f, flatShading: true }));
+                head.add(center);
+                for(let i=0; i<5; i++) {
+                    const angle = (i/5) * Math.PI * 2;
+                    const petal = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random()*colors.length)], flatShading: true }));
+                    petal.position.set(Math.cos(angle)*0.2, 0, Math.sin(angle)*0.2);
+                    head.add(petal);
+                }
+                head.position.set(x, 0.6, z);
+                head.castShadow = true;
+                parent.add(stem, head);
+            } else {
+                const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3, 0), new THREE.MeshStandardMaterial({ color: 0x95a5a6, flatShading: true }));
+                rock.position.set(x, 0.15, z); rock.rotation.y = Math.random() * Math.PI;
+                rock.scale.set(1, 0.6, 1);
+                rock.castShadow = true; rock.receiveShadow = true;
+                parent.add(rock);
+            }
+        }
+
+        // ================= ENTITIES (โมเดลอัปเกรด) =================
+
+        // ─── มอนสเตอร์ 4 ชนิดจาก sporenet-bot /farm ───────────────
+        function createVoxelMonster(typeKey) {
+            const t = MONSTER_TYPES[typeKey] || MONSTER_TYPES.caterpillar;
+            let mesh;
+            switch(typeKey) {
+                case 'caterpillar': mesh = createMonsterCaterpillar(t); break;
+                case 'bat':         mesh = createMonsterBat(t); break;
+                case 'boar':        mesh = createMonsterBoar(t); break;
+                case 'dragon':      mesh = createMonsterDragon(t); break;
+                default:            mesh = createMonsterCaterpillar(t);
+            }
+            mesh.userData = { 
+                yOffset: t.yOffset, 
+                isAnimating: true, 
+                kind: 'monster', 
+                typeKey: typeKey,
+                baseColor: t.color
+            };
+            return mesh;
+        }
+
+        // 🐛 หนอนเขียวป่า — ลำตัวเป็นปมเรียงกัน สีเขียวสด มีจุดเหลือง
+        function createMonsterCaterpillar(t) {
+            const g = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: t.color, roughness: 0.7, flatShading: true });
+            const spotMat = new THREE.MeshStandardMaterial({ color: 0xffeb3b, roughness: 0.6, flatShading: true });
+            const faceMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.7, flatShading: true });
+
+            // ปมลำตัว 5 ข้อ
+            const segCount = 5;
+            const segs = [];
+            for(let i = 0; i < segCount; i++) {
+                const r = 0.55 - i * 0.05;
+                const seg = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), bodyMat);
+                seg.position.set(-(segCount-1)*0.35 + i*0.7, 0, 0);
+                seg.castShadow = true;
+                g.add(seg);
+                segs.push(seg);
+                // จุดบนหลัง
+                if(i < segCount - 1) {
+                    const spot = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 0), spotMat);
+                    spot.position.set(seg.position.x, r * 0.85, 0);
+                    g.add(spot);
+                }
+            }
+            g.userData.segments = segs;
+
+            // หัว (ปมสุดท้ายด้านขวา)
+            const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 0), faceMat);
+            head.position.set((segCount-1)*0.35 + 0.65, 0, 0);
+            head.castShadow = true;
+            g.add(head);
+            g.userData.head = head;
+
+            // ตาแดงโลหิต
+            const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.8, flatShading: true });
+            const e1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), eyeMat);
+            e1.position.set(head.position.x + 0.05, 0.15, -0.3);
+            const e2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), eyeMat);
+            e2.position.set(head.position.x + 0.05, 0.15, 0.3);
+            g.add(e1, e2);
+
+            // หนวด
+            const antMat = new THREE.MeshStandardMaterial({ color: 0x1b5e20, flatShading: true });
+            const a1 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.4, 4), antMat);
+            a1.position.set(head.position.x + 0.4, 0.3, -0.15); a1.rotation.z = -0.5;
+            const a2 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.4, 4), antMat);
+            a2.position.set(head.position.x + 0.4, 0.3, 0.15); a2.rotation.z = -0.5;
+            g.add(a1, a2);
+
+            return g;
+        }
+
+        // 🦇 ค้างคาวเห็ดพิษ — ลำตัวเล็ก ปีกกว้าง มีหมวกเห็ดพิษสีม่วงบนหัว
+        function createMonsterBat(t) {
+            const g = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a148c, roughness: 0.8, flatShading: true });
+            const wingMat = new THREE.MeshStandardMaterial({ color: t.color, roughness: 0.6, flatShading: true, side: THREE.DoubleSide });
+            const capMat  = new THREE.MeshStandardMaterial({ color: 0x6a1b9a, roughness: 0.5, flatShading: true, emissive: 0x4a148c, emissiveIntensity: 0.4 });
+
+            // ลำตัวกลมเหลี่ยม
+            const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 0), bodyMat);
+            body.scale.set(1, 1.3, 1); body.castShadow = true;
+            g.add(body); g.userData.body = body;
+
+            // หัว
+            const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 0), bodyMat);
+            head.position.set(0, 0.3, -0.3); head.castShadow = true;
+            g.add(head); g.userData.head = head;
+
+            // หู/คาว
+            const ear1 = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.3, 4), bodyMat);
+            ear1.position.set(-0.2, 0.65, -0.3);
+            const ear2 = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.3, 4), bodyMat);
+            ear2.position.set(0.2, 0.65, -0.3);
+            g.add(ear1, ear2);
+
+            // หมวกเห็ดพิษสีม่วงบนหัว (เอกลักษณ์ของค้างคาวเห็ดพิษ)
+            const cap = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45, 0), capMat);
+            cap.scale.set(1.2, 0.6, 1.2); cap.position.set(0, 0.7, -0.3); cap.castShadow = true;
+            g.add(cap); g.userData.cap = cap;
+            // จุดขาวบนหมวกเห็ด
+            const spotMat = new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true });
+            for(let i = 0; i < 5; i++) {
+                const angle = (i / 5) * Math.PI * 2;
+                const spot = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 0), spotMat);
+                spot.position.set(Math.cos(angle) * 0.4, 0.85, -0.3 + Math.sin(angle) * 0.4);
+                g.add(spot);
+            }
+
+            // ปีก 2 ข้าง — ทรงสามเหลี่ยมแบน
+            const wingGeo = new THREE.ConeGeometry(0.9, 1.4, 4);
+            const wingL = new THREE.Mesh(wingGeo, wingMat);
+            wingL.position.set(-0.85, 0.1, -0.1); wingL.rotation.z = Math.PI / 2; wingL.rotation.y = -0.3; wingL.scale.set(1, 1, 0.15);
+            const wingR = new THREE.Mesh(wingGeo, wingMat);
+            wingR.position.set(0.85, 0.1, -0.1); wingR.rotation.z = -Math.PI / 2; wingR.rotation.y = 0.3; wingR.scale.set(1, 1, 0.15);
+            g.add(wingL, wingR);
+            g.userData.wingL = wingL; g.userData.wingR = wingR;
+
+            // ตาแดงเรืองแสง
+            const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff1744, emissive: 0xff1744, emissiveIntensity: 1.2, flatShading: true });
+            const e1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09, 0), eyeMat);
+            e1.position.set(-0.15, 0.35, -0.6);
+            const e2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09, 0), eyeMat);
+            e2.position.set(0.15, 0.35, -0.6);
+            g.add(e1, e2);
+
+            // เขี้ยว
+            const fangMat = new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true });
+            const f1 = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.18, 4), fangMat);
+            f1.position.set(-0.1, 0.15, -0.55); f1.rotation.x = Math.PI;
+            const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.18, 4), fangMat);
+            f2.position.set(0.1, 0.15, -0.55); f2.rotation.x = Math.PI;
+            g.add(f1, f2);
+
+            return g;
+        }
+
+        // 🐗 หมูป่าบ้าเลือด — ลำตัวอ้วน ขนแข็งบนหลัง งาสีขาวคู่
+        function createMonsterBoar(t) {
+            const g = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x6d4c41, roughness: 0.9, flatShading: true });
+            const maneMat = new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 1, flatShading: true });
+            const faceMat = new THREE.MeshStandardMaterial({ color: 0x4e342e, roughness: 0.9, flatShading: true });
+            const tuskMat = new THREE.MeshStandardMaterial({ color: 0xfff8e1, roughness: 0.3, flatShading: true });
+            const eyeMat  = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.9, flatShading: true });
+
+            // ลำตัวอ้วนยาว
+            const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.85, 1), bodyMat);
+            body.scale.set(1.4, 1, 1); body.castShadow = true;
+            g.add(body); g.userData.body = body;
+
+            // ขนแข็งบนหลัง (หลายๆ หนามเล็ก)
+            for(let i = 0; i < 6; i++) {
+                const spine = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 4), maneMat);
+                spine.position.set(-0.6 + i * 0.25, 0.7, 0);
+                spine.rotation.z = -0.2;
+                g.add(spine);
+            }
+
+            // หัว
+            const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 0), faceMat);
+            head.position.set(1.0, -0.05, 0); head.castShadow = true;
+            g.add(head); g.userData.head = head;
+
+            // จมูก (snout)
+            const snout = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.25, 0.35), faceMat);
+            snout.position.set(1.45, -0.15, 0); snout.castShadow = true;
+            g.add(snout);
+
+            // งาคู่
+            const tusk1 = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.3, 4), tuskMat);
+            tusk1.position.set(1.35, -0.3, -0.15); tusk1.rotation.x = Math.PI; tusk1.rotation.z = 0.3;
+            const tusk2 = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.3, 4), tuskMat);
+            tusk2.position.set(1.35, -0.3, 0.15); tusk2.rotation.x = Math.PI; tusk2.rotation.z = -0.3;
+            g.add(tusk1, tusk2);
+
+            // ตาแดงฉาน
+            const e1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), eyeMat);
+            e1.position.set(1.05, 0.2, -0.3);
+            const e2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), eyeMat);
+            e2.position.set(1.05, 0.2, 0.3);
+            g.add(e1, e2);
+
+            // ขา 4 ข้างเตี้ย
+            const legMat = new THREE.MeshStandardMaterial({ color: 0x3e2723, flatShading: true });
+            const legPositions = [[-0.5,-0.45,-0.4],[0.5,-0.45,-0.4],[-0.5,-0.45,0.4],[0.5,-0.45,0.4]];
+            legPositions.forEach(p => {
+                const leg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 0.2), legMat);
+                leg.position.set(...p); leg.castShadow = true;
+                g.add(leg);
+            });
+
+            return g;
+        }
+
+        // 🐉 มังกรเห็ดโบราณ — ลำตัวยาว มีหนามเห็ดบนหลัง ปีกคู่ใหญ่ หางยาว
+        function createMonsterDragon(t) {
+            const g = new THREE.Group();
+            const scaleMat = new THREE.MeshStandardMaterial({ color: t.color, roughness: 0.4, metalness: 0.3, flatShading: true });
+            const bellyMat = new THREE.MeshStandardMaterial({ color: 0xffeb3b, roughness: 0.6, flatShading: true });
+            const wingMat  = new THREE.MeshStandardMaterial({ color: 0xb71c1c, roughness: 0.5, flatShading: true, side: THREE.DoubleSide });
+            const mushMat  = new THREE.MeshStandardMaterial({ color: 0xd84315, roughness: 0.5, flatShading: true, emissive: 0xff6f00, emissiveIntensity: 0.5 });
+            const eyeMat   = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 1.5, flatShading: true });
+
+            // ลำตัวยาวเป็นปม
+            const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.7, 1), scaleMat);
+            body.scale.set(1.6, 0.9, 0.9); body.castShadow = true;
+            g.add(body); g.userData.body = body;
+
+            // คอยาวเรียว
+            const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.4, 0.8, 6), scaleMat);
+            neck.position.set(0.9, 0.4, 0); neck.rotation.z = -0.6; neck.castShadow = true;
+            g.add(neck);
+
+            // หัวมังกร
+            const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 0), scaleMat);
+            head.position.set(1.4, 0.7, 0); head.castShadow = true;
+            g.add(head); g.userData.head = head;
+
+            // จมูกยาว
+            const snout = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 4), scaleMat);
+            snout.position.set(1.85, 0.6, 0); snout.rotation.z = -Math.PI / 2;
+            g.add(snout);
+
+            // หนามเห็ด (mushroom spikes) บนหลัง — เอกลักษณ์ของมังกรเห็ด
+            for(let i = 0; i < 5; i++) {
+                const cap = new THREE.Mesh(new THREE.IcosahedronGeometry(0.25, 0), mushMat);
+                cap.scale.set(1, 0.6, 1); cap.position.set(-0.5 + i * 0.3, 0.65, 0); cap.castShadow = true;
+                g.add(cap);
+                const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.2, 6), 
+                    new THREE.MeshStandardMaterial({ color: 0xffeccc, flatShading: true }));
+                stem.position.set(-0.5 + i * 0.3, 0.5, 0);
+                g.add(stem);
+            }
+
+            // ปีกคู่ใหญ่
+            const wingGeo = new THREE.ConeGeometry(1.0, 1.6, 4);
+            const wingL = new THREE.Mesh(wingGeo, wingMat);
+            wingL.position.set(-0.2, 0.7, -0.7); wingL.rotation.z = Math.PI / 3; wingL.rotation.y = -0.4; wingL.scale.set(1, 1, 0.12);
+            const wingR = new THREE.Mesh(wingGeo, wingMat);
+            wingR.position.set(-0.2, 0.7, 0.7); wingR.rotation.z = Math.PI / 3; wingR.rotation.y = 0.4; wingR.scale.set(1, 1, 0.12);
+            g.add(wingL, wingR);
+            g.userData.wingL = wingL; g.userData.wingR = wingR;
+
+            // หางยาว
+            const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.3, 1.0, 6), scaleMat);
+            tail.position.set(-1.2, -0.1, 0); tail.rotation.z = Math.PI / 2.5; tail.castShadow = true;
+            g.add(tail);
+            // ปลายหางเป็นเห็ดเล็ก
+            const tailCap = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), mushMat);
+            tailCap.scale.set(1, 0.6, 1); tailCap.position.set(-1.7, -0.3, 0);
+            g.add(tailCap);
+
+            // ตาทองเรืองแสง
+            const e1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), eyeMat);
+            e1.position.set(1.45, 0.85, -0.3);
+            const e2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), eyeMat);
+            e2.position.set(1.45, 0.85, 0.3);
+            g.add(e1, e2);
+
+            // เขาคู่
+            const hornMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.7, roughness: 0.3, flatShading: true });
+            const h1 = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 4), hornMat);
+            h1.position.set(1.3, 1.1, -0.2); h1.rotation.z = -0.3;
+            const h2 = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 4), hornMat);
+            h2.position.set(1.3, 1.1, 0.2); h2.rotation.z = -0.3;
+            g.add(h1, h2);
+
+            // PointLight ทองอร่ามรอบตัวมังกร
+            const dragonLight = new THREE.PointLight(0xff6f00, 2, 8);
+            dragonLight.position.set(0, 0.5, 0);
+            g.add(dragonLight);
+
+            return g;
+        }
+
+        // ─── เห็ด 3 ชนิดจาก sporenet-bot /farm ───────────────────
+        // ─── กล่องสมบัติ 3 ระดับ ───────────────────────────────
+        function createVoxelBox(typeKey) {
+            const t = BOX_TYPES[typeKey] || BOX_TYPES.common;
+            let mesh;
+            switch(typeKey) {
+                case 'common': mesh = createBoxCommon(t); break;
+                case 'iron':   mesh = createBoxIron(t); break;
+                case 'gold':   mesh = createBoxGold(t); break;
+                default:       mesh = createBoxCommon(t);
+            }
+            mesh.userData = { 
+                yOffset: t.yOffset, 
+                isAnimating: true, 
+                kind: 'box', 
+                typeKey: typeKey,
+                baseColor: t.color,
+                glowColor: t.glowColor
+            };
+            return mesh;
+        }
+
+        // 📦 กล่องธรรมดา — ไม้สีน้ำตาล มีโลหะติดมุม
+        function createBoxCommon(t) {
+            const g = new THREE.Group();
+            const woodMat = new THREE.MeshStandardMaterial({ color: t.color, roughness: 0.9, flatShading: true });
+            const bandMat = new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.7, flatShading: true });
+            // กล่องไม้หลัก
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.8, 1.1), woodMat);
+            body.position.y = 0.4; body.castShadow = true; body.receiveShadow = true;
+            g.add(body);
+            // ฝากล่อง (เอียงเล็กน้อย)
+            const lid = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.2, 1.15), woodMat);
+            lid.position.y = 0.9; lid.rotation.z = 0.05; lid.castShadow = true;
+            g.add(lid); g.userData.lid = lid;
+            // แถบเหล็กดำรอบกล่อง
+            const band1 = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.1, 1.15), bandMat);
+            band1.position.y = 0.2;
+            const band2 = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.1, 1.15), bandMat);
+            band2.position.y = 0.65;
+            g.add(band1, band2);
+            // กุญแจเล็กๆ ที่ฝา
+            const lockMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.7, roughness: 0.3, flatShading: true });
+            const lock = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 0.05), lockMat);
+            lock.position.set(0, 0.85, 0.58);
+            g.add(lock);
+            return g;
+        }
+
+        // 🗝️ กล่องเหล็ก — สีเทาโลหะ มีลวดลาย
+        function createBoxIron(t) {
+            const g = new THREE.Group();
+            const ironMat = new THREE.MeshStandardMaterial({ color: t.color, roughness: 0.4, metalness: 0.6, flatShading: true });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.5, metalness: 0.5, flatShading: true });
+            // กล่องเหล็กหลัก
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.85, 1.1), ironMat);
+            body.position.y = 0.43; body.castShadow = true; body.receiveShadow = true;
+            g.add(body);
+            // ฝามน
+            const lid = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.25, 1.1), ironMat);
+            lid.position.y = 0.95; lid.castShadow = true;
+            g.add(lid); g.userData.lid = lid;
+            // ขอบมุมเข้ม
+            const edgeMat = darkMat;
+            [[-0.55,-0.55],[-0.55,0.55],[0.55,-0.55],[0.55,0.55]].forEach(([x,z]) => {
+                const corner = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.95, 0.15), edgeMat);
+                corner.position.set(x, 0.43, z);
+                g.add(corner);
+            });
+            // ลวดลายกลางฝา
+            const pattern = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.05, 8), darkMat);
+            pattern.position.y = 1.1;
+            g.add(pattern);
+            // กุญแจใหญ่
+            const lockMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.85, roughness: 0.2, flatShading: true });
+            const lock = new THREE.Mesh(new THREE.IcosahedronGeometry(0.18, 0), lockMat);
+            lock.position.set(0, 1.15, 0); lock.castShadow = true;
+            g.add(lock);
+            return g;
+        }
+
+        // 💰 กล่องทองคำ — สีทองเปล่งประกาย ประดับอัญมณี
+        function createBoxGold(t) {
+            const g = new THREE.Group();
+            const goldMat = new THREE.MeshStandardMaterial({ 
+                color: t.color, metalness: 0.9, roughness: 0.15, flatShading: true,
+                emissive: t.glowColor, emissiveIntensity: 0.4
+            });
+            const jewelMat = new THREE.MeshStandardMaterial({ 
+                color: 0xe91e63, emissive: 0xe91e63, emissiveIntensity: 1.0, flatShading: true 
+            });
+            // กล่องทองหลัก
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.2), goldMat);
+            body.position.y = 0.45; body.castShadow = true; body.receiveShadow = true;
+            g.add(body);
+            // ฝาทรงสูง
+            const lid = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.3, 1.25), goldMat);
+            lid.position.y = 1.0; lid.castShadow = true;
+            g.add(lid); g.userData.lid = lid;
+            // ยอดประดับ
+            const top = new THREE.Mesh(new THREE.IcosahedronGeometry(0.25, 0), goldMat);
+            top.position.y = 1.3; top.castShadow = true;
+            g.add(top); g.userData.top = top;
+            // อัญมณีรอบฝา 4 มุม
+            [[-0.45,-0.45],[-0.45,0.45],[0.45,-0.45],[0.45,0.45]].forEach(([x,z]) => {
+                const jewel = new THREE.Mesh(new THREE.OctahedronGeometry(0.12, 0), jewelMat);
+                jewel.position.set(x, 1.2, z);
+                g.add(jewel);
+            });
+            // อัญมณีกลางฝา (ใหญ่)
+            const centerJewel = new THREE.Mesh(new THREE.OctahedronGeometry(0.18, 0), jewelMat);
+            centerJewel.position.set(0, 1.2, 0); centerJewel.castShadow = true;
+            g.add(centerJewel); g.userData.centerJewel = centerJewel;
+            // ลายเส้นทองรอบกล่อง
+            const trimMat = new THREE.MeshStandardMaterial({ color: 0xffe082, metalness: 0.95, roughness: 0.1, flatShading: true });
+            const trim1 = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.06, 1.25), trimMat);
+            trim1.position.y = 0.2;
+            const trim2 = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.06, 1.25), trimMat);
+            trim2.position.y = 0.75;
+            g.add(trim1, trim2);
+            // PointLight สีทอง
+            const light = new THREE.PointLight(0xffa500, 2.0, 6);
+            light.position.set(0, 1.2, 0);
+            g.add(light);
+            return g;
+        }
+
+        function createVoxelMushroom(typeKey) {
+            const t = MUSHROOM_TYPES[typeKey] || MUSHROOM_TYPES.straw;
+            let mesh;
+            switch(typeKey) {
+                case 'straw':  mesh = createMushroomStraw(t); break;
+                case 'magic':  mesh = createMushroomMagic(t); break;
+                case 'golden': mesh = createMushroomGolden(t); break;
+                default:       mesh = createMushroomStraw(t);
+            }
+            mesh.userData = { 
+                yOffset: t.yOffset, 
+                isAnimating: true, 
+                kind: 'mushroom', 
+                typeKey: typeKey,
+                baseColor: t.color,
+                glowColor: t.glowColor
+            };
+            return mesh;
+        }
+
+        // 🍄 เห็ดฟางธรรมดา — ด้ามขาว หมวกสีน้ำตาลฟาง กลมเหลี่ยม
+        function createMushroomStraw(t) {
+            const g = new THREE.Group();
+            const stemMat = new THREE.MeshStandardMaterial({ color: 0xf5f5dc, roughness: 0.8, flatShading: true });
+            const capMat  = new THREE.MeshStandardMaterial({ color: 0xa1887f, roughness: 0.9, flatShading: true });
+
+            // ด้าม
+            const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.6, 6), stemMat);
+            stem.position.y = 0.3; stem.castShadow = true;
+            g.add(stem);
+
+            // หมวก (ทรงกลมเหลี่ยมแป้น)
+            const cap = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 0), capMat);
+            cap.scale.set(1.2, 0.6, 1.2); cap.position.y = 0.75; cap.castShadow = true;
+            g.add(cap); g.userData.cap = cap;
+
+            // ขอบหมวกเล็ก
+            const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.08, 6), capMat);
+            rim.position.y = 0.6;
+            g.add(rim);
+
+            return g;
+        }
+
+        // ✨ เห็ดเรืองแสงเวทมนตร์ — ด้ามสีฟ้าซีด หมวกเรืองแสงเขียวเงา
+        function createMushroomMagic(t) {
+            const g = new THREE.Group();
+            const stemMat = new THREE.MeshStandardMaterial({ color: 0xb3e5fc, roughness: 0.6, flatShading: true });
+            const capMat  = new THREE.MeshStandardMaterial({ 
+                color: t.color, roughness: 0.3, flatShading: true, 
+                emissive: t.glowColor, emissiveIntensity: 0.9, metalness: 0.2
+            });
+            const dotMat  = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1.2, flatShading: true });
+
+            // ด้ามยาวเรียว
+            const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 0.9, 6), stemMat);
+            stem.position.y = 0.45; stem.castShadow = true;
+            g.add(stem);
+
+            // หมวกทรงกรวยเหลี่ยม
+            const cap = new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.6, 6), capMat);
+            cap.position.y = 1.05; cap.castShadow = true;
+            g.add(cap); g.userData.cap = cap;
+
+            // จุดเรืองแสงบนหมวก
+            for(let i = 0; i < 5; i++) {
+                const angle = (i / 5) * Math.PI * 2;
+                const dot = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 0), dotMat);
+                const y = 1.0 - Math.abs(Math.cos(angle)) * 0.15;
+                dot.position.set(Math.cos(angle) * 0.3, y, Math.sin(angle) * 0.3);
+                g.add(dot);
+            }
+
+            // PointLight เรืองแสง
+            const light = new THREE.PointLight(t.glowColor, 1.8, 5);
+            light.position.set(0, 1, 0);
+            g.add(light);
+
+            return g;
+        }
+
+        // 👑 เห็ดทองคำโบราณ — ด้ามทอง หมวกเป็นรูปมงกุฎ ประดับอัญมณี
+        function createMushroomGolden(t) {
+            const g = new THREE.Group();
+            const stemMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.85, roughness: 0.25, flatShading: true });
+            const capMat  = new THREE.MeshStandardMaterial({ 
+                color: 0xffc107, metalness: 0.9, roughness: 0.2, flatShading: true,
+                emissive: t.glowColor, emissiveIntensity: 0.6
+            });
+            const jewelMat = new THREE.MeshStandardMaterial({ color: 0xe91e63, emissive: 0xe91e63, emissiveIntensity: 1.0, flatShading: true });
+            const dotMat   = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1.5, flatShading: true });
+
+            // ด้ามทอง
+            const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.8, 8), stemMat);
+            stem.position.y = 0.4; stem.castShadow = true;
+            g.add(stem);
+
+            // ฐานหมวกทอง (ทรงกลมเหลี่ยมแป้น)
+            const capBase = new THREE.Mesh(new THREE.IcosahedronGeometry(0.65, 0), capMat);
+            capBase.scale.set(1.3, 0.55, 1.3); capBase.position.y = 0.95; capBase.castShadow = true;
+            g.add(capBase); g.userData.cap = capBase;
+
+            // ยอดเป็นมงกุฎ — หนามทอง 5 อันรอบยอด
+            const crownMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.95, roughness: 0.15, flatShading: true });
+            for(let i = 0; i < 5; i++) {
+                const angle = (i / 5) * Math.PI * 2;
+                const spike = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.45, 4), crownMat);
+                spike.position.set(Math.cos(angle) * 0.45, 1.25, Math.sin(angle) * 0.45);
+                spike.castShadow = true;
+                g.add(spike);
+                // อัญมณีที่ปลายหนาม
+                const jewel = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 0), jewelMat);
+                jewel.position.set(Math.cos(angle) * 0.45, 1.5, Math.sin(angle) * 0.45);
+                g.add(jewel);
+            }
+            // อัญมณีกลางยอด
+            const topJewel = new THREE.Mesh(new THREE.OctahedronGeometry(0.15, 0), jewelMat);
+            topJewel.position.y = 1.4; topJewel.castShadow = true;
+            g.add(topJewel);
+            g.userData.topJewel = topJewel;
+
+            // PointLight สีทองอร่าม
+            const light = new THREE.PointLight(0xffa500, 2.5, 7);
+            light.position.set(0, 1.2, 0);
+            g.add(light);
+
+            return g;
+        }
+
+        function createPlayer() {
+            playerGroup = new THREE.Group();
+            
+            // ขา
+            const legMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, flatShading: true });
+            const leg1 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.4, 0.25), legMat);
+            leg1.position.set(-0.25, 0.2, 0); leg1.castShadow = true;
+            const leg2 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.4, 0.25), legMat);
+            leg2.position.set(0.25, 0.2, 0); leg2.castShadow = true;
+            playerGroup.add(leg1, leg2);
+            playerLegs.push(leg1, leg2);
+
+            // ลำตัว
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xffeccc, flatShading: true }));
+            body.position.y = 0.9; body.castShadow = true; playerGroup.add(body);
+
+            // แขน
+            const armMat = new THREE.MeshStandardMaterial({ color: 0xffeccc, flatShading: true });
+            const arm1 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.6, 0.25), armMat);
+            arm1.position.set(-0.62, 0.9, 0); arm1.castShadow = true;
+            const arm2 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.6, 0.25), armMat);
+            arm2.position.set(0.62, 0.9, 0); arm2.castShadow = true;
+            playerGroup.add(arm1, arm2);
+            playerArms.push(arm1, arm2);
+
+            // ⚔️ ไม้เท้าเห็ด — อาวุธในมือขวา
+            // เราจะสร้างเป็น group ของ arm2 (แขนขวา) เพื่อให้หมุนตามแขน
+            const staffGroup = new THREE.Group();
+            const staffMat = new THREE.MeshStandardMaterial({ color: 0x6d4c41, roughness: 0.8, flatShading: true });
+            const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.4, 6), staffMat);
+            staff.position.y = -0.7; // ยาวลงจากมือ
+            staff.castShadow = true;
+            staffGroup.add(staff);
+            // หัวไม้เท้าเป็นเห็ดเล็ก
+            const staffCapMat = new THREE.MeshStandardMaterial({ color: selectedColor, roughness: 0.5, flatShading: true, emissive: selectedColor, emissiveIntensity: 0.2 });
+            const staffCap = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 0), staffCapMat);
+            staffCap.scale.set(1, 0.6, 1);
+            staffCap.position.y = -1.4;
+            staffGroup.add(staffCap);
+            // จุดขาวบนหัวเห็ด
+            const staffSpot = new THREE.Mesh(new THREE.IcosahedronGeometry(0.06, 0), new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true }));
+            staffSpot.position.set(0.1, -1.35, 0.1);
+            staffGroup.add(staffSpot);
+            // ตั้ง staff ให้อยู่ในมือขวา — เอียงเล็กน้อย
+            staffGroup.position.set(0, -0.25, 0.05);
+            staffGroup.rotation.z = -0.15;
+            arm2.add(staffGroup);
+            // เก็บ reference สำหรับ animation
+            playerStaff = staffGroup;
+
+            // หมวกเห็ด (ทรงกลมเหลี่ยม)
+            capMaterial = new THREE.MeshStandardMaterial({ color: selectedColor, roughness: 0.6, flatShading: true });
+            const cap = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9, 1), capMaterial);
+            cap.scale.set(1.1, 0.7, 1.1);
+            cap.position.y = 1.65; cap.castShadow = true; playerGroup.add(cap);
+            
+            // ขอบหมวกเห็ด
+            const capBase = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.2, 6), capMaterial);
+            capBase.position.y = 1.45; capBase.castShadow = true; playerGroup.add(capBase);
+
+            // จุดสีขาวบนหมวก
+            const whiteM = new THREE.MeshStandardMaterial({color: 0xffffff, flatShading: true});
+            const spot1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), whiteM); 
+            spot1.position.set(0.4, 1.85, 0.4);
+            const spot2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.15, 0), whiteM); 
+            spot2.position.set(-0.3, 2.0, 0.2);
+            const spot3 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.18, 0), whiteM); 
+            spot3.position.set(-0.2, 1.80, -0.5);
+            const spot4 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 0), whiteM); 
+            spot4.position.set(0.3, 1.95, -0.3);
+            playerGroup.add(spot1, spot2, spot3, spot4);
+            
+            // ดวงตาและใบหน้า
+            const eyeM = new THREE.MeshStandardMaterial({color: 0x2c3e50, flatShading: true});
+            const eyeL = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 0), eyeM); eyeL.position.set(-0.25, 1.0, -0.51); eyeL.scale.set(1, 1.5, 0.5);
+            const eyeR = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 0), eyeM); eyeR.position.set(0.25, 1.0, -0.51); eyeR.scale.set(1, 1.5, 0.5);
+            
+            // แก้มแดง
+            const cheekM = new THREE.MeshStandardMaterial({color: 0xff9999, transparent: true, opacity: 0.6, flatShading: true});
+            const cheekL = new THREE.Mesh(new THREE.CircleGeometry(0.15, 6), cheekM); cheekL.position.set(-0.4, 0.8, -0.51);
+            const cheekR = new THREE.Mesh(new THREE.CircleGeometry(0.15, 6), cheekM); cheekR.position.set(0.4, 0.8, -0.51);
+            
+            playerGroup.add(eyeL, eyeR, cheekL, cheekR);
+
+            playerGroup.position.set(0, 0, 4); 
+            scene.add(playerGroup);
+        }
+
+        // ================= GAME LOGIC =================
+        function walkForward() {
+            if (isWalking || inInteraction) return;
+            isWalking = true;
+            document.getElementById('btn-walk').disabled = true;
+
+            const speed = 0.25;
+            let moved = 0;
+
+            function stepWalk() {
+                if (moved < CHUNK_LEN) {
+                    let step = Math.min(speed, CHUNK_LEN - moved);
+                    moved += step;
+
+                    chunks.forEach(chunk => {
+                        chunk.position.z += step;
+                        if (chunk.userData.bush && chunk.position.z + chunk.userData.bush.position.z > 3.0) {
+                            chunk.userData.bush.scale.multiplyScalar(0.85); 
+                        }
+                    });
+
+                    // อนิเมชันเดินขาและแขน
+                    playerGroup.position.y = Math.abs(Math.sin(moved * 1.5)) * 0.2;
+                    playerGroup.rotation.z = Math.sin(moved * 1.5) * 0.1; 
+                    playerLegs[0].rotation.x = Math.sin(moved * 1.5) * 0.5;
+                    playerLegs[1].rotation.x = -Math.sin(moved * 1.5) * 0.5;
+                    playerArms[0].rotation.x = -Math.sin(moved * 1.5) * 0.5; // แขนไขว่ไปกับขา
+                    playerArms[1].rotation.x = Math.sin(moved * 1.5) * 0.5;
+
+                    requestAnimationFrame(stepWalk);
+                } else {
+                    playerGroup.position.y = 0;
+                    playerGroup.rotation.z = 0;
+                    playerLegs.forEach(leg => leg.rotation.x = 0);
+                    playerArms.forEach(arm => arm.rotation.x = 0);
+                    
+                    const passedChunk = chunks.shift(); 
+                    disposeChunk(passedChunk);
+                    const lastZ = chunks[chunks.length - 1].position.z;
+                    chunks.push(createChunk(lastZ - CHUNK_LEN, false));
+
+                    isWalking = false;
+                    document.getElementById('btn-walk').disabled = false;
+                    
+                    handleEvent(chunks[0]);
+                }
+            }
+            stepWalk();
+        }
+
+        function handleEvent(chunk) {
+            if (!chunk.userData.active) return;
+            currentChunkEvent = chunk;
+            inInteraction = true;
+            document.getElementById('btn-walk').disabled = true;
+            
+            if (chunk.userData.type === 'mushroom') {
+                const mType = MUSHROOM_TYPES[chunk.userData.typeKey];
+                const baseSpore = Math.floor(Math.random() * (mType.sporeMax - mType.sporeMin + 1)) + mType.sporeMin;
+                const finalSpore = calculateSporeGain(baseSpore);
+                chunk.userData.sporeValue = finalSpore;
+                chunk.userData.expValue = EXP_PER_FARM; // +5 EXP เสมอ (ตามบอท)
+                document.getElementById('item-title').innerHTML = `${mType.emoji} พบ ${mType.name}!`;
+                document.getElementById('item-desc').innerText = `${mType.desc} (+${finalSpore} 🍄, +${EXP_PER_FARM} EXP) — คุณจะเก็บมันหรือไม่?`;
+                document.getElementById('item-panel').style.borderBottomColor = '#f1c40f';
+                showPanel('item-panel');
+            } 
+            else if (chunk.userData.type === 'box') {
+                const bType = BOX_TYPES[chunk.userData.typeKey];
+                // แสดง % ของสปอร์ที่จะได้ (คำนวณจริงตอนเปิด)
+                chunk.userData.boxType = bType;
+                document.getElementById('item-title').innerHTML = `${bType.emoji} พบ ${bType.name}!`;
+                document.getElementById('item-desc').innerText = `${bType.desc} (เปิดได้ ${bType.sporePercent*100}% ของสปอร์ที่มี) — คุณจะเปิดมันหรือไม่?`;
+                document.getElementById('item-panel').style.borderBottomColor = '#' + bType.color.toString(16).padStart(6,'0');
+                showPanel('item-panel');
+            }
+            else if (chunk.userData.type === 'monster') {
+                const mType = MONSTER_TYPES[chunk.userData.typeKey];
+                currentEnemy.hp = mType.hpBase + (player.level * mType.hpPerLv);
+                currentEnemy.atk = mType.atkBase + (player.level * mType.atkPerLv);
+                currentEnemy.mesh = chunk.userData.entity;
+                currentEnemy.originalColor = mType.color;
+                currentEnemy.type = mType;
+                
+                document.getElementById('battle-title').innerHTML = `${mType.emoji} ${mType.name} ขวางทาง!`;
+                document.getElementById('battle-desc').innerText = mType.desc;
+                document.getElementById('enemy-hp').innerText = currentEnemy.hp;
+                document.getElementById('battle-panel').style.borderBottomColor = '#' + mType.color.toString(16).padStart(6,'0');
+                showPanel('battle-panel');
+            }
+        }
+
+        function collectItem(wantToTake) {
+            hidePanels();
+            if (wantToTake) {
+                const entityType = currentChunkEvent.userData.type;
+                
+                if (entityType === 'mushroom') {
+                    // เก็บเห็ด — ได้ spore + EXP
+                    const spore = currentChunkEvent.userData.sporeValue;
+                    const exp = currentChunkEvent.userData.expValue;
+                    const mType = MUSHROOM_TYPES[currentChunkEvent.userData.typeKey];
+                    player.spore += spore;
+                    const lvUp = addExp(exp);
+                    let msg = `${mType.emoji} เก็บ${mType.name}! +${spore} 🍄, +${exp} EXP`;
+                    if(lvUp) msg += ` • 🎊 Level Up! Lv.${player.level}`;
+                    showToast(msg);
+                    updateHUD();
+                    
+                    if(currentChunkEvent.userData.entity) {
+                        const entity = currentChunkEvent.userData.entity;
+                        createParticleBurst(entity.position, mType.glowColor, 25);
+                        animateEntityPop(entity);
+                    }
+                } 
+                else if (entityType === 'box') {
+                    // เปิดกล่องสมบัติ — ได้ spore + โอกาส potion + โอกาส item
+                    const bType = currentChunkEvent.userData.boxType;
+                    // คำนวณ spore ตอนเปิดจริง (% ของสปอร์ที่มีตอนนั้น)
+                    const sporeReward = Math.floor(player.spore * bType.sporePercent);
+                    player.spore += sporeReward;
+                    
+                    let msg = `${bType.emoji} เปิด${bType.name}! +${sporeReward} 🍄`;
+                    
+                    // 🧪 โอกาสได้น้ำยาฟื้นฟู (30%)
+                    const potionDrop = Math.random() < 0.30;
+                    if (potionDrop) {
+                        player.potionCount++;
+                        msg += ` • 🧪 +1 น้ำยาฟื้นฟู!`;
+                    }
+                    
+                    // ✨ โอกาสได้ไอเทม (0.75% เท่ากันทุกกล่อง — ตามบอท)
+                    const droppedItem = rollItemDrop();
+                    if (droppedItem) {
+                        equipItem(droppedItem);
+                        msg += ` • ${droppedItem.emoji} ${droppedItem.name}! (${droppedItem.lore})`;
+                    }
+                    
+                    showToast(msg, 3500);
+                    updateHUD();
+                    
+                    if(currentChunkEvent.userData.entity) {
+                        const entity = currentChunkEvent.userData.entity;
+                        createParticleBurst(entity.position, bType.glowColor, 35);
+                        // แอนิเมชันเปิดฝากล่อง
+                        animateBoxOpen(entity);
+                    }
+                }
+            } else {
+                const entityType = currentChunkEvent.userData.type;
+                if(entityType === 'mushroom') {
+                    showToast(`🚫 เดินผ่านไปโดยไม่เก็บเห็ด`);
+                } else {
+                    showToast(`🚫 เดินผ่านกล่องสมบัติโดยไม่เปิด`);
+                }
+            }
+            inInteraction = false;
+            document.getElementById('btn-walk').disabled = false;
+        }
+
+        // แอนิเมชันเห็ด pop (สำหรับเก็บเห็ด)
+        function animateEntityPop(entity) {
+            let scale = 1;
+            const popInt = setInterval(() => {
+                scale -= 0.1;
+                entity.scale.set(scale, scale, scale);
+                entity.position.y += 0.3;
+                if (scale <= 0) clearInterval(popInt);
+            }, 20);
+        }
+
+        // แอนิเมชันเปิดฝากล่อง (สำหรับกล่องสมบัติ)
+        function animateBoxOpen(entity) {
+            const lid = entity.userData.lid || entity.children[1];
+            if(!lid) {
+                // ถ้าไม่มี lid ใช้ pop แทน
+                animateEntityPop(entity);
+                return;
+            }
+            let rot = 0;
+            const openInt = setInterval(() => {
+                rot += 0.15;
+                lid.rotation.x = -rot;
+                entity.position.y += 0.05;
+                if (rot >= 1.5) {
+                    clearInterval(openInt);
+                    // หายไปหลัง 500ms
+                    setTimeout(() => {
+                        let scale = 1;
+                        const fadeInt = setInterval(() => {
+                            scale -= 0.15;
+                            entity.scale.set(scale, scale, scale);
+                            if (scale <= 0) clearInterval(fadeInt);
+                        }, 30);
+                    }, 500);
+                }
+            }, 30);
+        }
+
+        // ================= BATTLE SYSTEM (animation จริง) =================
+        // ลำดับการต่อสู้: 1) player charge เข้าหา + ฟัน staff
+        //                2) monster โดน hit flash + knockback + damage number
+        //                3) ถ้า monster ยังไม่ตาย → monster ตอบโต้ (charge/bite/spit/fire)
+        //                4) player โดน hit flash + knockback + damage number
+        //                5) player ถอยกลับจุดเริ่ม
+        function attack() {
+            if (isBattling) return; // กันกดซ้อน
+            isBattling = true;
+            document.getElementById('btn-attack').disabled = true;
+            document.getElementById('btn-runaway').disabled = true;
+            
+            const mType = currentEnemy.type;
+            const enemyMesh = currentEnemy.mesh;
+            const playerStartZ = 4;
+            const chargeZ = -1.5; // ตำแหน่งที่ player จะยืนใกล้ monster
+            
+            // ─── PHASE 1: Player charge เข้าหา + ฟันด้วย staff ───
+            const chargeDuration = 350; // ms
+            const t0 = performance.now();
+            
+            function playerCharge() {
+                const elapsed = performance.now() - t0;
+                const t = Math.min(1, elapsed / chargeDuration);
+                // ease-in (เริ่มช้าแล้วเร็วขึ้น)
+                const eased = t * t;
+                playerGroup.position.z = playerStartZ + (chargeZ - playerStartZ) * eased;
+                // ยกแขนขวาขึ้นเตรียมฟัน
+                if (playerArms[1]) {
+                    playerArms[1].rotation.x = -1.5 * eased; // ยกขึ้น
+                }
+                
+                if (t < 1) {
+                    requestAnimationFrame(playerCharge);
+                } else {
+                    // ─── PHASE 2: Slash — ฟันลงมา ───
+                    playerSlash();
+                }
+            }
+            
+            function playerSlash() {
+                const slashDuration = 180;
+                const t0 = performance.now();
+                const armStartRot = -1.5;
+                const armEndRot = 1.2; // ฟันลงข้างหน้า
+                
+                function slashFrame() {
+                    const elapsed = performance.now() - t0;
+                    const t = Math.min(1, elapsed / slashDuration);
+                    const eased = 1 - Math.pow(1 - t, 3); // ease-out ฟันเร็วตอนปลาย
+                    if (playerArms[1]) {
+                        playerArms[1].rotation.x = armStartRot + (armEndRot - armStartRot) * eased;
+                    }
+                    // player เอนตัวไปข้างหน้านิดหน่อย
+                    if (playerGroup) {
+                        playerGroup.rotation.x = -0.3 * Math.sin(t * Math.PI);
+                    }
+                    
+                    if (t < 1) {
+                        requestAnimationFrame(slashFrame);
+                    } else {
+                        // ปลาย slash = โดน monster
+                        applyPlayerDamageToEnemy();
+                    }
+                }
+                slashFrame();
+            }
+            
+            function applyPlayerDamageToEnemy() {
+                // คำนวณดาเมจ (±20% variance)
+                const baseDmg = player.atk;
+                const dmg = Math.max(1, Math.floor(baseDmg * (0.8 + Math.random() * 0.4)));
+                currentEnemy.hp -= dmg;
+                if (currentEnemy.hp < 0) currentEnemy.hp = 0;
+                document.getElementById('enemy-hp').innerText = currentEnemy.hp;
+                
+                // เอฟเฟกต์ monster โดนตี
+                if (enemyMesh) {
+                    // hit flash — เปลี่ยนสี body เป็นขาว 200ms
+                    const bodyMesh = enemyMesh.children[0];
+                    let originalEmissive = null;
+                    if(bodyMesh && bodyMesh.material) {
+                        bodyMesh.material.color.setHex(0xffffff);
+                        if(bodyMesh.material.emissive) {
+                            originalEmissive = bodyMesh.material.emissive.getHex();
+                            bodyMesh.material.emissive.setHex(0xffffff);
+                            bodyMesh.material.emissiveIntensity = 0.8;
+                        }
+                    }
+                    // knockback — กระเด็นถอยหลัง + ลอย
+                    const knockbackStart = performance.now();
+                    const knockbackDuration = 250;
+                    const enemyOriginalY = enemyMesh.position.y;
+                    function knockbackFrame() {
+                        const elapsed = performance.now() - knockbackStart;
+                        const t = Math.min(1, elapsed / knockbackDuration);
+                        const eased = 1 - Math.pow(1 - t, 2);
+                        enemyMesh.position.z = -2.5 + 0.8 * Math.sin(t * Math.PI); // ถอยไปกลับ
+                        enemyMesh.position.y = enemyOriginalY + 0.4 * Math.sin(t * Math.PI); // ลอยขึ้น
+                        if (t < 1) {
+                            requestAnimationFrame(knockbackFrame);
+                        } else {
+                            // คืนสี
+                            if(bodyMesh && bodyMesh.material) {
+                                bodyMesh.material.color.setHex(currentEnemy.originalColor);
+                                if(originalEmissive !== null && bodyMesh.material.emissive) {
+                                    bodyMesh.material.emissive.setHex(originalEmissive);
+                                }
+                            }
+                        }
+                    }
+                    knockbackFrame();
+                    
+                    // particle ตอนโดน
+                    createParticleBurst(enemyMesh.position, currentEnemy.type.color, 14);
+                }
+                
+                // damage number floating text
+                showDamageNumber(dmg, enemyMesh ? enemyMesh.position : new THREE.Vector3(0,1.5,-2.5), 0xffeb3b);
+                
+                cameraShake = 0.3;
+                
+                // ตรวจ monster ตาย?
+                if (currentEnemy.hp <= 0) {
+                    setTimeout(() => {
+                        // 🍄 รางวัลสปอร์ + EXP ตาม /farm
+                        const sporeGain = Math.floor(Math.random() * (mType.sporeWinMax - mType.sporeWinMin + 1)) + mType.sporeWinMin;
+                        player.spore += sporeGain;
+                        const lvUp = addExp(EXP_MONSTER_WIN); // +10 EXP จากการชนะมอนสเตอร์
+                        let msg = `${mType.emoji} ชนะ${mType.name}! +${sporeGain} 🍄, +${EXP_MONSTER_WIN} EXP`;
+                        if(lvUp) msg += ` • 🎊 Level Up! Lv.${player.level}`;
+                        showToast(msg);
+                        updateHUD();
+                        // คืนแขน + ถอย player กลับ
+                        playerReturnToStart(() => endInteraction(true));
+                    }, 350);
+                } else {
+                    // ─── PHASE 3: Monster ตอบโต้ ───
+                    setTimeout(() => monsterCounterAttack(mType, enemyMesh), 350);
+                }
+            }
+            
+            function monsterCounterAttack(mType, enemyMesh) {
+                const counterDuration = 450;
+                const t0 = performance.now();
+                const typeKey = mType.key;
+                
+                // เก็บสถานะเริ่มต้น
+                const enemyStartPos = enemyMesh.position.clone();
+                const enemyStartRotY = enemyMesh.rotation.y;
+                
+                function counterFrame() {
+                    const elapsed = performance.now() - t0;
+                    const t = Math.min(1, elapsed / counterDuration);
+                    
+                    // animation ตาม type ของ monster
+                    switch(typeKey) {
+                        case 'caterpillar': {
+                            // หนอนเลื้อยพุ่งเข้าใส่
+                            const lunge = Math.sin(t * Math.PI);
+                            enemyMesh.position.z = enemyStartPos.z + 1.8 * lunge;
+                            if(enemyMesh.userData.head) {
+                                enemyMesh.userData.head.rotation.x = -0.4 * lunge;
+                            }
+                            break;
+                        }
+                        case 'bat': {
+                            // ค้างคาวบินก้มลงมากัด
+                            const dive = Math.sin(t * Math.PI);
+                            enemyMesh.position.y = enemyStartPos.y + 1.0 * dive;
+                            enemyMesh.position.z = enemyStartPos.z + 1.2 * dive;
+                            if(enemyMesh.userData.wingL && enemyMesh.userData.wingR) {
+                                const flap = Math.sin(t * 20) * 0.8;
+                                enemyMesh.userData.wingL.rotation.x = flap;
+                                enemyMesh.userData.wingR.rotation.x = -flap;
+                            }
+                            break;
+                        }
+                        case 'boar': {
+                            // หมูพุ่งชน
+                            const charge = Math.sin(t * Math.PI);
+                            // ชนแรงตอนกลาง
+                            const chargeForce = t < 0.5 ? charge * 2 : (1 - t) * 2;
+                            enemyMesh.position.z = enemyStartPos.z + 2.0 * chargeForce;
+                            if(enemyMesh.userData.head) {
+                                enemyMesh.userData.head.rotation.x = -0.3 * charge;
+                            }
+                            break;
+                        }
+                        case 'dragon': {
+                            // มังกรเหวี่ยงหัว + พ่นไฟ (particle)
+                            const headSwing = Math.sin(t * Math.PI);
+                            if(enemyMesh.userData.head) {
+                                enemyMesh.userData.head.rotation.y = headSwing * 0.5;
+                                enemyMesh.userData.head.rotation.x = -0.3 * headSwing;
+                            }
+                            // พ่นไฟตอนกลาง animation
+                            if (t > 0.4 && t < 0.6 && !enemyMesh.userData._fireSpawned) {
+                                enemyMesh.userData._fireSpawned = true;
+                                // spawn ไฟที่ปากมังกร
+                                const mouthPos = new THREE.Vector3();
+                                if(enemyMesh.userData.head) {
+                                    enemyMesh.userData.head.getWorldPosition(mouthPos);
+                                    mouthPos.y -= 0.2;
+                                } else {
+                                    mouthPos.copy(enemyMesh.position);
+                                }
+                                createParticleBurst(mouthPos, 0xff4500, 25);
+                                createParticleBurst(mouthPos, 0xffd700, 15);
+                            }
+                            break;
+                        }
+                    }
+                    
+                    if (t < 1) {
+                        requestAnimationFrame(counterFrame);
+                    } else {
+                        // reset monster pose
+                        enemyMesh.position.copy(enemyStartPos);
+                        if(enemyMesh.userData.head) {
+                            enemyMesh.userData.head.rotation.set(0, 0, 0);
+                        }
+                        enemyMesh.userData._fireSpawned = false;
+                        applyMonsterDamageToPlayer();
+                    }
+                }
+                counterFrame();
+            }
+            
+            function applyMonsterDamageToPlayer() {
+                const dmg = currentEnemy.atk;
+                player.hp -= dmg;
+                
+                // เอฟเฟกต์ player โดนตี — flash สีแดง + knockback ถอยหลัง
+                const playerFlashStart = performance.now();
+                const flashDuration = 350;
+                const playerStartZ = playerGroup.position.z;
+                let originalCapColor = null;
+                if(capMaterial) originalCapColor = capMaterial.color.getHex();
+                
+                function playerHitFrame() {
+                    const elapsed = performance.now() - playerFlashStart;
+                    const t = Math.min(1, elapsed / flashDuration);
+                    // กระพริบแดง
+                    if(capMaterial && originalCapColor !== null) {
+                        const flash = Math.sin(t * Math.PI * 4) > 0;
+                        capMaterial.color.setHex(flash ? 0xff0000 : originalCapColor);
+                    }
+                    // knockback ถอยหลัง
+                    playerGroup.position.z = playerStartZ + 0.5 * Math.sin(t * Math.PI);
+                    // เอนตัวถอย
+                    playerGroup.rotation.x = 0.3 * Math.sin(t * Math.PI);
+                    
+                    if (t < 1) {
+                        requestAnimationFrame(playerHitFrame);
+                    } else {
+                        // คืนสี
+                        if(capMaterial && originalCapColor !== null) {
+                            capMaterial.color.setHex(originalCapColor);
+                        }
+                        playerGroup.rotation.x = 0;
+                        
+                        // damage number สีแดงเหนือ player
+                        showDamageNumber(dmg, new THREE.Vector3(playerGroup.position.x, 2, playerGroup.position.z), 0xff5252);
+                        
+                        showToast(`${mType.emoji} โดน${mType.name}โจมตี! -${dmg} HP`);
+                        updateHUD();
+                        cameraShake = 0.35;
+                        
+                        // ตรวจ player ตาย?
+                        if (player.hp <= 0) {
+                            player.hp = 0;
+                            updateHUD();
+                            // ปลดล็อก battle แล้วเรียก death sequence
+                            isBattling = false;
+                            document.getElementById('btn-attack').disabled = false;
+                            document.getElementById('btn-runaway').disabled = false;
+                            handlePlayerDeath(mType);
+                        } else {
+                            // ─── PHASE 4: player ถอยกลับจุดเริ่ม ───
+                            playerReturnToStart(() => {
+                                isBattling = false;
+                                document.getElementById('btn-attack').disabled = false;
+                                document.getElementById('btn-runaway').disabled = false;
+                            });
+                        }
+                    }
+                }
+                playerHitFrame();
+            }
+            
+            function playerReturnToStart(callback) {
+                const returnDuration = 300;
+                const t0 = performance.now();
+                const startZ = playerGroup.position.z;
+                const endZ = playerStartZ;
+                // ค่อยๆ คืนแขนขวาสู่ท่าปกติ
+                const armStartRot = playerArms[1] ? playerArms[1].rotation.x : 0;
+                
+                function returnFrame() {
+                    const elapsed = performance.now() - t0;
+                    const t = Math.min(1, elapsed / returnDuration);
+                    const eased = 1 - Math.pow(1 - t, 2);
+                    playerGroup.position.z = startZ + (endZ - startZ) * eased;
+                    if (playerArms[1]) {
+                        playerArms[1].rotation.x = armStartRot * (1 - eased);
+                    }
+                    playerGroup.rotation.x = 0;
+                    
+                    if (t < 1) {
+                        requestAnimationFrame(returnFrame);
+                    } else {
+                        playerGroup.position.z = endZ;
+                        if (playerArms[1]) playerArms[1].rotation.x = 0;
+                        if (callback) callback();
+                    }
+                }
+                returnFrame();
+            }
+            
+            // เริ่ม battle sequence
+            playerCharge();
+        }
+
+        // 🌟 Floating damage number — แสดงตัวเลขดาเมจลอยขึ้นแล้วหาย
+        function showDamageNumber(amount, worldPos, color) {
+            // สร้าง canvas texture ขนาดใหญ่
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.font = 'bold 80px Mitr, Arial Black, Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const text = '-' + amount;
+            // เงาหนา
+            ctx.fillStyle = 'rgba(0,0,0,0.95)';
+            ctx.fillText(text, 130, 66);
+            ctx.fillText(text, 128, 64);
+            // ตัวเลขสีสด
+            const hex = '#' + color.toString(16).padStart(6, '0');
+            ctx.fillStyle = hex;
+            ctx.fillText(text, 128, 64);
+            // ขอบสีขาว
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.strokeText(text, 128, 64);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            const mat = new THREE.SpriteMaterial({ 
+                map: texture, transparent: true, depthTest: false,
+                depthWrite: false
+            });
+            const sprite = new THREE.Sprite(mat);
+            sprite.position.copy(worldPos);
+            sprite.position.y += 1.8;
+            // ขนาดใหญ่ขึ้น
+            sprite.scale.set(2.2, 1.1, 1);
+            sprite.renderOrder = 999;
+            scene.add(sprite);
+            
+            // animate: กระโดดขึ้น + fade
+            const t0 = performance.now();
+            const duration = 1200;
+            const startY = sprite.position.y;
+            function animDmg() {
+                const elapsed = performance.now() - t0;
+                const t = elapsed / duration;
+                if (t >= 1) {
+                    scene.remove(sprite);
+                    texture.dispose();
+                    mat.dispose();
+                    return;
+                }
+                // กระโดดขึ้นแบบ parabola ตอนแรก แล้วลอยช้าๆ
+                const jump = t < 0.3 ? Math.sin(t / 0.3 * Math.PI) * 0.8 : 0;
+                const float = t * 0.8;
+                sprite.position.y = startY + jump + float;
+                // fade out ตอนท้าย
+                sprite.material.opacity = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3;
+                requestAnimationFrame(animDmg);
+            }
+            animDmg();
+        }
+
+        // 💀 ระบบตาย — เสียสปอร์ flat (ตาม /farm) + respawn ที่จุดเริ่มต้น
+        function handlePlayerDeath(mType) {
+            // 🍄 เสียสปอร์แบบ flat ตาม sporeLossMin/Max ของ monster
+            const sporeLost = Math.floor(Math.random() * (mType.sporeLossMax - mType.sporeLossMin + 1)) + mType.sporeLossMin;
+            const actualLost = Math.min(sporeLost, player.spore); // ไม่เป็นลบ
+            player.spore = Math.max(0, player.spore - actualLost);
+            
+            // แสดง toast ตาย
+            showToast(`💀 พ่ายแพ้ต่อ${mType.name}! เสีย ${actualLost} 🍄 — กลับไปเริ่มใหม่...`, 4000);
+            
+            // ปิด popup
+            hidePanels();
+            
+            // หน่วงเวลาเล็กน้อยก่อน respawn
+            setTimeout(() => {
+                respawnPlayer();
+                inInteraction = false;
+                document.getElementById('btn-walk').disabled = false;
+            }, 1500);
+        }
+
+        // 🔄 รีเซ็ตเกม — สร้าง chunks ใหม่ทั้งหมด + ฟื้น HP เต็ม
+        function respawnPlayer() {
+            // ทำลาย chunks เดิมทั้งหมด
+            chunks.forEach(c => disposeChunk(c));
+            chunks = [];
+            
+            // สร้าง chunks ใหม่เหมือนตอนเริ่มเกม
+            chunks.push(createChunk(4, true));   
+            chunks.push(createChunk(-8, false)); 
+            chunks.push(createChunk(-20, false));
+            chunks.push(createChunk(-32, false));
+            
+            // รีเซ็ตตำแหน่งผู้เล่น + ฟื้น HP เต็ม
+            playerGroup.visible = true;
+            playerGroup.position.set(0, 0, 4);
+            playerGroup.rotation.set(0, 0, 0);
+            playerGroup.scale.set(1, 1, 1);
+            playerLegs.forEach(leg => leg.rotation.x = 0);
+            playerArms.forEach(arm => arm.rotation.x = 0);
+            
+            // รีเซ็ต stats จาก level + ฟื้น HP เต็ม
+            recalcStatsFromLevel();
+            player.hp = player.maxHp;
+            isWalking = false;
+            inInteraction = false;
+            currentEnemy.mesh = null;
+            currentEnemy.type = null;
+            currentChunkEvent = null;
+            
+            updateHUD();
+            
+            // เอฟเฟกต์ respawn — particle สีเขียวรอบตัวผู้เล่น
+            createParticleBurst(new THREE.Vector3(0, 1, 4), 0x2ecc71, 30);
+            cameraShake = 0.15;
+        }
+
+        function runAway() {
+            showToast(`💨 วิ่งหนีจากมอนสเตอร์สำเร็จ!`);
+            endInteraction(false);
+        }
+
+        function endInteraction(won) {
+            inInteraction = false;
+            isBattling = false;
+            hidePanels();
+            document.getElementById('btn-walk').disabled = false;
+            document.getElementById('btn-attack').disabled = false;
+            document.getElementById('btn-runaway').disabled = false;
+            if (won && currentEnemy.mesh) {
+                const deathColor = currentEnemy.type ? currentEnemy.type.color : 0x9b59b6;
+                createParticleBurst(currentEnemy.mesh.position, deathColor, 35);
+                let scale = 1;
+                const deathInt = setInterval(() => {
+                    scale -= 0.1;
+                    if (currentEnemy.mesh) {
+                        currentEnemy.mesh.scale.set(scale, scale, scale);
+                        currentEnemy.mesh.rotation.y += 0.8;
+                        currentEnemy.mesh.position.y -= 0.1;
+                    }
+                    if (scale <= 0) clearInterval(deathInt);
+                }, 30);
+            }
+        }
+
+        // ================= VFX & UTILITIES =================
+        function createParticleBurst(position, color, count) {
+            const geometry = new THREE.IcosahedronGeometry(0.15, 0);
+            const material = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.5, flatShading: true });
+            const particles = [];
+            
+            for(let i=0; i<count; i++) {
+                const p = new THREE.Mesh(geometry, material.clone());
+                p.position.copy(position);
+                p.castShadow = false;
+                p.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.5,
+                    Math.random() * 0.5,
+                    (Math.random() - 0.5) * 0.5
+                );
+                p.life = 1.0;
+                scene.add(p);
+                particles.push(p);
+            }
+            particleSystems.push(particles);
+        }
+
+        function updateParticles() {
+            for(let i = particleSystems.length - 1; i >= 0; i--) {
+                const sys = particleSystems[i];
+                let allDead = true;
+                for(let j=0; j<sys.length; j++) {
+                    const p = sys[j];
+                    if(p.life > 0) {
+                        allDead = false;
+                        p.position.add(p.velocity);
+                        p.velocity.y -= 0.02; 
+                        p.life -= 0.03;
+                        p.scale.setScalar(p.life);
+                        p.material.opacity = p.life;
+                        p.material.transparent = true;
+                    }
+                }
+                if(allDead) {
+                    sys.forEach(p => {
+                        scene.remove(p);
+                        p.geometry.dispose();
+                        p.material.dispose();
+                    });
+                    particleSystems.splice(i, 1);
+                }
+            }
+        }
+
+        function selectColor(c, el) { 
+            selectedColor = c; 
+            if(capMaterial) capMaterial.color.setHex(c);
+            document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function startGame() {
+            const nameInput = document.getElementById('hero-name').value;
+            document.getElementById('display-name').innerText = nameInput || "Mushroom";
+            document.querySelector('.ui-layer').style.display = 'none';
+            document.getElementById('game-hud').style.display = 'block';
+            updateHUD();
+        }
+
+        function updateHUD() {
+            document.getElementById('hp-text').innerText = `${player.hp}/${player.maxHp}`;
+            document.getElementById('hp-bar').style.width = `${(player.hp/player.maxHp)*100}%`;
+            document.getElementById('display-spore').innerText = player.spore.toLocaleString();
+            document.getElementById('display-lv').innerText = player.level;
+            document.getElementById('display-potion').innerText = player.potionCount;
+            document.getElementById('display-items').innerText = player.items.length;
+            const expNeeded = expNeededForLevel(player.level);
+            const expPct = (player.farmExp / expNeeded) * 100;
+            document.getElementById('farm-exp-text').innerText = `${player.farmExp}/${expNeeded}`;
+            document.getElementById('farm-exp-bar').style.width = `${expPct}%`;
+            
+            // แสดง buffs สะสม
+            const buffsEl = document.getElementById('buffs-display');
+            let buffs = [];
+            if(player.attackBonusPercent > 0) buffs.push(`⚔️+${player.attackBonusPercent}%`);
+            if(player.sporeBonusPercent > 0) buffs.push(`🍄+${player.sporeBonusPercent}%`);
+            if(player.sporeBonusFlat > 0) buffs.push(`🍄+${player.sporeBonusFlat}`);
+            if(player.expBonusPercent > 0) buffs.push(`⭐+${player.expBonusPercent}%`);
+            buffsEl.innerText = buffs.length > 0 ? 'Buffs: ' + buffs.join(' ') : '';
+            
+            // ปุ่ม potion — สีซีดถ้าไม่มี
+            const btnPotion = document.getElementById('btn-potion');
+            if(btnPotion) {
+                btnPotion.style.opacity = player.potionCount > 0 ? '1' : '0.4';
+            }
+        }
+
+        function showToast(msg, duration) {
+            const container = document.getElementById('toast-container');
+            if(!container) return;
+            
+            // สร้าง toast element ใหม่
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = msg;
+            container.appendChild(toast);
+            
+            // trigger animation (reflow ก่อน add class)
+            void toast.offsetWidth;
+            toast.classList.add('show');
+            
+            const dur = duration || 2500;
+            // auto-remove
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if(toast.parentNode) toast.parentNode.removeChild(toast);
+                }, 400); // รอ transition จบ
+            }, dur);
+            
+            // จำกัดจำนวน toast สูงสุด 4 ตัว — ลบของเก่าออก
+            while(container.children.length > 4) {
+                const oldest = container.firstChild;
+                oldest.classList.remove('show');
+                setTimeout(() => { if(oldest.parentNode) oldest.parentNode.removeChild(oldest); }, 400);
+                break;
+            }
+        }
+
+        function showPanel(id) {
+            document.getElementById(id).classList.add('active');
+            // ซ่อนปุ่ม walk ตอนมี popup เพื่อไม่ให้บัง
+            document.querySelector('.controls').style.display = 'none';
+        }
+
+        function hidePanels() {
+            document.getElementById('battle-panel').classList.remove('active');
+            document.getElementById('item-panel').classList.remove('active');
+            // แสดงปุ่ม walk กลับมา
+            document.querySelector('.controls').style.display = 'block';
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = Date.now() * 0.003;
+            
+            chunks.forEach(c => {
+                if(c.userData.entity && c.userData.entity.userData.isAnimating) {
+                    const ent = c.userData.entity;
+                    const ud = ent.userData;
+                    
+                    // ลอยขึ้นลง + หมุนรอบตัว
+                    ent.position.y = ud.yOffset + Math.abs(Math.sin(time)) * 0.15;
+                    ent.rotation.y += 0.02;
+                    
+                    // animation เฉพาะ type
+                    if(ud.kind === 'monster') {
+                        switch(ud.typeKey) {
+                            case 'caterpillar': {
+                                // หนอนเลื้อย — ขยับปมทีละข้อ
+                                if(ud.segments) {
+                                    ud.segments.forEach((seg, i) => {
+                                        seg.position.y = Math.sin(time * 2 - i * 0.6) * 0.1;
+                                    });
+                                }
+                                break;
+                            }
+                            case 'bat': {
+                                // ค้างคาว — กระพือปีก + ลอยสูง
+                                if(ud.wingL && ud.wingR) {
+                                    const flap = Math.sin(time * 6) * 0.6;
+                                    ud.wingL.rotation.x = flap;
+                                    ud.wingR.rotation.x = -flap;
+                                }
+                                ent.position.y = ud.yOffset + 0.4 + Math.sin(time * 1.5) * 0.2;
+                                break;
+                            }
+                            case 'boar': {
+                                // หมูป่า — สะบัดหัว + หายใจหนัก
+                                if(ud.head) {
+                                    ud.head.rotation.y = Math.sin(time * 2) * 0.15;
+                                }
+                                if(ud.body) {
+                                    ud.body.scale.y = 1 + Math.sin(time * 3) * 0.05;
+                                }
+                                break;
+                            }
+                            case 'dragon': {
+                                // มังกร — กระพือปีกช้าๆ + สะบัดหัว + ลอยสูง
+                                if(ud.wingL && ud.wingR) {
+                                    const flap = Math.sin(time * 1.5) * 0.4;
+                                    ud.wingL.rotation.x = flap;
+                                    ud.wingR.rotation.x = -flap;
+                                }
+                                if(ud.head) {
+                                    ud.head.rotation.y = Math.sin(time * 0.8) * 0.2;
+                                }
+                                ent.position.y = ud.yOffset + 0.3 + Math.sin(time * 1.2) * 0.25;
+                                break;
+                            }
+                        }
+                    } else if(ud.kind === 'mushroom') {
+                        switch(ud.typeKey) {
+                            case 'magic': {
+                                // เห็ดเรืองแสง — หายใจเรืองแสง
+                                if(ud.cap && ud.cap.material) {
+                                    ud.cap.material.emissiveIntensity = 0.6 + Math.abs(Math.sin(time * 2)) * 0.6;
+                                }
+                                break;
+                            }
+                            case 'golden': {
+                                // เห็ดทอง — อัญมณีกลางยอดหมุน + แวบแสง
+                                if(ud.topJewel) {
+                                    ud.topJewel.rotation.y += 0.05;
+                                    ud.topJewel.rotation.x += 0.03;
+                                }
+                                if(ud.cap && ud.cap.material) {
+                                    ud.cap.material.emissiveIntensity = 0.4 + Math.abs(Math.sin(time * 1.5)) * 0.5;
+                                }
+                                break;
+                            }
+                            case 'straw': {
+                                // เห็ดฟาง — แค่ส่ายเล็กน้อย
+                                if(ud.cap) {
+                                    ud.cap.rotation.z = Math.sin(time) * 0.05;
+                                }
+                                break;
+                            }
+                        }
+                    } else if(ud.kind === 'box') {
+                        switch(ud.typeKey) {
+                            case 'common': {
+                                // กล่องธรรมดา — ส่ายเล็กน้อย
+                                if(ud.lid) {
+                                    ud.lid.rotation.z = 0.05 + Math.sin(time) * 0.03;
+                                }
+                                break;
+                            }
+                            case 'iron': {
+                                // กล่องเหล็ก — แวบแสงโลหะ
+                                if(ent.children[0] && ent.children[0].material) {
+                                    ent.children[0].material.emissiveIntensity = 0.2 + Math.abs(Math.sin(time * 1.5)) * 0.3;
+                                    if(!ent.children[0].material.emissive.getHex()) {
+                                        ent.children[0].material.emissive.setHex(0x90a4ae);
+                                    }
+                                }
+                                break;
+                            }
+                            case 'gold': {
+                                // กล่องทอง — อัญมณีกลางหมุน + แวบแสง
+                                if(ud.centerJewel) {
+                                    ud.centerJewel.rotation.y += 0.04;
+                                    ud.centerJewel.rotation.x += 0.02;
+                                }
+                                if(ud.top) {
+                                    ud.top.rotation.y += 0.03;
+                                }
+                                if(ent.children[0] && ent.children[0].material) {
+                                    ent.children[0].material.emissiveIntensity = 0.3 + Math.abs(Math.sin(time * 1.2)) * 0.4;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+
+            updateParticles();
+
+            if (cameraShake > 0) {
+                camera.position.x += (Math.random() - 0.5) * cameraShake;
+                camera.position.y += (Math.random() - 0.5) * cameraShake;
+                cameraShake -= 0.02;
+            } else {
+                camera.position.x += (6.5 - camera.position.x) * 0.1;
+                camera.position.y += (9.0 - camera.position.y) * 0.1;
+            }
+            camera.lookAt(0, 1.5, 0);
+
+            renderer.render(scene, camera);
+        }
+
+        // ================= EVENT LISTENERS =================
+        window.onload = function() {
+            init3D();
+            
+            document.getElementById('btn-start').addEventListener('click', startGame);
+            document.getElementById('btn-walk').addEventListener('click', walkForward);
+            document.getElementById('btn-attack').addEventListener('click', attack);
+            document.getElementById('btn-runaway').addEventListener('click', runAway);
+            document.getElementById('btn-collect').addEventListener('click', () => collectItem(true));
+            document.getElementById('btn-ignore').addEventListener('click', () => collectItem(false));
+            document.getElementById('btn-potion').addEventListener('click', usePotion);
+
+            document.querySelectorAll('.color-dot').forEach(dot => {
+                dot.addEventListener('click', function() {
+                    const colorHex = parseInt(this.dataset.color);
+                    selectColor(colorHex, this);
+                });
+            });
+        };
+    </script>
+</body>
 </html>
