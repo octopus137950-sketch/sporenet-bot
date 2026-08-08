@@ -1281,3 +1281,28 @@ export function getActiveBuffs(userId: string): Map<string, number> {
   }
   return result;
 }
+
+// ─── Web game helpers (potion stacking) ────────────────────────
+
+/**
+ * นับจำนวนไอเทมที่ itemId ตรง (ใช้สำหรับ potion stack ในเว็บเกม)
+ * นับเฉพาะที่ยังไม่ได้สวมใส่ (เพราะ potion ไม่ equip)
+ */
+export function countItem(userId: string, itemId: string): number {
+  return getInventory(userId).filter((e) => e.itemId === itemId && !e.isEquipped).length;
+}
+
+/**
+ * ลบไอเทม 1 ชิ้นออกจาก inventory (ใช้สำหรับใช้ potion ในเว็บเกม)
+ * คืน true ถ้าสำเร็จ, false ถ้าไม่มีไอเทม
+ */
+export function removeOneItem(userId: string, itemId: string): boolean {
+  const inv = getInventory(userId);
+  const slot = inv.find((e) => e.itemId === itemId && !e.isEquipped);
+  if (!slot) return false;
+  const idx = inv.indexOf(slot);
+  inv.splice(idx, 1);
+  _store.inventories[userId] = inv;
+  saveStore(_store);
+  return true;
+}

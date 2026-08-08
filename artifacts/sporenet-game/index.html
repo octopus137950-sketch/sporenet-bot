@@ -122,6 +122,15 @@
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- ⚙️ SporeNet API config — override ที่นี่ถ้า deploy จริง -->
+    <script>
+        // ตั้ง API_BASE เป็น URL ของ api-server (เช่น https://your-bot-domain.com)
+        // ถ้าเว็บเกม host คนละ domain กับ api ต้องตั้งค่านี้
+        // ถ้าว่าง → ใช้ relative path (เว็บเกม + api อยู่ domain เดียวกัน)
+        window.GAME_CONFIG = {
+            API_BASE: ''  // เช่น 'https://api.sporenet.example.com'
+        };
+    </script>
 </head>
 <body>
 
@@ -481,6 +490,7 @@
             player.hp += actualHeal;
             showToast(`🧪 ใช้น้ำยาฟื้นฟู +${actualHeal} HP (เหลือ ${player.potionCount} ขวด)`);
             updateHUD();
+            syncPlayerData(null, { usePotion: true });
             // particle สีเขียวรอบตัว
             createParticleBurst(new THREE.Vector3(playerGroup.position.x, 1, playerGroup.position.z), 0x2ecc71, 20);
         }
@@ -1484,6 +1494,7 @@
                     if(lvUp) msg += ` • 🎊 Level Up! Lv.${player.level}`;
                     showToast(msg);
                     updateHUD();
+                    syncPlayerData();
                     
                     if(currentChunkEvent.userData.entity) {
                         const entity = currentChunkEvent.userData.entity;
@@ -1516,6 +1527,7 @@
                     
                     showToast(msg, 3500);
                     updateHUD();
+                    syncPlayerData(droppedItem ? droppedItem.id : null, potionDrop ? { addPotion: true } : null);
                     
                     if(currentChunkEvent.userData.entity) {
                         const entity = currentChunkEvent.userData.entity;
@@ -1708,6 +1720,7 @@
                         if(lvUp) msg += ` • 🎊 Level Up! Lv.${player.level}`;
                         showToast(msg);
                         updateHUD();
+                        syncPlayerData();
                         // คืนแขน + ถอย player กลับ
                         playerReturnToStart(() => endInteraction(true));
                     }, 350);
@@ -1966,6 +1979,7 @@
             const sporeLost = Math.floor(Math.random() * (mType.sporeLossMax - mType.sporeLossMin + 1)) + mType.sporeLossMin;
             const actualLost = Math.min(sporeLost, player.spore); // ไม่เป็นลบ
             player.spore = Math.max(0, player.spore - actualLost);
+            syncPlayerData(); // sync ยอด spore ใหม่ (หลังเสีย)
             
             // แสดง toast ตาย
             showToast(`💀 พ่ายแพ้ต่อ${mType.name}! เสีย ${actualLost} 🍄 — กลับไปเริ่มใหม่...`, 4000);
@@ -2101,12 +2115,244 @@
             el.classList.add('selected');
         }
 
+        // ================= AUTH + SYNC SYSTEM =================
+        // เชื่อมต่อกับ SporeNet bot API เพื่อ sync ข้อมูล
+        // ล็อกอินด้วย Discord OAuth2 + เช็คสมาชิกเซิร์ฟเวอร์
+
+        // ⚙️ config — จะถูก override โดย window.GAME_CONFIG (ถ้ามี)
+        const API_BASE = (window.GAME_CONFIG && window.GAME_CONFIG.API_BASE) || '';
+        let authToken = localStorage.getItem('sporenet_token') || null;
+        let currentUser = null;
+
+        // ดึง auth status + config จาก API
+        async function apiGet(path) {
+            const res = await fetch(`${API_BASE}${path}`, {
+                headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
+            });
+            return res;
+        }
+
+        async function apiPost(path, body) {
+            const res = await fetch(`${API_BASE}${path}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+                },
+                body: JSON.stringify(body),
+            });
+            return res;
+        }
+
+        // 🚀 เริ่มล็อกอิน — redirect ไป Discord OAuth2
+        async function startDiscordLogin() {
+            try {
+                const res = await apiGet('/api/auth/login');
+                const data = await res.json();
+                if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    showLoginError(data.message || 'ไม่สามารถเริ่มล็อกอินได้');
+                }
+            } catch (err) {
+                showLoginError('เชื่อมต่อ API ไม่ได้: ' + err.message);
+            }
+        }
+
+        // 📥 รับ callback จาก Discord (?code=...&state=...)
+        async function handleAuthCallback() {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            if (!code) return false;
+
+            // แสดงหน้ากำลังล็อกอิน
+            showLoginScreen('loading');
+
+            try {
+                const res = await apiPost('/api/auth/callback', { code });
+                const data = await res.json();
+
+                if (res.ok && data.token) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    localStorage.setItem('sporenet_token', authToken);
+                    // ลบ query string
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    return true;
+                } else if (data.error === 'not_in_guild') {
+                    showLoginError(`${data.message}\n\nGuild ID: ${data.guildId}\n\nกรุณาเข้าร่วมเซิร์ฟเวอร์ Discord ก่อน แล้วลองใหม่อีกครั้ง`);
+                } else {
+                    showLoginError(data.message || `ล็อกอินไม่สำเร็จ: ${data.error || 'unknown error'}`);
+                }
+            } catch (err) {
+                showLoginError('เชื่อมต่อ API ไม่ได้: ' + err.message);
+            }
+            return false;
+        }
+
+        // ✅ เช็คว่ามี session token ที่ถูกต้องไหม
+        async function checkSession() {
+            if (!authToken) return false;
+            try {
+                const res = await apiGet('/api/auth/me');
+                if (res.ok) {
+                    currentUser = await res.json();
+                    return true;
+                }
+                // token หมดอายุ → ลบทิ้ง
+                localStorage.removeItem('sporenet_token');
+                authToken = null;
+                return false;
+            } catch {
+                return false;
+            }
+        }
+
+        // 📊 ดึงข้อมูลผู้เล่นจาก API (sync จาก bot)
+        async function fetchPlayerData() {
+            try {
+                const res = await apiGet('/api/player');
+                if (!res.ok) return null;
+                const data = await res.json();
+                return data;
+            } catch {
+                return null;
+            }
+        }
+
+        // 💾 ส่งข้อมูลผู้เล่นกลับไป API (sync ไป bot) — real-time
+        let syncTimer = null;
+        function syncPlayerData(addItemId, options) {
+            // debounce 300ms — กัน spam API
+            if (syncTimer) clearTimeout(syncTimer);
+            const pendingAddItem = addItemId;
+            const opts = options || {};
+            syncTimer = setTimeout(async () => {
+                try {
+                    const body = {
+                        spore: player.spore,
+                        level: player.level,
+                        exp: player.farmExp,
+                    };
+                    if (pendingAddItem) body.addItem = pendingAddItem;
+                    if (opts.addPotion) body.addPotion = true;
+                    if (opts.usePotion) body.usePotion = true;
+                    await apiPost('/api/player', body);
+                } catch (err) {
+                    console.warn('[sync] failed:', err);
+                }
+            }, 300);
+        }
+
+        // 📥 โหลดข้อมูลจาก API มาใส่ใน player object
+        async function loadPlayerFromAPI() {
+            const data = await fetchPlayerData();
+            if (!data) return false;
+            // sync ข้อมูลจาก bot → game
+            player.spore = data.spore || 0;
+            player.level = data.level || 1;
+            player.farmExp = data.exp || 0;
+            player.potionCount = data.potionCount || 0;
+            // คำนวณ stats ใหม่ตาม level
+            recalcStatsFromLevel();
+            // แมป inventory — นับ items ที่ได้รับ (ไม่รวม potion)
+            if (data.items && Array.isArray(data.items)) {
+                player.items = data.items.map(i => i.itemId);
+            }
+            // อัปเดต buffs จาก items
+            recalcBuffsFromItems();
+            return true;
+        }
+
+        // คำนวณ buffs ใหม่จาก items list (เพราะ bot store เก็บเป็น itemId array)
+        function recalcBuffsFromItems() {
+            // reset
+            player.sporeBonusPercent = 0;
+            player.sporeBonusFlat = 0;
+            player.expBonusPercent = 0;
+            player.attackBonusPercent = 0;
+            // สะสมใหม่
+            player.items.forEach(itemId => {
+                const item = ITEMS_POOL.find(i => i.id === itemId);
+                if (!item) return;
+                switch(item.buffType) {
+                    case 'attack_percent': player.attackBonusPercent += item.buffValue; break;
+                    case 'spore_percent':  player.sporeBonusPercent  += item.buffValue; break;
+                    case 'spore_flat':     player.sporeBonusFlat     += item.buffValue; break;
+                    case 'exp_percent':    player.expBonusPercent    += item.buffValue; break;
+                }
+            });
+        }
+
+        // 🚪 ล็อกเอาท์
+        function logout() {
+            localStorage.removeItem('sporenet_token');
+            authToken = null;
+            currentUser = null;
+            location.reload();
+        }
+
+        // ─── UI สำหรับหน้าล็อกอิน ───────────────────────────────
+        function showLoginScreen(mode) {
+            const layer = document.querySelector('.ui-layer');
+            if (!layer) return;
+            layer.style.display = 'flex';
+            layer.innerHTML = `
+                <div class="card" style="max-width: 420px;">
+                    <h1 style="font-size: 28px; color: #fff; margin-bottom: 8px;">🎮 SPORENET</h1>
+                    <h2 style="margin-bottom: 24px;">Mushroom Adventure</h2>
+                    ${mode === 'loading' ? `
+                        <div style="padding: 40px 0;">
+                            <div style="font-size: 18px; color: #f1c40f;">⏳ กำลังล็อกอิน...</div>
+                        </div>
+                    ` : `
+                        <p style="font-size: 14px; margin-bottom: 24px; line-height: 1.5; opacity: 0.9;">
+                            เกมผจญภัยเห็ด voxel 3D ที่เชื่อมต่อกับ Discord bot โดยตรง<br>
+                            สปอร์ เลเวล และไอเทม sync กับ <code>/farm</code> ในเซิร์ฟเวอร์
+                        </p>
+                        <button class="btn" id="btn-discord-login" style="background: linear-gradient(180deg, #5865f2 0%, #4752c4 100%); box-shadow: 0 6px 0 #3c45a5;">
+                            🔵 ล็อกอินด้วย Discord
+                        </button>
+                        <div id="login-error" style="color: #ff7979; font-size: 13px; margin-top: 16px; white-space: pre-line;"></div>
+                    `}
+                </div>
+            `;
+            const loginBtn = document.getElementById('btn-discord-login');
+            if (loginBtn) loginBtn.addEventListener('click', startDiscordLogin);
+        }
+
+        function showLoginError(msg) {
+            const errEl = document.getElementById('login-error');
+            if (errEl) errEl.innerText = msg;
+            showLoginScreen('form');
+            // ตั้ง msg อีกครั้งเพราะ innerHTML เขียนทับ
+            setTimeout(() => {
+                const err = document.getElementById('login-error');
+                if (err) err.innerText = msg;
+            }, 50);
+        }
+
         function startGame() {
-            const nameInput = document.getElementById('hero-name').value;
-            document.getElementById('display-name').innerText = nameInput || "Mushroom";
+            const nameInput = document.getElementById('hero-name');
+            // ถ้ามี currentUser ใช้ชื่อจาก Discord แทน
+            const name = currentUser ? (currentUser.username || currentUser.globalName || 'Player') : (nameInput ? nameInput.value : 'Player');
+            document.getElementById('display-name').innerText = name;
             document.querySelector('.ui-layer').style.display = 'none';
             document.getElementById('game-hud').style.display = 'block';
+            // เพิ่มปุ่ม logout ที่มุมขวาบน
+            addLogoutButton();
             updateHUD();
+        }
+
+        function addLogoutButton() {
+            if (document.getElementById('btn-logout')) return;
+            const btn = document.createElement('button');
+            btn.id = 'btn-logout';
+            btn.innerText = '🚪';
+            btn.title = 'ล็อกเอาท์';
+            btn.style.cssText = 'position: absolute; top: 20px; left: 200px; pointer-events: auto; background: rgba(0,0,0,0.6); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; width: 36px; height: 36px; font-size: 16px; cursor: pointer; z-index: 11;';
+            btn.addEventListener('click', logout);
+            document.getElementById('game-hud').appendChild(btn);
         }
 
         function updateHUD() {
@@ -2323,6 +2569,28 @@
         }
 
         // ================= EVENT LISTENERS =================
+        async function initAuth() {
+            // 1. ถ้ามี ?code= ใน URL = Discord callback
+            const isCallback = await handleAuthCallback();
+            if (isCallback) {
+                // login สำเร็จ → โหลดข้อมูล + เริ่มเกม
+                await loadPlayerFromAPI();
+                startGame();
+                return;
+            }
+            // 2. ถ้ามี token ใน localStorage → ตรวจ session
+            if (authToken) {
+                const valid = await checkSession();
+                if (valid) {
+                    await loadPlayerFromAPI();
+                    startGame();
+                    return;
+                }
+            }
+            // 3. ไม่มี session → แสดงหน้าล็อกอิน
+            showLoginScreen('form');
+        }
+
         window.onload = function() {
             init3D();
             
@@ -2340,6 +2608,9 @@
                     selectColor(colorHex, this);
                 });
             });
+
+            // เริ่ม auth flow (async)
+            initAuth();
         };
     </script>
 </body>
