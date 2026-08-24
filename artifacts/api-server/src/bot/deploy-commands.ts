@@ -23,6 +23,8 @@ import { data as setcasinoData } from "./commands/setcasino.js";
 import { data as setluckydoorsData } from "./commands/setluckydoors.js";
 import { data as setgamechannelData } from "./commands/setgamechannel.js";
 import { data as setshoppanelData } from "./commands/setshoppanel.js";
+import { data as clearshopData } from "./commands/clearshop.js";
+import { data as deleteshoppanelData } from "./commands/deleteshoppanel.js";
 import { data as helpData } from "./commands/help.js";
 import { data as helpAdminData } from "./commands/help-admin.js";
 import { data as mushroomData } from "./commands/mushroom.js";
@@ -89,6 +91,8 @@ export async function deployCommands(): Promise<void> {
     setluckydoorsData.toJSON(),
     setgamechannelData.toJSON(),
     setshoppanelData.toJSON(),
+clearshopData.toJSON(),
+deleteshoppanelData.toJSON(),
     mushroomData.toJSON(),
     helpData.toJSON(),
     helpAdminData.toJSON(),

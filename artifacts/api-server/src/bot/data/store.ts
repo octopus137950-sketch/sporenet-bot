@@ -874,6 +874,20 @@ export function removeShopItem(guildId: string, itemId: string): boolean {
   return true;
 }
 
+export function clearShopItems(guildId: string): number {
+  const shop = _store.guilds[guildId]?.shop;
+
+  if (!shop || shop.length === 0) {
+    return 0;
+  }
+
+  const removedCount = shop.length;
+  _store.guilds[guildId]!.shop = [];
+  saveStore(_store);
+
+  return removedCount;
+}
+
 export function updateShopItem(
   guildId: string,
   itemId: string,

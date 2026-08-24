@@ -75,7 +75,7 @@ export async function handleCasinoButton(interaction: ButtonInteraction): Promis
 
   const betInput = new TextInputBuilder()
     .setCustomId("bet_amount")
-    .setLabel(`จำนวนสปอร์ที่ต้องการวางเดิมพัน (ขั้นต่ำ ${MIN_BET} • ไม่จำกัดสูงสุด)`)
+    .setLabel("จำนวนเดิมพัน")
     .setStyle(TextInputStyle.Short)
     .setPlaceholder("เช่น 100")
     .setMinLength(1)

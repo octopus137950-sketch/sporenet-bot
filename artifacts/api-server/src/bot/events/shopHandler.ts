@@ -31,7 +31,7 @@ async function buildShopView(guildId: string, userId: string) {
     const icon = item.type === "role" ? "🎖️" : "🎨";
     const opt = new StringSelectMenuOptionBuilder()
       .setLabel(`${item.name} — ${item.price.toLocaleString()} สปอร์`)
-      .setDescription(item.description.slice(0, 100))
+      .setDescription((item.description?.trim() || "ไม่มีรายละเอียด").slice(0, 100))
       .setValue(item.id)
       .setEmoji(canAfford ? "✅" : "❌");
     return opt;
@@ -82,7 +82,7 @@ export async function handleShopSelect(interaction: StringSelectMenuInteraction)
 
   const embed = new EmbedBuilder()
     .setTitle(`🛍️ ${item.name}`)
-    .setDescription(item.description)
+    .setDescription((item.description?.trim() || "ไม่มีรายละเอียด").slice(0, 100))
     .setColor(canAfford ? 0x57f287 : 0xed4245)
     .addFields(
       { name: "💰 ราคา", value: `${item.price.toLocaleString()} สปอร์`, inline: true },

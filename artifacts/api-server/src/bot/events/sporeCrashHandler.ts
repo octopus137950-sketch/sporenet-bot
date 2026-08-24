@@ -59,7 +59,7 @@ function buildCashOutRow(userId: string, multiplier: number, bet: number): Actio
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`crash_cashout:${userId}`)
-      .setLabel(`🛑 กดถอนเงินรางวัล  (ตอนนี้ได้ ~${potential.toLocaleString()} สปอร์)`)
+      .setLabel("จำนวนเดิมพัน")
       .setStyle(ButtonStyle.Danger)
   );
 }
@@ -133,7 +133,7 @@ export async function handleCrashBetButton(interaction: ButtonInteraction): Prom
 
   const betInput = new TextInputBuilder()
     .setCustomId("crash_bet_amount")
-    .setLabel(`จำนวนสปอร์ที่ต้องการเดิมพัน (ขั้นต่ำ ${MIN_BET} • ไม่จำกัดสูงสุด)`)
+    .setLabel("จำนวนเดิมพัน")
     .setStyle(TextInputStyle.Short)
     .setPlaceholder("เช่น 500")
     .setMinLength(1)
@@ -213,7 +213,7 @@ export async function handleCrashBetModal(interaction: ModalSubmitInteraction): 
       const disabledRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId(`crash_cashout:${userId}`)
-          .setLabel(`💥 ระเบิดที่ x${game.crashPoint.toFixed(2)}`)
+          .setLabel("จำนวนเดิมพัน")
           .setStyle(ButtonStyle.Danger)
           .setDisabled(true)
       );
@@ -268,7 +268,7 @@ export async function handleCrashCashOut(interaction: ButtonInteraction): Promis
   const disabledRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`crash_cashout:${userId}`)
-      .setLabel(`✅ ถอนที่ x${cashOutMultiplier.toFixed(2)} — ได้ ${payout.toLocaleString()} สปอร์`)
+      .setLabel("จำนวนเดิมพัน")
       .setStyle(ButtonStyle.Success)
       .setDisabled(true)
   );
