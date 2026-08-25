@@ -108,6 +108,16 @@ async function callGroq(history: ChatMessage[], userText: string): Promise<strin
 }
 
 // ─── Main handler ─────────────────────────────────────────────
+/** สร้างคำต้อนรับสมาชิกใหม่แบบไม่ซ้ำกันหลังยืนยันตัวตน */
+export async function generateWelcomeMessage(username: string): Promise<string> {
+  const prompt = [
+    "แต่งคำต้อนรับสมาชิกใหม่สำหรับ Discord เป็นภาษาไทย 2-3 ประโยค",
+    "ให้พูดในบทบาทราชาเห็ดสปอร์ ใช้สรรพนาม ข้า และเรียกสมาชิกว่าเจ้าเห็ดน้อยได้ตามเหมาะสม",
+    "ขอให้แต่ละครั้งมีสำนวนและอารมณ์แตกต่างกัน ไม่ใช้ประโยคตายตัว ไม่ต้องใส่ชื่อเรื่อง ไม่ต้องใช้ Markdown และห้ามเปิดเผยว่าเป็น AI",
+    "สมาชิกชื่อ " + username + " เพิ่งยืนยันตัวตนสำเร็จ ให้กล่าวต้อนรับและชวนสำรวจอาณาจักรเห็ด",
+  ].join("\n");
+  return callGroq([], prompt);
+}
 export async function onAiChatMessage(message: Message): Promise<void> {
   if (message.author.bot) return;
   if (!message.guild) return;
