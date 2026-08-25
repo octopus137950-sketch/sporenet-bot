@@ -298,20 +298,19 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const newExpNeeded = player.farmLevel * 100;
   const farmEmbed = new EmbedBuilder()
     .setTitle(`${event.emoji} ${event.name}`)
-    .setDescription(`${event.description}\n\n${resultText}${levelUpText}`)
+    .setDescription(`${event.description}\n\n🎁 **ผลการฟาร์ม:** ${resultText}${levelUpText}`)
     .setColor(event.color)
-    .setThumbnail(interaction.user.displayAvatarURL())
-    .setImage(getFarmImage(event.name) ?? null)
+    .setThumbnail(getFarmImage(event.name) ?? null)
     .addFields(
-      { name: "🍄 สปอร์ทั้งหมด", value: `**${player.sporePoints.toLocaleString()}** แต้ม`, inline: true },
+      { name: "💰 สปอร์ทั้งหมด", value: `**${player.sporePoints.toLocaleString()}** แต้ม`, inline: true },
       { name: "⭐ เลเวล", value: `**${player.farmLevel}**`, inline: true },
       {
-        name: `📊 EXP [${player.farmExp}/${newExpNeeded}]`,
-        value: expBar(player.farmExp, newExpNeeded),
-        inline: false,
+        name: "📊 EXP",
+        value: `**${player.farmExp}/${newExpNeeded}**\n${expBar(player.farmExp, newExpNeeded)}`,
+        inline: true,
       }
     )
-    .setFooter({ text: `${interaction.user.username} • ฟาร์มอีกครั้งในอีก 60 วินาที` })
+    .setFooter({ text: `ฟาร์มได้อีกครั้งใน 60 วินาที • วันนี้ ${new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}` })
     .setTimestamp();
 
   const hasMonster = Math.random() * 100 < MONSTER_CHANCE;
@@ -361,7 +360,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       `⏰ ตัดสินใจภายใน **60 วินาที!**`
     )
     .setColor(monster.color)
-    .setImage(getFarmImage(monster.name, true) ?? null)
+    .setThumbnail(getFarmImage(monster.name, true) ?? null)
     .setFooter({ text: "เลือก: สู้หรือหนี?" });
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
