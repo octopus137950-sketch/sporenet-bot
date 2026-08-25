@@ -234,20 +234,21 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const event = rollEvent();
+  const hasMonster = Math.random() * 100 < MONSTER_CHANCE;
+  const event = hasMonster ? undefined : rollEvent();
   const levelBonus = (player.farmLevel - 1) * 2;
   let pointChange = 0;
   let resultText = "";
 
-  if (event.type === "gain") {
+  if (event?.type === "gain") {
     const base = randInt(event.min, event.max);
     pointChange = base + levelBonus;
     resultText = `**+${pointChange} สปอร์** ${levelBonus > 0 ? `(+${levelBonus} โบนัสเลเวล)` : ""}`;
-  } else if (event.type === "lose") {
+  } else if (event?.type === "lose") {
     const base = randInt(event.min, event.max);
     pointChange = -Math.min(base, player.sporePoints);
     resultText = `**${pointChange} สปอร์**`;
-  } else if (event.type === "percent") {
+  } else if (event?.type === "percent") {
     const stolen = Math.floor(player.sporePoints * 0.1);
     pointChange = -stolen;
     resultText = stolen > 0 ? `**-${stolen} สปอร์** (10% ที่มี)` : "**ท่านไม่มีแต้มให้ขโมย!**";
@@ -296,11 +297,51 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   const newExpNeeded = player.farmLevel * 100;
+  if (hasMonster) {
+    const monster = rollMonster();
+    setPendingBattle(userId, {
+      monsterEmoji: monster.emoji,
+      monsterName: monster.name,
+      winChance: monster.winChance,
+      winMin: monster.winMin,
+      winMax: monster.winMax,
+      lossMin: monster.lossMin,
+      lossMax: monster.lossMax,
+    });
+
+    const monsterEmbed = new EmbedBuilder()
+      .setTitle(`⚠️ มอนสเตอร์ปรากฏ! ${monster.emoji} ${monster.name}`)
+      .setDescription(
+        `${monster.description}\n\n` +
+        `📊 โอกาสชนะ: **${monster.winChance}%**\n` +
+        `🏆 ถ้าชนะ: **+${monster.winMin}~${monster.winMax} สปอร์**\n` +
+        `💀 ถ้าแพ้: **-${monster.lossMin}~${monster.lossMax} สปอร์**\n\n` +
+        `⏰ ตัดสินใจภายใน **60 วินาที!**`
+      )
+      .setColor(monster.color)
+      .setThumbnail(getFarmImage(monster.name, true) ?? null)
+      .setFooter({ text: "เลือก: สู้หรือหนี?" });
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`monster_fight_${userId}`)
+        .setLabel("⚔️ สู้")
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`monster_flee_${userId}`)
+        .setLabel("🏃 หนี")
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    await interaction.editReply({ embeds: [monsterEmbed], components: [row] });
+    return;
+  }
+
   const farmEmbed = new EmbedBuilder()
-    .setTitle(`${event.emoji} ${event.name}`)
-    .setDescription(`${event.description}\n\n🎁 **ผลการฟาร์ม:** ${resultText}${levelUpText}`)
-    .setColor(event.color)
-    .setThumbnail(getFarmImage(event.name) ?? null)
+    .setTitle(`${event!.emoji} ${event!.name}`)
+    .setDescription(`${event!.description}\n\n🎁 **ผลการฟาร์ม:** ${resultText}${levelUpText}`)
+    .setColor(event!.color)
+    .setThumbnail(getFarmImage(event!.name) ?? null)
     .addFields(
       { name: "💰 สปอร์ทั้งหมด", value: `**${player.sporePoints.toLocaleString()}** แต้ม`, inline: true },
       { name: "⭐ เลเวล", value: `**${player.farmLevel}**`, inline: true },
@@ -313,66 +354,24 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     .setFooter({ text: `ฟาร์มได้อีกครั้งใน 60 วินาที • วันนี้ ${new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}` })
     .setTimestamp();
 
-  const hasMonster = Math.random() * 100 < MONSTER_CHANCE;
-
-  if (!hasMonster) {
-    // ── Item drop check ──────────────────────────────────────
-    const droppedItem = rollItemDrop();
-    if (droppedItem && guild) {
-      addItemToInventory(userId, droppedItem.id);
-      farmEmbed.addFields({
-        name: `✨ ไอเทมหายากดรอป!`,
-        value: `${droppedItem.emoji} **${droppedItem.name}**\n> ${droppedItem.lore}\n📬 ไอเทมถูกเก็บเข้ากระเป๋าแล้ว ใช้ /wallet เพื่อสวมใส่!`,
-        inline: false,
-      });
-    }
-
-    await interaction.editReply({ embeds: [farmEmbed] });
-
-    if (guild && pointChange !== 0) {
-      const logId = getLogChannel(guild.id);
-      if (logId) {
-        const logCh = guild.channels.cache.get(logId) as TextChannel | undefined;
-        logCh?.send({ content: `📋 **${interaction.user.username}** ฟาร์มได้ **${pointChange > 0 ? "+" : ""}${pointChange}** สปอร์` }).catch(() => null);
-      }
-    }
-    return;
+  // ── Item drop check ──────────────────────────────────────
+  const droppedItem = rollItemDrop();
+  if (droppedItem && guild) {
+    addItemToInventory(userId, droppedItem.id);
+    farmEmbed.addFields({
+      name: `✨ ไอเทมหายากดรอป!`,
+      value: `${droppedItem.emoji} **${droppedItem.name}**\n> ${droppedItem.lore}\n📬 ไอเทมถูกเก็บเข้ากระเป๋าแล้ว ใช้ /wallet เพื่อสวมใส่!`,
+      inline: false,
+    });
   }
 
-  const monster = rollMonster();
-  setPendingBattle(userId, {
-    monsterEmoji: monster.emoji,
-    monsterName: monster.name,
-    winChance: monster.winChance,
-    winMin: monster.winMin,
-    winMax: monster.winMax,
-    lossMin: monster.lossMin,
-    lossMax: monster.lossMax,
-  });
+  await interaction.editReply({ embeds: [farmEmbed] });
 
-  const monsterEmbed = new EmbedBuilder()
-    .setTitle(`⚠️ มอนสเตอร์ปรากฏ! ${monster.emoji} ${monster.name}`)
-    .setDescription(
-      `${monster.description}\n\n` +
-      `📊 โอกาสชนะ: **${monster.winChance}%**\n` +
-      `🏆 ถ้าชนะ: **+${monster.winMin}~${monster.winMax} สปอร์**\n` +
-      `💀 ถ้าแพ้: **-${monster.lossMin}~${monster.lossMax} สปอร์**\n\n` +
-      `⏰ ตัดสินใจภายใน **60 วินาที!**`
-    )
-    .setColor(monster.color)
-    .setThumbnail(getFarmImage(monster.name, true) ?? null)
-    .setFooter({ text: "เลือก: สู้หรือหนี?" });
-
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`monster_fight_${userId}`)
-      .setLabel("⚔️ สู้")
-      .setStyle(ButtonStyle.Danger),
-    new ButtonBuilder()
-      .setCustomId(`monster_flee_${userId}`)
-      .setLabel("🏃 หนี")
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  await interaction.editReply({ embeds: [farmEmbed, monsterEmbed], components: [row] });
+  if (guild && pointChange !== 0) {
+    const logId = getLogChannel(guild.id);
+    if (logId) {
+      const logCh = guild.channels.cache.get(logId) as TextChannel | undefined;
+      logCh?.send({ content: `📋 **${interaction.user.username}** ฟาร์มได้ **${pointChange > 0 ? "+" : ""}${pointChange}** สปอร์` }).catch(() => null);
+    }
+  }
 }
