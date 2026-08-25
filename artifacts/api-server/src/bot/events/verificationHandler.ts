@@ -8,6 +8,7 @@ import {
   EmbedBuilder,
   GuildMember,
 } from "discord.js";
+import { generateWelcomeMessage } from "./aiChatHandler.js";
 import {
   getVerificationPanel,
   saveVerificationSubmission,
@@ -180,16 +181,20 @@ export async function handleVerifyModal(interaction: ModalSubmitInteraction): Pr
         const aiChannel = await interaction.guild.channels.fetch(aiChannelId);
         if (aiChannel && "send" in aiChannel) {
           const user = interaction.user;
+          let welcomeMessage: string;
+          try {
+            welcomeMessage = await generateWelcomeMessage(user.displayName ?? user.username);
+          } catch (err) {
+            welcomeMessage =
+              `<@${user.id}> ยินดีต้อนรับสู่ดินแดนของข้า เจ้าเห็ดน้อย! ขอให้สนุกกับการผจญภัยในอาณาจักรเห็ดนะ`;
+          }
           const welcomeEmbed = new EmbedBuilder()
             .setAuthor({
               name: "👑 ราชาเห็ดสปอร์",
               iconURL: interaction.client.user.displayAvatarURL(),
             })
             .setTitle("🍄 สมาชิกใหม่แห่งอาณาจักรเห็ด")
-            .setDescription(
-              `<@${user.id}> ยินดีต้อนรับสู่ดินแดนของข้า!\n` +
-              `ยืนยันตัวตนเรียบร้อยแล้วนะ เจ้าเห็ดน้อย ขอให้สนุกกับการผจญภัยใน The Mushroom Kingdom!`
-            )
+            .setDescription(welcomeMessage)
             .setColor(0x9b59b6)
             .setThumbnail(user.displayAvatarURL())
             .setFooter({ text: "ราชาเห็ดสปอร์ยินดีต้อนรับเจ้าเข้าสู่อาณาจักร" })
