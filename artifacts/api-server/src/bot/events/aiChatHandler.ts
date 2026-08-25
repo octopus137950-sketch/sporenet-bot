@@ -1,6 +1,6 @@
 // ============================================================
 // aiChatHandler.ts — SporeNet AI Companion
-// ใช้ Groq API (llama-3.3-70b) — ฟรี 14,400 req/วัน
+// ใช้ Groq API (OpenAI GPT OSS 20B) — โมเดลฟรี
 // ============================================================
 
 import { Message, EmbedBuilder } from "discord.js";
@@ -49,7 +49,7 @@ const SYSTEM_PROMPT = `คุณคือ "ราชาเห็ดสปอร�
 // ─── Config ───────────────────────────────────────────────────
 const GROQ_API_KEY = process.env["GROQ_API_KEY"];
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile"; // ฟรี, ฉลาด, รวดเร็ว
+const GROQ_MODEL = "openai/gpt-oss-20b"; // โมเดลฟรีบน Groq
 
 const COOLDOWN_MS = 20_000;
 const MAX_HISTORY = 10; // จำนวนรอบสนทนาที่เก็บไว้ (user+assistant คู่)
