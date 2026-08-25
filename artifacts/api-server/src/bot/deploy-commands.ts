@@ -13,6 +13,7 @@ import { data as shopData } from "./commands/shop.js";
 import { data as addshopData } from "./commands/addshop.js";
 import { data as editshopData } from "./commands/editshop.js";
 import { data as givesporeData } from "./commands/givespore.js";
+import { data as giveexpData } from "./commands/giveexp.js";
 import { data as giveitemData } from "./commands/giveitem.js";
 import { data as setsporeData } from "./commands/setspore.js";
 import { data as setlogData } from "./commands/setlog.js";
@@ -81,6 +82,7 @@ export async function deployCommands(): Promise<void> {
     addshopData.toJSON(),
     editshopData.toJSON(),
     givesporeData.toJSON(),
+    giveexpData.toJSON(),
     giveitemData.toJSON(),
     setsporeData.toJSON(),
     setlogData.toJSON(),
