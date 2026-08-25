@@ -36,7 +36,7 @@ import {
     );
 
     export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     const guild = interaction.guild;
     if (!guild) {
