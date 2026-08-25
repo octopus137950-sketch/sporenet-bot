@@ -10,7 +10,7 @@ export const data = new SlashCommandBuilder()
   .addStringOption((o) => o.setName("reason").setDescription("เหตุผลที่ให้ EXP").setRequired(false));
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
   const guild = interaction.guild;
   if (!guild) { await interaction.editReply("❌ ใช้ได้เฉพาะในเซิร์ฟเวอร์เท่านั้น"); return; }
   const target = interaction.options.getUser("player", true);
