@@ -30,6 +30,24 @@ const COOLDOWN_SECONDS = 60;
 const EXP_PER_FARM = 5;
 const MONSTER_CHANCE = 25;
 
+// ภาพประกอบผลการสำรวจ — เก็บไว้ใน GitHub เพื่อให้ Discord โหลดได้โดยตรง
+const FARM_IMAGE_BASE = "https://raw.githubusercontent.com/octopus137950-sketch/sporenet-bot/main/artifacts/api-server/assets/farm";
+const FARM_IMAGES: Record<string, string> = {
+  "เห็ดฟางธรรมดา": `${FARM_IMAGE_BASE}/farm_common_mushroom.png`,
+  "เห็ดเรืองแสงเวทมนตร์": `${FARM_IMAGE_BASE}/farm_glowing_mushroom.png`,
+  "เห็ดทองคำโบราณ": `${FARM_IMAGE_BASE}/farm_golden_mushroom.png`,
+  "แมงมุมซุ่มโจมตี": `${FARM_IMAGE_BASE}/farm_spider_ambush.png`,
+  "นกฮูกขโมยของ": `${FARM_IMAGE_BASE}/farm_owl_thief.png`,
+};
+
+const MONSTER_IMAGES: Record<string, string> = {
+  "มังกรเห็ดโบราณ": `${FARM_IMAGE_BASE}/farm_mushroom_dragon.png`,
+};
+
+function getFarmImage(name: string, monster = false): string | undefined {
+  return (monster ? MONSTER_IMAGES : FARM_IMAGES)[name];
+}
+
 interface FarmEvent {
   emoji: string;
   name: string;
@@ -283,6 +301,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     .setDescription(`${event.description}\n\n${resultText}${levelUpText}`)
     .setColor(event.color)
     .setThumbnail(interaction.user.displayAvatarURL())
+    .setImage(getFarmImage(event.name) ?? null)
     .addFields(
       { name: "🍄 สปอร์ทั้งหมด", value: `**${player.sporePoints.toLocaleString()}** แต้ม`, inline: true },
       { name: "⭐ เลเวล", value: `**${player.farmLevel}**`, inline: true },
@@ -342,6 +361,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       `⏰ ตัดสินใจภายใน **60 วินาที!**`
     )
     .setColor(monster.color)
+    .setImage(getFarmImage(monster.name, true) ?? null)
     .setFooter({ text: "เลือก: สู้หรือหนี?" });
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
