@@ -65,12 +65,25 @@ function matchedEmbed(guild: any, match: FriendMatch): EmbedBuilder {
     .setTimestamp();
 }
 
-async function notifyUser(guild: any, userId: string, content: string, match?: FriendMatch): Promise<void> {
+
+function pendingRow(matchId: string): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`friend_accept:${matchId}`).setLabel("สนใจคุยด้วย").setEmoji("✅").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`friend_decline:${matchId}`).setLabel("ยังไม่สะดวก").setEmoji("ข").setStyle(ButtonStyle.Secondary),
+  );
+}
+
+function pendingEmbed(guild: any, match: FriendMatch): EmbedBuilder {
+  const memberA = guild.members.cache.get(match.userA);
+  return new EmbedBuilder().setTitle("👋 มีคนอยากรู้จักคุณ!").setDescription(`<@${match.userA}> สนใจจะคุยกับคุณเหมือนกันนะ\n\nถ้าคุณกดสนใจกลับ จะเป็น **Match** และบอทจะแจ้งให้ทั้งคู่ทราบ`).setColor(0x5865f2).addFields({ name: "👤 คนที่สนใจ", value: `<@${match.userA}> (${memberA?.displayName ?? "สมาชิก"})` }).setTimestamp();
+}
+
+async function notifyUser(guild: any, userId: string, content: string, match?: FriendMatch, pending = false): Promise<void> {
   const member = await guild.members.fetch(userId).catch(() => null);
   if (!member) return;
   await member.send({
     content,
-    ...(match ? { embeds: [matchedEmbed(guild, match)], components: [matchRow(match.id)] } : {}),
+    ...(match ? { embeds: [pending ? pendingEmbed(guild, match) : matchedEmbed(guild, match)], components: [pending ? pendingRow(match.id) : matchRow(match.id)] } : {}),
     allowedMentions: { users: match ? [match.userA, match.userB] : [userId] },
   }).catch(() => null);
 }
@@ -121,7 +134,7 @@ export async function handleFriendButton(interaction: ButtonInteraction): Promis
   if (action === "friend_interest") {
     if (interaction.user.id !== match.userA || match.status !== "candidate") { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
     match.status = "pending"; saveFriendMatch(match);
-    await notifyUser(guild, match.userB, `มีคนสนใจอยากคุยกับคุณแล้ว! <@${match.userA}> กำลังรอว่าคุณจะสนใจคุยด้วยไหม`, match);
+    await notifyUser(guild, match.userB, `มีคนสนใจอยากคุยกับคุณแล้ว! <@${match.userA}> กำลังรอว่าคุณจะสนใจคุยด้วยไหม`, match, true);
     await interaction.update({ content: "✅ ส่งคำขอให้เขาแล้ว ถ้าเขาสนใจกลับ บอทจะแจ้งให้คุณทราบ", embeds: [], components: [] });
     return;
   }
