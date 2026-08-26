@@ -54,6 +54,9 @@ import * as editshopCmd from "./commands/editshop.js";
 import * as givesporeCmd from "./commands/givespore.js";
 import * as giveexpCmd from "./commands/giveexp.js";
 import * as giveitemCmd from "./commands/giveitem.js";
+import * as friendprofileCmd from "./commands/friendprofile.js";
+import * as friendmatchCmd from "./commands/friendmatch.js";
+import { handleFriendButton, handleFriendVoiceState } from "./friendSystem.js";
 import * as setsporeCmd from "./commands/setspore.js";
 import * as setlogCmd from "./commands/setlog.js";
 import * as leaderboardCmd from "./commands/leaderboard.js";
@@ -128,6 +131,8 @@ commands.set("editshop", editshopCmd);
 commands.set("give-spore", givesporeCmd);
 commands.set("give-exp", giveexpCmd);
 commands.set("give-item", giveitemCmd);
+commands.set("friend-profile", friendprofileCmd);
+commands.set("friend-match", friendmatchCmd);
 commands.set("set-spore", setsporeCmd);
 commands.set("setlog", setlogCmd);
 commands.set("leaderboard", leaderboardCmd);
@@ -234,6 +239,8 @@ export async function startBot(): Promise<void> {
           await handleLuckyDoorsButton(interaction);
         } else if (id.startsWith("luckydoors_pick:")) {
           await handleLuckyDoorsPick(interaction);
+        } else if (id.startsWith("friend_")) {
+          await handleFriendButton(interaction);
         } else if (id.startsWith("market_buy:") || id.startsWith("market_cancel:")) {
           await handleMarketplaceButton(interaction);
         } else if (id.startsWith("crash_cashout:")) {
@@ -331,6 +338,9 @@ export async function startBot(): Promise<void> {
   client.on(Events.VoiceStateUpdate, (oldState, newState) => {
     try { handleVoiceStateUpdate(oldState, newState, client); }
     catch (err) { logger.error({ err }, "Error handling voice state update"); }
+    handleFriendVoiceState(oldState, newState).catch((err) =>
+      logger.error({ err }, "Error handling friend match voice room")
+    );
     handleDynVoice(oldState, newState).catch((err) =>
       logger.error({ err }, "Error handling dynamic voice channel")
     );
