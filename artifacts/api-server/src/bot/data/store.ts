@@ -210,6 +210,31 @@ export interface WorldMushroomState {
   lastSeasonResult?: WorldMushroomSeasonResult;
 }
 
+
+export interface FriendProfile {
+  guildId: string;
+  userId: string;
+  interests: string[];
+  chatStyle: string;
+  availability: string;
+  optIn: boolean;
+  excludedUserIds: string[];
+  updatedAt: number;
+}
+
+export type FriendMatchStatus = "candidate" | "pending" | "matched" | "later" | "voice" | "declined";
+
+export interface FriendMatch {
+  id: string;
+  guildId: string;
+  userA: string;
+  userB: string;
+  status: FriendMatchStatus;
+  createdAt: number;
+  matchedAt?: number;
+  voiceChannelId?: string;
+}
+
 export interface PlayerData {
   userId: string;
   sporePoints: number;
@@ -353,6 +378,8 @@ export interface Store {
   inventories: Record<string, InventoryItem[]>;
   marketplaceListings: Record<string, MarketplaceListing>;
   marketplaceHistory: MarketplaceHistoryEntry[];
+  friendProfiles: Record<string, FriendProfile>;
+  friendMatches: FriendMatch[];
 }
 
 function emptyStore(): Store {
@@ -377,6 +404,8 @@ function emptyStore(): Store {
     inventories: {},
     marketplaceListings: {},
     marketplaceHistory: [],
+    friendProfiles: {},
+    friendMatches: [],
   };
 }
 
@@ -473,6 +502,8 @@ function loadStore(): Store {
       inventories: (parsed.inventories ?? {}) as Record<string, InventoryItem[]>,
       marketplaceListings: (parsed.marketplaceListings ?? {}) as Record<string, MarketplaceListing>,
       marketplaceHistory: (parsed.marketplaceHistory ?? []) as MarketplaceHistoryEntry[],
+      friendProfiles: (parsed.friendProfiles ?? {}) as Record<string, FriendProfile>,
+      friendMatches: (parsed.friendMatches ?? []) as FriendMatch[],
     };
   } catch {
     return emptyStore();
@@ -486,6 +517,48 @@ function saveStore(store: Store): void {
 let _store: Store = loadStore();
 
 export function getStore(): Store { return _store; }
+
+
+// ─── Friend Match ───────────────────────────────────────────
+
+function friendProfileKey(guildId: string, userId: string): string {
+  return guildId + ":" + userId;
+}
+
+export function getFriendProfile(guildId: string, userId: string): FriendProfile | undefined {
+  return _store.friendProfiles[friendProfileKey(guildId, userId)];
+}
+
+export function saveFriendProfile(profile: FriendProfile): void {
+  _store.friendProfiles[friendProfileKey(profile.guildId, profile.userId)] = profile;
+  saveStore(_store);
+}
+
+export function getFriendProfiles(guildId: string): FriendProfile[] {
+  return Object.values(_store.friendProfiles).filter((profile) => profile.guildId === guildId);
+}
+
+export function saveFriendMatch(match: FriendMatch): void {
+  const index = _store.friendMatches.findIndex((item) => item.id === match.id);
+  if (index >= 0) _store.friendMatches[index] = match;
+  else _store.friendMatches.push(match);
+  saveStore(_store);
+}
+
+export function getFriendMatch(id: string): FriendMatch | undefined {
+  return _store.friendMatches.find((match) => match.id === id);
+}
+
+export function getFriendMatchBetween(guildId: string, userA: string, userB: string): FriendMatch | undefined {
+  return _store.friendMatches.find((match) =>
+    match.guildId === guildId &&
+    ((match.userA === userA && match.userB === userB) || (match.userA === userB && match.userB === userA))
+  );
+}
+
+export function getFriendMatchByVoiceChannel(channelId: string): FriendMatch | undefined {
+  return _store.friendMatches.find((match) => match.voiceChannelId === channelId);
+}
 
 export function getEcosystemState(): EcosystemState {
   return _store.ecosystem;
