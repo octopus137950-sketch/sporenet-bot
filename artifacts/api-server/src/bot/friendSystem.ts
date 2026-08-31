@@ -47,7 +47,7 @@ function otherUser(match: FriendMatch, userId: string): string {
   return match.userA === userId ? match.userB : match.userA;
 }
 
-function matchRow(matchId: string): ActionRowBuilder<ButtonBuilder> {
+export function matchRow(matchId: string): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`friend_voice:${matchId}`).setLabel("เข้าห้องเสียง").setEmoji("🎙️").setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId(`friend_later:${matchId}`).setLabel("ไว้คุยทีหลัง").setEmoji("💬").setStyle(ButtonStyle.Secondary),
@@ -84,7 +84,7 @@ function pendingEmbed(guild: any, match: FriendMatch): EmbedBuilder {
   ).setTimestamp();
 }
 
-async function notifyUser(guild: any, userId: string, content: string, match?: FriendMatch, pending = false): Promise<void> {
+export async function notifyUser(guild: any, userId: string, content: string, match?: FriendMatch, pending = false): Promise<void> {
   const member = await guild.members.fetch(userId).catch(() => null);
   if (!member) return;
   await member.send({
