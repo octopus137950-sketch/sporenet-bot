@@ -264,7 +264,9 @@ export async function startBot(): Promise<void> {
       }
 
       if (interaction.isStringSelectMenu()) {
-        if (interaction.customId === "shop_select") {
+        if (interaction.customId.startsWith("friend_interests:")) {
+          await friendprofileCmd.handleInterestSelect(interaction);
+        } else if (interaction.customId === "shop_select") {
           await handleShopSelect(interaction);
         } else if (interaction.customId.startsWith("inv_select:")) {
           await handleInventorySelect(interaction);
