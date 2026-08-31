@@ -20,21 +20,24 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const old = getFriendMatchBetween(guild.id, interaction.user.id, candidate.userId);
     return !old || ["declined", "candidate"].includes(old.status);
   });
-  const sorted = profiles.filter((candidate) => profile.interests.some((interest) => candidate.interests.includes(interest)))
-    .sort((a, b) => candidateScore(profile, b) - candidateScore(profile, a));
-  let candidate = null as typeof sorted[number] | null;
+  const ranked = profiles.sort((a, b) => candidateScore(profile, b) - candidateScore(profile, a));
+  const topScore = ranked.length > 0 ? candidateScore(profile, ranked[0]) : 0;
+  const fallbackPool = ranked.filter((item) => candidateScore(profile, item) === topScore);
+  const ordered = topScore > 0 ? ranked : fallbackPool.sort(() => Math.random() - 0.5);
+  let candidate = null as typeof ranked[number] | null;
   let member = null as Awaited<ReturnType<typeof guild.members.fetch>> | null;
-  for (const item of sorted) {
+  for (const item of ordered) {
     const found = await guild.members.fetch(item.userId).catch(() => null);
     if (found) { candidate = item; member = found; break; }
   }
-  if (!candidate || !member) { await interaction.editReply("ยังหาเพื่อนที่ตรงกันไม่ได้ ลองกลับมาใหม่ภายหลังนะ"); return; }
+  if (!candidate || !member) { await interaction.editReply("ตอนนี้ยังไม่มีสมาชิกคนอื่นที่เปิดรับการจับคู่ ลองกลับมาใหม่ภายหลังนะ"); return; }
+  const isFallback = candidateScore(profile, candidate) === 0;
   const match = { id: randomUUID(), guildId: guild.id, userA: interaction.user.id, userB: candidate.userId, status: "candidate" as const, createdAt: Date.now() };
   saveFriendMatch(match);
   const shared = profile.interests.filter((interest) => candidate!.interests.includes(interest));
   const embed = new EmbedBuilder()
-    .setTitle("🧑‍🤝‍🧑 เจอคนที่น่าจะคุยกันได้!")
-    .setDescription(`**${member.displayName}** ก็เปิดรับการหาเพื่อนเหมือนกัน\n\nความสนใจที่ตรงกัน: **${interestLabels(shared)}**`)
+    .setTitle(isFallback ? "🧑‍🤝‍🧑 แนะนำเพื่อนใหม่ให้คุณ!" : "🧑‍🤝‍🧑 เจอคนที่น่าจะคุยกันได้!")
+    .setDescription(`**${member.displayName}** ก็เปิดรับการหาเพื่อนเหมือนกัน${isFallback ? "\n\nยังไม่มีความสนใจที่ตรงกัน ระบบจึงสุ่มแนะนำสมาชิกที่เปิดรับการจับคู่ให้ก่อน" : `\n\nความสนใจที่ตรงกัน: **${interestLabels(shared)}**`}`)
     .setColor(0x5865f2)
     .addFields(
       { name: "💬 สไตล์การคุย", value: candidate.chatStyle, inline: true },
