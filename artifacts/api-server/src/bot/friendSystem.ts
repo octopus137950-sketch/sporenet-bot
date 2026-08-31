@@ -125,8 +125,16 @@ async function createMatchVoice(guild: any, match: FriendMatch): Promise<any> {
   return channel;
 }
 
+const friendActionLocks = new Set<string>();
+
 export async function handleFriendButton(interaction: ButtonInteraction): Promise<void> {
   const [action, matchId] = interaction.customId.split(":");
+  const lockKey = `${interaction.user.id}:${action}:${matchId}`;
+  if (friendActionLocks.has(lockKey)) {
+    await interaction.reply({ content: "ปุ่มนี้กำลังถูกประมวลผลอยู่ กรุณารอสักครู่", ephemeral: true }).catch(() => null);
+    return;
+  }
+  friendActionLocks.add(lockKey);
   if (!matchId) return;
   const match = getFriendMatch(matchId);
   if (!match) { await interaction.reply({ content: "❌ ไม่พบข้อมูล match นี้แล้ว", ephemeral: true }); return; }
@@ -161,6 +169,7 @@ export async function handleFriendButton(interaction: ButtonInteraction): Promis
   }
   if (action === "friend_voice") {
     if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later"].includes(match.status)) { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (match.voiceRequestedBy === interaction.user.id) { await interaction.reply({ content: "ส่งคำขอเข้าห้องเสียงไปแล้ว กรุณารออีกฝ่ายตอบรับ", ephemeral: true }); return; }
     if (match.voiceRequestedBy && match.voiceRequestedBy !== interaction.user.id) {
       const channel = await createMatchVoice(guild, match);
       await interaction.update({ content: `อีกฝ่ายตอบรับแล้ว เข้ามาคุยกันได้เลย ${channel}`, embeds: [], components: [] });
@@ -176,6 +185,8 @@ export async function handleFriendButton(interaction: ButtonInteraction): Promis
   }
   if (action === "friend_later") {
     if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later"].includes(match.status)) { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (match.laterBy === interaction.user.id) { await interaction.reply({ content: "เลือกไว้คุยทีหลังไปแล้ว ไม่ต้องกดซ้ำ", ephemeral: true }); return; }
+    if (match.voiceRequestedBy === interaction.user.id) { match.voiceRequestedBy = undefined; }
     if (match.voiceRequestedBy && match.voiceRequestedBy !== interaction.user.id) {
       match.laterBy = interaction.user.id;
       match.status = "later"; saveFriendMatch(match);
