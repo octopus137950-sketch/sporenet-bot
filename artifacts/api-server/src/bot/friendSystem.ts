@@ -3,7 +3,7 @@ import {
   PermissionFlagsBits, VoiceState,
 } from "discord.js";
 import {
-  FriendMatch, FriendProfile, getFriendMatch, getFriendMatchByVoiceChannel, getFriendProfile, saveFriendMatch,
+  FriendMatch, FriendProfile, getDynVoiceConfig, getFriendMatch, getFriendMatchByVoiceChannel, getFriendProfile, saveFriendMatch,
   saveFriendProfile,
 } from "./data/store.js";
 
@@ -117,16 +117,26 @@ async function createMatchVoice(guild: any, match: FriendMatch): Promise<any> {
   if (existing?.isVoiceBased()) return existing;
   const memberA = await guild.members.fetch(match.userA).catch(() => null);
   const memberB = await guild.members.fetch(match.userB).catch(() => null);
+  const dynConfig = getDynVoiceConfig(guild.id);
+  const starterChannels = (dynConfig?.starterChannelIds ?? [])
+    .map((id) => guild.channels.cache.get(id))
+    .filter((channel): channel is any => Boolean(channel?.isVoiceBased?.()));
+  const starter = starterChannels.length > 0
+    ? starterChannels[Math.floor(Math.random() * starterChannels.length)]
+    : null;
+  const botId = guild.client.user?.id;
   const channel = await guild.channels.create({
     name: `🤝 match-${(memberA?.displayName ?? "เพื่อน").slice(0, 18)}-${(memberB?.displayName ?? "เพื่อน").slice(0, 18)}`.slice(0, 100),
     type: ChannelType.GuildVoice,
+    parent: starter?.parentId ?? undefined,
     permissionOverwrites: [
       { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] },
+      ...(botId ? [{ id: botId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.ManageChannels] }] : []),
       { id: match.userA, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] },
       { id: match.userB, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] },
     ],
-    position: 9999,
   });
+  await channel.setPosition(9999).catch(() => null);
   match.voiceChannelId = channel.id;
   match.status = "voice";
   saveFriendMatch(match);
