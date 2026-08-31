@@ -20,6 +20,8 @@ import { data as friendmatchData } from "./commands/friendmatch.js";
 import { data as friendMeData } from "./commands/friend-me.js";
 import { data as setFriendChannelData } from "./commands/setfriendchannel.js";
 import { data as friendForceMatchData } from "./commands/friend-force-match.js";
+import { data as setVoiceShareData } from "./commands/setvoiceshare.js";
+import { data as voiceShareData } from "./commands/voiceshare.js";
 import { data as setsporeData } from "./commands/setspore.js";
 import { data as setlogData } from "./commands/setlog.js";
 import { data as leaderboardData } from "./commands/leaderboard.js";
@@ -94,6 +96,8 @@ export async function deployCommands(): Promise<void> {
     friendMeData.toJSON(),
     setFriendChannelData.toJSON(),
     friendForceMatchData.toJSON(),
+    setVoiceShareData.toJSON(),
+    voiceShareData.toJSON(),
     setsporeData.toJSON(),
     setlogData.toJSON(),
     leaderboardData.toJSON(),

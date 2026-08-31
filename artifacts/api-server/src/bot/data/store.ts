@@ -155,6 +155,11 @@ export interface CustomBoss {
   createdAt: number;
 }
 
+export interface VoiceShareConfig {
+  channelId: string;
+  updatedAt: number;
+}
+
 export interface GuildConfig {
   welcome?: WelcomeGoodbyeConfig;
   goodbye?: WelcomeGoodbyeConfig;
@@ -174,6 +179,7 @@ export interface GuildConfig {
   aiChannelId?: string;
   worldMushroom?: WorldMushroomState;
   marketplace?: MarketplaceConfig;
+  voiceShare?: VoiceShareConfig;
 }
 
 export interface MarketplaceConfig {
@@ -1010,6 +1016,16 @@ export function getVoiceRewardConfig(guildId: string): VoiceRewardConfig | undef
 export function setVoiceRewardConfig(guildId: string, config: VoiceRewardConfig): void {
   if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
   _store.guilds[guildId]!.voiceReward = config;
+  saveStore(_store);
+}
+
+export function getVoiceShareConfig(guildId: string): VoiceShareConfig | undefined {
+  return _store.guilds[guildId]?.voiceShare;
+}
+
+export function setVoiceShareConfig(guildId: string, channelId: string): void {
+  if (!_store.guilds[guildId]) _store.guilds[guildId] = {};
+  _store.guilds[guildId]!.voiceShare = { channelId, updatedAt: Date.now() };
   saveStore(_store);
 }
 

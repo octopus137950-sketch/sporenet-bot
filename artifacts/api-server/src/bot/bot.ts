@@ -59,6 +59,9 @@ import * as friendmatchCmd from "./commands/friendmatch.js";
 import * as friendMeCmd from "./commands/friend-me.js";
 import * as setFriendChannelCmd from "./commands/setfriendchannel.js";
 import * as friendForceMatchCmd from "./commands/friend-force-match.js";
+import * as setVoiceShareCmd from "./commands/setvoiceshare.js";
+import * as voiceShareCmd from "./commands/voiceshare.js";
+import { handleVoiceShareState } from "./events/voiceShareHandler.js";
 import { handleFriendButton, handleFriendVoiceState } from "./friendSystem.js";
 import * as setsporeCmd from "./commands/setspore.js";
 import * as setlogCmd from "./commands/setlog.js";
@@ -139,6 +142,8 @@ commands.set("friend-match", friendmatchCmd);
 commands.set("friend-me", friendMeCmd);
 commands.set("set-friend-channel", setFriendChannelCmd);
 commands.set("friend-force-match", friendForceMatchCmd);
+  commands.set("set-voice-share-channel", setVoiceShareCmd);
+  commands.set("voice-share", voiceShareCmd);
 commands.set("set-spore", setsporeCmd);
 commands.set("setlog", setlogCmd);
 commands.set("leaderboard", leaderboardCmd);
@@ -346,7 +351,8 @@ export async function startBot(): Promise<void> {
   client.on(Events.VoiceStateUpdate, (oldState, newState) => {
     try { handleVoiceStateUpdate(oldState, newState, client); }
     catch (err) { logger.error({ err }, "Error handling voice state update"); }
-    handleFriendVoiceState(oldState, newState).catch((err) =>
+    handleVoiceShareState(oldState, newState).catch((err) => logger.error({ err }, "Error handling voice share"));
+  handleFriendVoiceState(oldState, newState).catch((err) =>
       logger.error({ err }, "Error handling friend match voice room")
     );
     handleDynVoice(oldState, newState).catch((err) =>
