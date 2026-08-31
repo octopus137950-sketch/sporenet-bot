@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
-import { getFriendChannelConfig, getFriendMatchBetween, getFriendProfile, getFriendProfiles, saveFriendMatch } from "../data/store.js";
+import { getFriendChannelConfig, getFriendMatch, getFriendMatchBetween, getFriendProfile, getFriendProfiles, saveFriendMatch } from "../data/store.js";
 import { candidateScore, interestLabels } from "../friendSystem.js";
 
 export const data = new SlashCommandBuilder()
@@ -19,6 +19,22 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const profile = getFriendProfile(guild.id, interaction.user.id);
   if (!profile) { await interaction.editReply("❌ ตั้งค่าโปรไฟล์ก่อนด้วย `/friend-profile`"); return; }
   if (!profile.optIn) { await interaction.editReply("❌ ตอนนี้คุณปิดการจับคู่ไว้ ให้ใช้ `/friend-profile` และตั้ง `opt-in` เป็น True เพื่อเปิด"); return; }
+  const pendingRequest = getFriendProfiles(guild.id)
+    .map((candidate) => ({ candidate, match: getFriendMatchBetween(guild.id, interaction.user.id, candidate.userId) }))
+    .find(({ match }) => match?.status === "pending" && match.userB === interaction.user.id);
+  if (pendingRequest) {
+    const member = await guild.members.fetch(pendingRequest.candidate.userId).catch(() => null);
+    if (member) {
+      const match = getFriendMatch(pendingRequest.match.id) ?? pendingRequest.match;
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId(`friend_accept:${match.id}`).setLabel("สนใจคุยด้วย").setEmoji("✅").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`friend_decline:${match.id}`).setLabel("ไม่ใช่ตอนนี้").setStyle(ButtonStyle.Danger),
+      );
+      const embed = new EmbedBuilder().setTitle("มีคำขอหาเพื่อนค้างอยู่").setDescription(`<@${match.userA}> สนใจอยากคุยกับคุณ\n\nความสนใจของอีกฝ่าย: **${interestLabels(pendingRequest.candidate.interests)}**`).setColor(0x5865f2);
+      await interaction.editReply({ content: "คุณมีคำขอหาเพื่อนที่รอการตอบรับอยู่", embeds: [embed], components: [row] });
+      return;
+    }
+  }
   const profiles = getFriendProfiles(guild.id).filter((candidate) => {
     if (candidate.userId === interaction.user.id || !candidate.optIn) return false;
     if (profile.excludedUserIds.includes(candidate.userId)) return false;
