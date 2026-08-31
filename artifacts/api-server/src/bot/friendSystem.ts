@@ -147,68 +147,69 @@ export async function handleFriendButton(interaction: ButtonInteraction): Promis
   }
   friendActionLocks.add(lockKey);
   setTimeout(() => friendActionLocks.delete(lockKey), 10_000);
+  await interaction.deferUpdate().catch(() => null);
   if (!matchId) return;
   const match = getFriendMatch(matchId);
-  if (!match) { await interaction.reply({ content: "❌ ไม่พบข้อมูล match นี้แล้ว", ephemeral: true }); return; }
+  if (!match) { await interaction.editReply({ content: "❌ ไม่พบข้อมูล match นี้แล้ว", ephemeral: true }); return; }
   const guild = interaction.client.guilds.cache.get(match.guildId);
-  if (!guild) { await interaction.reply({ content: "❌ ไม่พบเซิร์ฟเวอร์ของ match นี้", ephemeral: true }); return; }
+  if (!guild) { await interaction.editReply({ content: "❌ ไม่พบเซิร์ฟเวอร์ของ match นี้", ephemeral: true }); return; }
   if (action === "friend_skip") {
-    if (interaction.user.id !== match.userA || match.status !== "candidate") { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (interaction.user.id !== match.userA || match.status !== "candidate") { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
     match.status = "declined"; saveFriendMatch(match);
-    await interaction.update({ content: "ข้ามคนนี้แล้ว ลองกด `/friend-match` เพื่อหาคนใหม่ได้เลย", embeds: [], components: [] });
+    await interaction.editReply({ content: "ข้ามคนนี้แล้ว ลองกด `/friend-match` เพื่อหาคนใหม่ได้เลย", embeds: [], components: [] });
     return;
   }
   if (action === "friend_interest") {
-    if (interaction.user.id !== match.userA || match.status !== "candidate") { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (interaction.user.id !== match.userA || match.status !== "candidate") { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
     match.status = "pending"; saveFriendMatch(match);
     await notifyUser(guild, match.userB, `มีคนสนใจอยากคุยกับคุณแล้ว! <@${match.userA}> กำลังรอว่าคุณจะสนใจคุยด้วยไหม`, match, true);
-    await interaction.update({ content: "✅ ส่งคำขอให้เขาแล้ว ถ้าเขาสนใจกลับ บอทจะแจ้งให้คุณทราบ", embeds: [], components: [] });
+    await interaction.editReply({ content: "✅ ส่งคำขอให้เขาแล้ว ถ้าเขาสนใจกลับ บอทจะแจ้งให้คุณทราบ", embeds: [], components: [] });
     return;
   }
   if (action === "friend_accept") {
-    if (interaction.user.id !== match.userB || match.status !== "pending") { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (interaction.user.id !== match.userB || match.status !== "pending") { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
     match.status = "matched"; match.matchedAt = Date.now(); saveFriendMatch(match);
-    await interaction.update({ content: "จับคู่สำเร็จแล้ว เมื่อพร้อมคุยให้เลือกการดำเนินการต่อจากข้อความนี้", embeds: [], components: [matchRow(match.id)] });
+    await interaction.editReply({ content: "จับคู่สำเร็จแล้ว เมื่อพร้อมคุยให้เลือกการดำเนินการต่อจากข้อความนี้", embeds: [], components: [matchRow(match.id)] });
     await notifyUser(guild, match.userA, `<@${match.userB}> ตอบรับการจับคู่แล้ว เมื่อพร้อมคุยให้เลือกเข้าห้องเสียงหรือไว้คุยทีหลัง`);
     return;
   }
   if (action === "friend_decline") {
-    if (interaction.user.id !== match.userB || match.status !== "pending") { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (interaction.user.id !== match.userB || match.status !== "pending") { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
     match.status = "declined"; saveFriendMatch(match);
-    await interaction.update({ content: "รับทราบแล้ว ไม่ได้แจ้งรายละเอียดเพิ่มเติมให้อีกฝ่าย", embeds: [], components: [] });
+    await interaction.editReply({ content: "รับทราบแล้ว ไม่ได้แจ้งรายละเอียดเพิ่มเติมให้อีกฝ่าย", embeds: [], components: [] });
     await notifyUser(guild, match.userA, "อีกฝ่ายยังไม่สะดวก match ในครั้งนี้ ลองหาเพื่อนคนใหม่ได้เลย");
     return;
   }
   if (action === "friend_voice") {
-    if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later"].includes(match.status)) { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
-    if (match.voiceRequestedBy === interaction.user.id) { await interaction.reply({ content: "ส่งคำขอเข้าห้องเสียงไปแล้ว กรุณารออีกฝ่ายตอบรับ", ephemeral: true }); return; }
+    if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later"].includes(match.status)) { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (match.voiceRequestedBy === interaction.user.id) { await interaction.editReply({ content: "ส่งคำขอเข้าห้องเสียงไปแล้ว กรุณารออีกฝ่ายตอบรับ", embeds: [], components: [] }); return; }
     if (match.voiceRequestedBy && match.voiceRequestedBy !== interaction.user.id) {
       const channel = await createMatchVoice(guild, match);
-      await interaction.update({ content: `อีกฝ่ายตอบรับแล้ว เข้ามาคุยกันได้เลย ${channel}`, embeds: [], components: [] });
+      await interaction.editReply({ content: `อีกฝ่ายตอบรับแล้ว เข้ามาคุยกันได้เลย ${channel}`, embeds: [], components: [] });
       await notifyUser(guild, match.voiceRequestedBy, `อีกฝ่ายตอบรับคำขอเข้าห้องเสียงแล้ว เข้ามาคุยกันได้เลย ${channel}`);
       return;
     }
     match.voiceRequestedBy = interaction.user.id;
     saveFriendMatch(match);
     const otherId = otherUser(match, interaction.user.id);
-    await interaction.update({ content: "ส่งคำขอเข้าห้องเสียงให้อีกฝ่ายแล้ว รอการตอบรับก่อนนะ", embeds: [], components: [] });
+    await interaction.editReply({ content: "ส่งคำขอเข้าห้องเสียงให้อีกฝ่ายแล้ว รอการตอบรับก่อนนะ", embeds: [], components: [] });
     await notifyVoiceRequest(guild, otherId, match);
     return;
   }
   if (action === "friend_later") {
-    if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later"].includes(match.status)) { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
-    if (match.laterBy === interaction.user.id) { await interaction.reply({ content: "เลือกไว้คุยทีหลังไปแล้ว ไม่ต้องกดซ้ำ", ephemeral: true }); return; }
+    if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later"].includes(match.status)) { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (match.laterBy === interaction.user.id) { await interaction.editReply({ content: "เลือกไว้คุยทีหลังไปแล้ว ไม่ต้องกดซ้ำ", embeds: [], components: [] }); return; }
     if (match.voiceRequestedBy === interaction.user.id) { match.voiceRequestedBy = undefined; }
     if (match.voiceRequestedBy && match.voiceRequestedBy !== interaction.user.id) {
       match.laterBy = interaction.user.id;
       match.status = "later"; saveFriendMatch(match);
-      await interaction.update({ content: "รับทราบแล้ว อีกฝ่ายได้รับแจ้งว่าคุณยังไม่สะดวกเข้าห้องเสียง", embeds: [], components: [] });
+      await interaction.editReply({ content: "รับทราบแล้ว อีกฝ่ายได้รับแจ้งว่าคุณยังไม่สะดวกเข้าห้องเสียง", embeds: [], components: [] });
       await notifyUser(guild, match.voiceRequestedBy, "อีกฝ่ายอาจยังไม่สะดวกเข้าห้องเสียงตอนนี้ ลองทักแชตคุยกันก่อนได้นะ", match);
       return;
     }
     match.laterBy = interaction.user.id;
     match.status = "later"; saveFriendMatch(match);
-    await interaction.update({ content: "บันทึกไว้คุยทีหลังแล้ว ลองทักแชตคุยกันได้เลย", embeds: [], components: [] });
+    await interaction.editReply({ content: "บันทึกไว้คุยทีหลังแล้ว ลองทักแชตคุยกันได้เลย", embeds: [], components: [] });
     await notifyUser(guild, otherUser(match, interaction.user.id), "พวกคุณ Match กันแล้ว อีกฝ่ายขอไว้คุยทีหลัง ลองทักแชตคุยกันดูนะ", match);
   }
 }
