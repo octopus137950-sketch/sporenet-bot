@@ -3,7 +3,7 @@ import {
   PermissionFlagsBits, VoiceState,
 } from "discord.js";
 import {
-  FriendMatch, FriendProfile, getFriendMatch, getFriendMatchByVoiceChannel, saveFriendMatch,
+  FriendMatch, FriendProfile, getFriendMatch, getFriendMatchByVoiceChannel, getFriendProfile, saveFriendMatch,
   saveFriendProfile,
 } from "./data/store.js";
 
@@ -75,7 +75,13 @@ function pendingRow(matchId: string): ActionRowBuilder<ButtonBuilder> {
 
 function pendingEmbed(guild: any, match: FriendMatch): EmbedBuilder {
   const memberA = guild.members.cache.get(match.userA);
-  return new EmbedBuilder().setTitle("👋 มีคนอยากรู้จักคุณ!").setDescription(`<@${match.userA}> สนใจจะคุยกับคุณเหมือนกันนะ\n\nถ้าคุณกดสนใจกลับ จะเป็น **Match** และบอทจะแจ้งให้ทั้งคู่ทราบ`).setColor(0x5865f2).addFields({ name: "👤 คนที่สนใจ", value: `<@${match.userA}> (${memberA?.displayName ?? "สมาชิก"})` }).setTimestamp();
+  const profile = getFriendProfile(match.guildId, match.userA);
+  return new EmbedBuilder().setTitle("👋 มีคนอยากรู้จักคุณ!").setDescription(`<@${match.userA}> สนใจจะคุยกับคุณเหมือนกันนะ\n\nถ้าคุณกดสนใจกลับ จะเป็น **Match** และบอทจะแจ้งให้ทั้งคู่ทราบ`).setColor(0x5865f2).addFields(
+    { name: "👤 คนที่สนใจ", value: `<@${match.userA}> (${memberA?.displayName ?? "สมาชิก"})` },
+    { name: "💬 สไตล์การคุย", value: profile?.chatStyle ?? "ไม่ระบุ", inline: true },
+    { name: "🕒 มักออนไลน์", value: profile?.availability ?? "ไม่ระบุ", inline: true },
+    { name: "🎯 ความสนใจ", value: profile ? interestLabels(profile.interests) : "ไม่ระบุ" },
+  ).setTimestamp();
 }
 
 async function notifyUser(guild: any, userId: string, content: string, match?: FriendMatch, pending = false): Promise<void> {
@@ -101,6 +107,7 @@ async function createMatchVoice(guild: any, match: FriendMatch): Promise<any> {
       { id: match.userA, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] },
       { id: match.userB, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] },
     ],
+    position: 9999,
   });
   match.voiceChannelId = channel.id;
   match.status = "voice";
