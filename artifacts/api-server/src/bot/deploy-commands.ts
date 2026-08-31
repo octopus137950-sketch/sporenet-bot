@@ -17,6 +17,8 @@ import { data as giveexpData } from "./commands/giveexp.js";
 import { data as giveitemData } from "./commands/giveitem.js";
 import { data as friendprofileData } from "./commands/friendprofile.js";
 import { data as friendmatchData } from "./commands/friendmatch.js";
+import { data as friendMeData } from "./commands/friend-me.js";
+import { data as setFriendChannelData } from "./commands/setfriendchannel.js";
 import { data as setsporeData } from "./commands/setspore.js";
 import { data as setlogData } from "./commands/setlog.js";
 import { data as leaderboardData } from "./commands/leaderboard.js";
@@ -88,6 +90,8 @@ export async function deployCommands(): Promise<void> {
     giveitemData.toJSON(),
     friendprofileData.toJSON(),
     friendmatchData.toJSON(),
+    friendMeData.toJSON(),
+    setFriendChannelData.toJSON(),
     setsporeData.toJSON(),
     setlogData.toJSON(),
     leaderboardData.toJSON(),

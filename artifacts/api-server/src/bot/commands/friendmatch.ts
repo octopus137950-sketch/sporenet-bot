@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
-import { getFriendMatchBetween, getFriendProfile, getFriendProfiles, saveFriendMatch } from "../data/store.js";
+import { getFriendChannelConfig, getFriendMatchBetween, getFriendProfile, getFriendProfiles, saveFriendMatch } from "../data/store.js";
 import { candidateScore, interestLabels } from "../friendSystem.js";
 
 export const data = new SlashCommandBuilder()
@@ -11,6 +11,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   await interaction.deferReply({ ephemeral: true });
   const guild = interaction.guild;
   if (!guild) { await interaction.editReply("❌ ใช้ได้เฉพาะในเซิร์ฟเวอร์เท่านั้น"); return; }
+  const friendChannel = getFriendChannelConfig(guild.id);
+  if (friendChannel && interaction.channelId !== friendChannel.channelId) {
+    await interaction.editReply(`ระบบหาเพื่อนเปิดให้ใช้เฉพาะห้อง <#${friendChannel.channelId}> เท่านั้น`);
+    return;
+  }
   const profile = getFriendProfile(guild.id, interaction.user.id);
   if (!profile) { await interaction.editReply("❌ ตั้งค่าโปรไฟล์ก่อนด้วย `/friend-profile`"); return; }
   if (!profile.optIn) { await interaction.editReply("❌ ตอนนี้คุณปิดการจับคู่ไว้ ให้ใช้ `/friend-profile` และตั้ง `opt-in` เป็น True เพื่อเปิด"); return; }

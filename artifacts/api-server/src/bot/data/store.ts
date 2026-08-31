@@ -211,6 +211,12 @@ export interface WorldMushroomState {
 }
 
 
+export interface FriendChannelConfig {
+  guildId: string;
+  channelId: string;
+  updatedAt: number;
+}
+
 export interface FriendProfile {
   guildId: string;
   userId: string;
@@ -380,6 +386,7 @@ export interface Store {
   marketplaceHistory: MarketplaceHistoryEntry[];
   friendProfiles: Record<string, FriendProfile>;
   friendMatches: FriendMatch[];
+  friendChannelConfigs: Record<string, FriendChannelConfig>;
 }
 
 function emptyStore(): Store {
@@ -406,6 +413,7 @@ function emptyStore(): Store {
     marketplaceHistory: [],
     friendProfiles: {},
     friendMatches: [],
+    friendChannelConfigs: {},
   };
 }
 
@@ -504,6 +512,7 @@ function loadStore(): Store {
       marketplaceHistory: (parsed.marketplaceHistory ?? []) as MarketplaceHistoryEntry[],
       friendProfiles: (parsed.friendProfiles ?? {}) as Record<string, FriendProfile>,
       friendMatches: (parsed.friendMatches ?? []) as FriendMatch[],
+      friendChannelConfigs: (parsed.friendChannelConfigs ?? {}) as Record<string, FriendChannelConfig>,
     };
   } catch {
     return emptyStore();
@@ -523,6 +532,20 @@ export function getStore(): Store { return _store; }
 
 function friendProfileKey(guildId: string, userId: string): string {
   return guildId + ":" + userId;
+}
+
+export function getFriendChannelConfig(guildId: string): FriendChannelConfig | undefined {
+  return _store.friendChannelConfigs[guildId];
+}
+
+export function saveFriendChannelConfig(config: FriendChannelConfig): void {
+  _store.friendChannelConfigs[config.guildId] = config;
+  saveStore(_store);
+}
+
+export function deleteFriendChannelConfig(guildId: string): void {
+  delete _store.friendChannelConfigs[guildId];
+  saveStore(_store);
 }
 
 export function getFriendProfile(guildId: string, userId: string): FriendProfile | undefined {
