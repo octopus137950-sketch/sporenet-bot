@@ -89,7 +89,7 @@ export async function notifyUser(guild: any, userId: string, content: string, ma
   if (!member) return;
   await member.send({
     content,
-    ...(match ? { embeds: [pending ? pendingEmbed(guild, match) : matchedEmbed(guild, match)], components: [pending ? pendingRow(match.id) : matchRow(match.id)] } : {}),
+    ...(pending && match ? { embeds: [pendingEmbed(guild, match)], components: [pendingRow(match.id)] } : {}),
     allowedMentions: { users: match ? [match.userA, match.userB] : [userId] },
   }).catch(() => null);
 }
