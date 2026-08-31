@@ -148,8 +148,8 @@ export async function handleFriendButton(interaction: ButtonInteraction): Promis
   if (action === "friend_accept") {
     if (interaction.user.id !== match.userB || match.status !== "pending") { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
     match.status = "matched"; match.matchedAt = Date.now(); saveFriendMatch(match);
-    await interaction.update({ embeds: [matchedEmbed(guild, match)], components: [matchRow(match.id)] });
-    await notifyUser(guild, match.userA, `<@${match.userB}> สนใจคุยกับคุณเหมือนกันนะ!`, match);
+    await interaction.update({ content: "จับคู่สำเร็จแล้ว เมื่อพร้อมคุยให้กดเลือกเข้าห้องเสียงหรือไว้คุยทีหลัง", embeds: [matchedEmbed(guild, match)], components: [matchRow(match.id)] });
+    await notifyUser(guild, match.userA, `<@${match.userB}> ตอบรับการจับคู่แล้ว เมื่อพร้อมคุยให้เลือกเข้าห้องเสียงหรือไว้คุยทีหลัง`, match);
     return;
   }
   if (action === "friend_decline") {
@@ -160,18 +160,33 @@ export async function handleFriendButton(interaction: ButtonInteraction): Promis
     return;
   }
   if (action === "friend_voice") {
-    if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later", "voice"].includes(match.status)) { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
-    const channel = await createMatchVoice(guild, match);
-    const content = `🎙️ สร้างห้องเสียงให้แล้ว ${channel}!\n<@${match.userA}> <@${match.userB}> เข้ามาคุยกันได้เลย`;
-    await interaction.update({ content, embeds: [], components: [] });
+    if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later"].includes(match.status)) { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (match.voiceRequestedBy && match.voiceRequestedBy !== interaction.user.id) {
+      const channel = await createMatchVoice(guild, match);
+      await interaction.update({ content: `อีกฝ่ายตอบรับแล้ว เข้ามาคุยกันได้เลย ${channel}`, embeds: [], components: [] });
+      await notifyUser(guild, match.voiceRequestedBy, `อีกฝ่ายตอบรับคำขอเข้าห้องเสียงแล้ว เข้ามาคุยกันได้เลย ${channel}`, match);
+      return;
+    }
+    match.voiceRequestedBy = interaction.user.id;
+    saveFriendMatch(match);
+    const otherId = otherUser(match, interaction.user.id);
+    await interaction.update({ content: "ส่งคำขอเข้าห้องเสียงให้อีกฝ่ายแล้ว รอการตอบรับก่อนนะ", embeds: [], components: [] });
+    await notifyUser(guild, otherId, `<@${interaction.user.id}> อยากเข้าห้องเสียงมาคุยกับคุณ คุณสะดวกเข้าร่วมไหม?`, match);
     return;
   }
   if (action === "friend_later") {
     if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later"].includes(match.status)) { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (match.voiceRequestedBy && match.voiceRequestedBy !== interaction.user.id) {
+      match.laterBy = interaction.user.id;
+      match.status = "later"; saveFriendMatch(match);
+      await interaction.update({ content: "รับทราบแล้ว อีกฝ่ายได้รับแจ้งว่าคุณยังไม่สะดวกเข้าห้องเสียง", embeds: [], components: [] });
+      await notifyUser(guild, match.voiceRequestedBy, "อีกฝ่ายอาจยังไม่สะดวกเข้าห้องเสียงตอนนี้ ลองทักแชตคุยกันก่อนได้นะ", match);
+      return;
+    }
+    match.laterBy = interaction.user.id;
     match.status = "later"; saveFriendMatch(match);
-    await interaction.update({ content: "💬 เดี๋ยวบอทส่ง DM เตือนทั้งสองคนไว้ให้", embeds: [], components: [] });
-    await notifyUser(guild, match.userA, `คุณ match กับ <@${match.userB}> แล้วนะ สนใจทักไปคุยกันได้เลย!\n\nนี่คือประวัติ match ของคุณกับคนนี้ จะได้ไม่ลืมว่าเคย match กัน`, match);
-    await notifyUser(guild, match.userB, `คุณ match กับ <@${match.userA}> แล้วนะ สนใจทักไปคุยกันได้เลย!\n\nนี่คือประวัติ match ของคุณกับคนนี้ จะได้ไม่ลืมว่าเคย match กัน`, match);
+    await interaction.update({ content: "บันทึกไว้คุยทีหลังแล้ว ลองทักแชตคุยกันได้เลย", embeds: [], components: [] });
+    await notifyUser(guild, otherUser(match, interaction.user.id), "พวกคุณ Match กันแล้ว อีกฝ่ายขอไว้คุยทีหลัง ลองทักแชตคุยกันดูนะ", match);
   }
 }
 

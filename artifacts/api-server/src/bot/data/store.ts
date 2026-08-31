@@ -238,6 +238,8 @@ export interface FriendMatch {
   status: FriendMatchStatus;
   createdAt: number;
   matchedAt?: number;
+  voiceRequestedBy?: string;
+  laterBy?: string;
   voiceChannelId?: string;
 }
 
