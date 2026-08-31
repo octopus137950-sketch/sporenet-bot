@@ -94,6 +94,24 @@ export async function notifyUser(guild: any, userId: string, content: string, ma
   }).catch(() => null);
 }
 
+function voiceRequestRow(matchId: string): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`friend_voice:${matchId}`).setLabel("เข้าห้องเสียง").setEmoji("🎙️").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`friend_later:${matchId}`).setLabel("ไว้คุยทีหลัง").setEmoji("💬").setStyle(ButtonStyle.Secondary),
+  );
+}
+
+async function notifyVoiceRequest(guild: any, userId: string, match: FriendMatch): Promise<void> {
+  const member = await guild.members.fetch(userId).catch(() => null);
+  if (!member) return;
+  await member.send({
+    content: `<@${match.voiceRequestedBy}> ขอชวนคุณเข้าห้องเสียง เมื่อคุณกดเข้าร่วมแล้วระบบจะสร้างห้องให้ทั้งคู่`,
+    embeds: [matchedEmbed(guild, match)],
+    components: [voiceRequestRow(match.id)],
+    allowedMentions: { users: [match.voiceRequestedBy ?? userId] },
+  }).catch(() => null);
+}
+
 async function createMatchVoice(guild: any, match: FriendMatch): Promise<any> {
   const existing = match.voiceChannelId ? guild.channels.cache.get(match.voiceChannelId) : null;
   if (existing?.isVoiceBased()) return existing;
@@ -115,13 +133,6 @@ async function createMatchVoice(guild: any, match: FriendMatch): Promise<any> {
   for (const member of [memberA, memberB]) {
     if (member?.voice.channelId) await member.voice.setChannel(channel).catch(() => null);
   }
-  const textChannel = guild.systemChannel ?? guild.channels.cache.find((item: any) => item.isTextBased?.() && item.viewable);
-  if (textChannel?.isTextBased?.()) {
-    await textChannel.send({
-      content: `🎉 <@${match.userA}> <@${match.userB}> คุณสองคน match กันแล้ว! สนใจเข้ามาคุยกันที่ ${channel}`,
-      allowedMentions: { users: [match.userA, match.userB] },
-    }).catch(() => null);
-  }
   return channel;
 }
 
@@ -135,6 +146,7 @@ export async function handleFriendButton(interaction: ButtonInteraction): Promis
     return;
   }
   friendActionLocks.add(lockKey);
+  setTimeout(() => friendActionLocks.delete(lockKey), 10_000);
   if (!matchId) return;
   const match = getFriendMatch(matchId);
   if (!match) { await interaction.reply({ content: "❌ ไม่พบข้อมูล match นี้แล้ว", ephemeral: true }); return; }
@@ -156,8 +168,8 @@ export async function handleFriendButton(interaction: ButtonInteraction): Promis
   if (action === "friend_accept") {
     if (interaction.user.id !== match.userB || match.status !== "pending") { await interaction.reply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
     match.status = "matched"; match.matchedAt = Date.now(); saveFriendMatch(match);
-    await interaction.update({ content: "จับคู่สำเร็จแล้ว เมื่อพร้อมคุยให้กดเลือกเข้าห้องเสียงหรือไว้คุยทีหลัง", embeds: [matchedEmbed(guild, match)], components: [matchRow(match.id)] });
-    await notifyUser(guild, match.userA, `<@${match.userB}> ตอบรับการจับคู่แล้ว เมื่อพร้อมคุยให้เลือกเข้าห้องเสียงหรือไว้คุยทีหลัง`, match);
+    await interaction.update({ content: "จับคู่สำเร็จแล้ว เมื่อพร้อมคุยให้เลือกการดำเนินการต่อจากข้อความนี้", embeds: [], components: [matchRow(match.id)] });
+    await notifyUser(guild, match.userA, `<@${match.userB}> ตอบรับการจับคู่แล้ว เมื่อพร้อมคุยให้เลือกเข้าห้องเสียงหรือไว้คุยทีหลัง`);
     return;
   }
   if (action === "friend_decline") {
@@ -173,14 +185,14 @@ export async function handleFriendButton(interaction: ButtonInteraction): Promis
     if (match.voiceRequestedBy && match.voiceRequestedBy !== interaction.user.id) {
       const channel = await createMatchVoice(guild, match);
       await interaction.update({ content: `อีกฝ่ายตอบรับแล้ว เข้ามาคุยกันได้เลย ${channel}`, embeds: [], components: [] });
-      await notifyUser(guild, match.voiceRequestedBy, `อีกฝ่ายตอบรับคำขอเข้าห้องเสียงแล้ว เข้ามาคุยกันได้เลย ${channel}`, match);
+      await notifyUser(guild, match.voiceRequestedBy, `อีกฝ่ายตอบรับคำขอเข้าห้องเสียงแล้ว เข้ามาคุยกันได้เลย ${channel}`);
       return;
     }
     match.voiceRequestedBy = interaction.user.id;
     saveFriendMatch(match);
     const otherId = otherUser(match, interaction.user.id);
     await interaction.update({ content: "ส่งคำขอเข้าห้องเสียงให้อีกฝ่ายแล้ว รอการตอบรับก่อนนะ", embeds: [], components: [] });
-    await notifyUser(guild, otherId, `<@${interaction.user.id}> อยากเข้าห้องเสียงมาคุยกับคุณ คุณสะดวกเข้าร่วมไหม?`, match);
+    await notifyVoiceRequest(guild, otherId, match);
     return;
   }
   if (action === "friend_later") {
