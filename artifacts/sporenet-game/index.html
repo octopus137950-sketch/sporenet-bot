@@ -2311,42 +2311,53 @@
                 <div class="card" style="max-width: 420px;">
                     <h1 style="font-size: 28px; color: #fff; margin-bottom: 8px;">SPORENET</h1>
                     <h2 style="margin-bottom: 24px;">Mushroom Adventure</h2>
-                    <p style="font-size: 14px; margin-bottom: 18px; line-height: 1.5;">กรอก Discord username แล้วใช้คำสั่ง <code>/verify</code> ใน Discord เพื่อรับรหัสยืนยันทาง DM</p>
+                    <p style="font-size: 14px; margin-bottom: 18px; line-height: 1.5;">กรอก Discord username ระบบจะตรวจสมาชิกในเซิร์ฟเวอร์และส่ง DM ให้กดยอมรับ</p>
                     <input id="verify-username" placeholder="Discord username" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:0;">
-                    <button class="btn" id="btn-find-player">ค้นหาผู้เล่น</button>
-                    <div id="player-preview" style="margin-top:14px;"></div>
-                    <input id="verify-code" placeholder="รหัส 6 หลักจาก DM" maxlength="6" inputmode="numeric" style="display:none; width:100%; padding:12px; margin-top:10px; border-radius:8px; border:0;">
-                    <button class="btn" id="btn-verify-code" style="display:none; margin-top:10px;">ยืนยันและเข้าเกม</button>
+                    <button class="btn" id="btn-request-verify">ส่งคำขอไป Discord</button>
+                    <div id="verify-status" style="margin-top:14px; line-height:1.5;"></div>
                     <div id="login-error" style="color:#ff7979; font-size:13px; margin-top:16px; white-space:pre-line;"></div>
                 </div>`;
-            document.getElementById('btn-find-player')?.addEventListener('click', lookupPlayer);
-            document.getElementById('btn-verify-code')?.addEventListener('click', verifyPlayerCode);
+            document.getElementById('btn-request-verify')?.addEventListener('click', requestWebVerification);
         }
 
-        async function lookupPlayer() {
+        async function requestWebVerification() {
             const username = document.getElementById('verify-username')?.value.trim();
+            const button = document.getElementById('btn-request-verify');
             if (!username) return showLoginError('กรุณากรอก Discord username');
+            button.disabled = true;
             try {
-                const res = await apiGet('/api/player/lookup?username=' + encodeURIComponent(username));
+                const res = await apiPost('/api/player/verification-request', { username });
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.error === 'player_not_found' ? 'ยังไม่พบผู้เล่น กรุณาใช้ /verify ใน Discord ก่อน' : 'ค้นหาไม่สำเร็จ');
-                document.getElementById('player-preview').innerText = `พบผู้เล่น: ${data.username} | Lv.${data.level} | สปอร์ ${data.spore}`;
-                document.getElementById('verify-code').style.display = 'block';
-                document.getElementById('btn-verify-code').style.display = 'block';
-            } catch (err) { showLoginError('เชื่อมต่อ API ไม่ได้: ' + err.message); }
+                if (!res.ok) {
+                    const messages = { user_not_found: 'ไม่พบ username นี้ในเซิร์ฟเวอร์', multiple_users: 'พบชื่อซ้ำ กรุณาใช้ username ที่ตรงกันแบบไม่ซ้ำ', dm_unavailable: 'บอทส่ง DM ไม่ได้ กรุณาเปิดรับข้อความส่วนตัว' };
+                    throw new Error(messages[data.error] || 'สร้างคำขอยืนยันไม่ได้');
+                }
+                document.getElementById('verify-status').innerText = 'ส่ง DM แล้ว กรุณากด “ยอมรับ” ใน Discord';
+                pollWebVerification(data.id);
+            } catch (err) { showLoginError(err.message); button.disabled = false; }
         }
 
-        async function verifyPlayerCode() {
-            const username = document.getElementById('verify-username')?.value.trim();
-            const code = document.getElementById('verify-code')?.value.trim();
-            try {
-                const res = await apiPost('/api/player/verify', { username, code });
-                const data = await res.json();
-                if (!res.ok) throw new Error('รหัสไม่ถูกต้องหรือหมดอายุ');
-                authToken = data.token; currentUser = data.user;
-                localStorage.setItem('sporenet_token', authToken);
-                startGame();
-            } catch (err) { showLoginError(err.message); }
+        async function pollWebVerification(id) {
+            const statusEl = document.getElementById('verify-status');
+            const started = Date.now();
+            const poll = async () => {
+                if (Date.now() - started > 11 * 60 * 1000) return;
+                try {
+                    const res = await apiGet('/api/player/verification-request/' + encodeURIComponent(id));
+                    const data = await res.json();
+                    if (data.status === 'approved' && data.token) {
+                        authToken = data.token; currentUser = data.user;
+                        localStorage.setItem('sporenet_token', authToken);
+                        startGame();
+                        return;
+                    }
+                    if (data.status === 'rejected') { statusEl.innerText = 'คำขอถูกปฏิเสธ'; return; }
+                    if (data.status === 'expired') { statusEl.innerText = 'คำขอหมดอายุ กรุณาลองใหม่'; document.getElementById('btn-request-verify').disabled = false; return; }
+                    statusEl.innerText = 'รอการยืนยันใน Discord...';
+                    setTimeout(poll, 2500);
+                } catch { statusEl.innerText = 'กำลังรอการตอบกลับจาก Discord...'; setTimeout(poll, 3500); }
+            };
+            poll();
         }
 
         function showLoginError(msg) {

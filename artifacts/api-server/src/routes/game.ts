@@ -11,6 +11,8 @@ import {
   isAuthConfigured,
   type SessionPayload,
 } from "../bot/auth/discord.js";
+import { botClient } from "../bot/bot.js";
+import { createWebVerification, getWebVerification, sessionForWebVerification } from "../bot/auth/webVerification.js";
 import {
   getPlayer,
   getPlayerByUsername,
@@ -137,7 +139,32 @@ router.get("/auth/me", requireAuth, (req, res) => {
   });
 });
 
-// ─── Public username lookup + Discord code verification ───────
+// ─── Web-to-Discord DM verification ──────────────────────────
+router.post("/player/verification-request", async (req, res) => {
+  const username = String((req.body as { username?: string }).username ?? "").trim();
+  if (!username || username.length > 64) return res.status(400).json({ error: "invalid_username" });
+  if (!botClient?.isReady()) return res.status(503).json({ error: "bot_offline" });
+  try {
+    const request = await createWebVerification(botClient, username);
+    return res.status(202).json(request);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "request_failed";
+    const status = code === "user_not_found" || code === "multiple_users" ? 404 : code === "dm_unavailable" ? 424 : 503;
+    return res.status(status).json({ error: code });
+  }
+});
+
+router.get("/player/verification-request/:id", (req, res) => {
+  const request = getWebVerification(req.params.id);
+  if (!request) return res.status(404).json({ error: "request_not_found" });
+  if (request.status === "approved") {
+    const session = sessionForWebVerification(request.id);
+    return res.json({ status: "approved", ...session });
+  }
+  return res.json({ status: request.status, expiresAt: request.expiresAt });
+});
+
+// ─── Legacy username lookup (kept for compatibility) ─────────
 router.get("/player/lookup", (req, res) => {
   const username = String(req.query.username ?? "").trim();
   if (!username || username.length > 64) return res.status(400).json({ error: "invalid_username" });

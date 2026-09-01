@@ -8,6 +8,7 @@ import {
   AutocompleteInteraction,
 } from "discord.js";
 import { logger } from "../lib/logger.js";
+import { approveWebVerification, rejectWebVerification } from "./auth/webVerification.js";
 import { deployCommands } from "./deploy-commands.js";
 import { handleReactionAdd } from "./events/reactionAdd.js";
 import { handleReactionRemove } from "./events/reactionRemove.js";
@@ -121,6 +122,8 @@ interface Command {
   autocomplete?(interaction: AutocompleteInteraction): Promise<void>;
 }
 
+export let botClient: Client | null = null;
+
 const commands = new Collection<string, Command>();
 commands.set("reactionrole", reactionroleCmd);
 commands.set("listroles", listrolesCmd);
@@ -208,6 +211,7 @@ export async function startBot(): Promise<void> {
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
   });
+  botClient = client;
 
   client.once(Events.ClientReady, (c) => {
     logger.info(`✅ บอทออนไลน์แล้ว! ชื่อ: ${c.user.tag}`);
@@ -242,7 +246,13 @@ export async function startBot(): Promise<void> {
 
       if (interaction.isButton()) {
         const id = interaction.customId;
-        if (id.startsWith("verify_open_")) {
+        if (id.startsWith("webverify_accept:") || id.startsWith("webverify_reject:")) {
+          const requestId = id.split(":")[1] ?? "";
+          const ok = id.startsWith("webverify_accept:")
+            ? approveWebVerification(requestId, interaction.user.id)
+            : rejectWebVerification(requestId, interaction.user.id);
+          await interaction.reply({ content: ok ? (id.startsWith("webverify_accept:") ? "ยืนยันสำเร็จ กลับไปที่เว็บเกมได้เลย" : "ปฏิเสธคำขอแล้ว") : "คำขอนี้หมดอายุหรือไม่ถูกต้อง", ephemeral: true });
+        } else if (id.startsWith("verify_open_")) {
           await handleVerifyButton(interaction);
         } else if (id === "casino_bet") {
           await handleCasinoButton(interaction);
