@@ -917,7 +917,7 @@
             body.scale.set(1.4, 1, 1); body.castShadow = true;
             g.add(body); g.userData.body = body;
 
-            // ขนแข็งบนหลัง (หลายๆ หนามเล็ก)
+            // ���นแข็งบนหลัง (หลายๆ หนามเล็ก)
             for(let i = 0; i < 6; i++) {
                 const spine = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 4), maneMat);
                 spine.position.set(-0.6 + i * 0.25, 0.7, 0);
@@ -2120,35 +2120,45 @@
         // ล็อกอินด้วย Discord OAuth2 + เช็คสมาชิกเซิร์ฟเวอร์
 
         // ⚙️ config — จะถูก override โดย window.GAME_CONFIG (ถ้ามี)
-        const API_BASE = (window.GAME_CONFIG && window.GAME_CONFIG.API_BASE) || '';
+        const API_BASE = ((window.GAME_CONFIG && window.GAME_CONFIG.API_BASE) || '').replace(/\/$/, '');
+        const API_TIMEOUT_MS = 10000;
         let authToken = localStorage.getItem('sporenet_token') || null;
         let currentUser = null;
 
         // ดึง auth status + config จาก API
         async function apiGet(path) {
-            const res = await fetch(`${API_BASE}${path}`, {
-                headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
-            });
-            return res;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+            try {
+                return await fetch(`${API_BASE}${path}`, {
+                    headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
+                    signal: controller.signal,
+                });
+            } finally { clearTimeout(timeout); }
         }
 
         async function apiPost(path, body) {
-            const res = await fetch(`${API_BASE}${path}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
-                },
-                body: JSON.stringify(body),
-            });
-            return res;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+            try {
+                return await fetch(`${API_BASE}${path}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+                    },
+                    body: JSON.stringify(body),
+                    signal: controller.signal,
+                });
+            } finally { clearTimeout(timeout); }
         }
 
         // 🚀 เริ่มล็อกอิน — redirect ไป Discord OAuth2
         async function startDiscordLogin() {
             try {
                 const res = await apiGet('/api/auth/login');
-                const data = await res.json();
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.message || `API ตอบกลับ ${res.status}`);
                 if (data.url) {
                     window.location.href = data.url;
                 } else {
@@ -2406,7 +2416,7 @@
                 }, 400); // รอ transition จบ
             }, dur);
             
-            // จำกัดจำนวน toast สูงสุด 4 ตัว — ลบของเก่าออก
+            // จำกัดจำนวน toast สูงสุด 4 ต���ว — ลบของเก่าออก
             while(container.children.length > 4) {
                 const oldest = container.firstChild;
                 oldest.classList.remove('show');

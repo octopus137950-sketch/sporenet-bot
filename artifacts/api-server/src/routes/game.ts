@@ -22,6 +22,14 @@ import {
 
 const router: IRouter = Router();
 
+router.get("/health", (_req, res) => {
+  res.json({ ok: true, service: "sporenet-game-api", authConfigured: isAuthConfigured().ok });
+});
+
+router.options("/auth/:action", (_req, res) => {
+  res.sendStatus(204);
+});
+
 // ─── Auth middleware ──────────────────────────────────────────
 // แนบ req.user ถ้ามี session token ที่ถูกต้อง ไม่งั้น 401
 function requireAuth(req: Request, res: Response, next: NextFunction): void {
