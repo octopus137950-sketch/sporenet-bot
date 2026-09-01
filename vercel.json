@@ -2,9 +2,5 @@
   "framework": "vite",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "PORT=4173 BASE_PATH=/ pnpm --filter @workspace/sporenet-game run build",
-  "outputDirectory": "artifacts/sporenet-game/dist/public",
-  "routes": [
-    { "src": "/api/(.*)", "continue": true },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+  "outputDirectory": "artifacts/sporenet-game/dist/public"
 }
