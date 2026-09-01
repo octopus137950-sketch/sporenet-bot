@@ -128,7 +128,7 @@
         // ถ้าเว็บเกม host คนละ domain กับ api ต้องตั้งค่านี้
         // ถ้าว่าง → ใช้ relative path (เว็บเกม + api อยู่ domain เดียวกัน)
         window.GAME_CONFIG = {
-            API_BASE: 'https://neither-collapse-margaret-lined.trycloudflare.com/'  // เช่น 'https://api.sporenet.example.com'
+            API_BASE: ''  // เช่น 'https://api.sporenet.example.com'
         };
     </script>
 </head>
@@ -210,7 +210,7 @@
         </div>
 
         <div class="controls">
-            <button id="btn-walk" class="btn">ออกเดินทาง 🚶‍♂️</button>
+            <button id="btn-walk" class="btn">ออกเดินทาง 🚶���♂️</button>
         </div>
     </div>
 
@@ -2172,37 +2172,24 @@
         // 📥 รับ callback จาก Discord (?code=...&state=...)
         async function handleAuthCallback() {
             const params = new URLSearchParams(window.location.search);
-            const code = params.get('code');
-            if (!code) return false;
-
-            // แสดงหน้ากำลังล็อกอิน
-            showLoginScreen('loading');
-
-            try {
-                const res = await apiPost('/api/auth/callback', { code });
-                const data = await res.json();
-
-                if (res.ok && data.token) {
-                    authToken = data.token;
-                    currentUser = data.user;
-                    localStorage.setItem('sporenet_token', authToken);
-                    // ลบ query string
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    return true;
-                } else if (data.error === 'not_in_guild') {
-                    showLoginError(`${data.message}\n\nGuild ID: ${data.guildId}\n\nกรุณาเข้าร่วมเซิร์ฟเวอร์ Discord ก่อน ��ล้วลองใหม่อีกครั้ง`);
-                } else {
-                    showLoginError(data.message || `ล็อกอินไม่สำเร็จ: ${data.error || 'unknown error'}`);
-                }
-            } catch (err) {
-                showLoginError('เชื่อมต่อ API ไม่ได้: ' + err.message);
+            const authUser = params.get('auth_user');
+            const authError = params.get('auth_error');
+            if (authError) {
+                const messages = { not_in_guild: 'บัญชี Discord นี้ยังไม่ได้เข้าร่วมเซิร์ฟเวอร์', discord_cancelled: 'ยกเลิกการเข้าสู่ระบบ Discord', discord_user_failed: 'ไม่สามารถอ่านข้อมูล Discord ได้' };
+                showLoginError(messages[authError] || 'เข้าสู่ระบบไม่สำเร็จ');
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return false;
+            }
+            if (authUser) {
+                currentUser = JSON.parse(authUser);
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return true;
             }
             return false;
         }
 
         // ✅ เช็คว่ามี session token ที่ถูกต้องไหม
         async function checkSession() {
-            if (!authToken) return false;
             try {
                 const res = await apiGet('/api/auth/me');
                 if (res.ok) {
