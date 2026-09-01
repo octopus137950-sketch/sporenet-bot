@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mushroom Voxel - Endless Adventure</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Mitr:wght@400;600;700&display=swap');
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #1a1a2e; font-family: 'Mitr', sans-serif; }
+        
+        #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        .vignette {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 4; pointer-events: none;
+            box-shadow: inset 0 0 200px rgba(0,0,0,0.8);
+        }
+        
+        .ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none;
+            display: flex; justify-content: center; align-items: center;
+        }
+        
+        .card {
+            background: rgba(20, 30, 40, 0.7); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2); padding: 40px; border-radius: 25px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255,255,255,0.2);
+            text-align: center; width: 90%; max-width: 500px; pointer-events: auto; color: white;
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        h1 { font-size: 32px; color: #fff; text-shadow: 0 4px 15px rgba(231, 76, 60, 0.6); letter-spacing: 1px; }
+        h2 { font-size: 14px; color: #bdc3c7; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 2px; }
+        p { font-size: 14px; line-height: 1.6; opacity: 0.9; margin: 15px 0; }
+        
+        input {
+            width: 100%; padding: 14px; margin: 10px 0;
+            background: rgba(0,0,0,0.5); border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px; color: white; font-size: 16px; text-align: center;
+            font-family: 'Mitr', sans-serif; outline: none; transition: 0.2s;
+        }
+        input:focus { border-color: #f1c40f; box-shadow: 0 0 15px rgba(241, 196, 15, 0.3); }
+
+        .btn {
+            width: 100%; padding: 14px; margin-top: 15px;
+            border: none; border-radius: 12px;
+            background: linear-gradient(180deg, #2ecc71 0%, #27ae60 100%);
+            color: white; font-size: 18px; font-weight: 600;
+            cursor: pointer; box-shadow: 0 6px 0 #1e8449, inset 0 1px 0 rgba(255,255,255,0.3); 
+            transition: 0.1s; font-family: 'Mitr', sans-serif;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #1e8449, inset 0 1px 0 rgba(255,255,255,0.3); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .btn-discord {
+            background: linear-gradient(180deg, #5865f2 0%, #404edd 100%);
+            box-shadow: 0 6px 0 #3c3fc7, inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+        .btn-discord:active { box-shadow: 0 2px 0 #3c3fc7, inset 0 1px 0 rgba(255,255,255,0.2); }
+
+        .color-picker { display: flex; justify-content: center; gap: 15px; margin: 20px 0; }
+        .color-dot { 
+            width: 40px; height: 40px; border-radius: 50%; cursor: pointer; 
+            border: 3px solid transparent; transition: 0.2s; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 2px 5px rgba(255,255,255,0.3);
+        }
+        .color-dot:hover { transform: scale(1.1) translateY(-2px); }
+        .color-dot.selected { border-color: white; transform: scale(1.2); }
+
+        #game-hud { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        
+        .hud-stats {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 15px;
+            color: white; border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+            animation: slideIn 0.5s ease-out;
+        }
+        .hp-bar-bg { width: 160px; height: 12px; background: rgba(0,0,0,0.5); border-radius: 6px; margin-top: 5px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); }
+        .hp-bar-fill { height: 100%; background: linear-gradient(90deg, #c0392b, #e74c3c, #ff6b6b); transition: width 0.3s; box-shadow: 0 0 10px #e74c3c; }
+
+        .controls { position: absolute; bottom: 25px; right: 25px; pointer-events: auto; width: auto; }
+        .controls .btn { font-size: 18px !important; padding: 14px 22px !important; border-radius: 50px !important; box-shadow: 0 6px 0 #1e8449, 0 8px 25px rgba(0,0,0,0.5) !important; }
+        .controls .btn:disabled { opacity: 0.4; }
+
+        .popup-panel {
+            position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%) scale(0.9);
+            background: rgba(15, 15, 25, 0.92); backdrop-filter: blur(15px); border-radius: 14px;
+            padding: 14px 18px; text-align: center; color: white; display: none; pointer-events: auto;
+            width: 92%; max-width: 440px; box-shadow: 0 -8px 35px rgba(0,0,0,0.7);
+            border: 1px solid rgba(255,255,255,0.2); opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+        }
+        .popup-panel.active { display: block; opacity: 1; transform: translateX(-50%) scale(1); }
+        .popup-panel .btn { padding: 10px !important; font-size: 14px !important; }
+
+        .toast {
+            position: absolute; top: 20px; right: 20px;
+            transform: translateX(120%) scale(0.9);
+            background: rgba(15, 15, 25, 0.92); backdrop-filter: blur(10px); 
+            padding: 10px 16px; border-radius: 12px;
+            font-size: 13px; font-weight: 600; color: white; 
+            border-left: 4px solid #f1c40f;
+            opacity: 0; transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s; 
+            pointer-events: none; text-align: left; 
+            max-width: 240px; width: auto; z-index: 20;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+            line-height: 1.4;
+        }
+        .toast.show { opacity: 1; transform: translateX(0) scale(1); }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes slideIn {
+            0% { transform: translateX(-150%); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px; height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #f1c40f;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .user-profile {
+            display: flex; align-items: center; gap: 12px; margin: 15px 0;
+            padding: 10px; background: rgba(255,255,255,0.1); border-radius: 10px;
+        }
+        .user-profile img { width: 40px; height: 40px; border-radius: 50%; }
+        .user-profile-info { text-align: left; flex: 1; }
+        .user-profile-info .name { font-weight: bold; }
+        .user-profile-info .username { font-size: 12px; opacity: 0.7; }
+
+        .error-msg { color: #ff6b6b; font-size: 12px; margin-top: 10px; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- ⚙️ API Config -->
+    <script>
+        window.GAME_CONFIG = {
+            // ✅ ตั้งค่านี้ให้ชี้ไปที่ api-server
+            // ถ้าเล่นบน localhost:
+            // API_BASE: 'http://localhost:3000'
+            // ถ้า deploy Vercel แล้ว:
+            API_BASE: window.location.origin  // หรือ 'https://your-api-domain.com'
+        };
+    </script>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+    <div class="vignette"></div>
+
+    <div class="ui-layer">
+        <!-- ════════════════════════════════════════════════════════ -->
+        <!-- 🔐 LOGIN SCREEN (สแกนแรก) -->
+        <!-- ════════════════════════════════════════════════════════ -->
+        <div id="screen-login" class="card" style="display: none;">
+            <h1>🍄 MUSHROOM RUN 🍄</h1>
+            <h2>Voxel Endless Adventure</h2>
+            <p>ต้อง login ด้วย Discord เพื่อเล่นเกมและซิ้งข้อมูล</p>
+            <div id="login-error" class="error-msg" style="display: none;"></div>
+            <button class="btn btn-discord" id="btn-login-discord">
+                🔵 Login with Discord
+            </button>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════ -->
+        <!-- ⏳ CALLBACK LOADING SCREEN -->
+        <!-- ════════════════════════════════════════════════════════ -->
+        <div id="screen-callback" class="card" style="display: none;">
+            <h1>🔄 Logging in...</h1>
+            <p style="margin-top: 30px;">
+                <div class="loading-spinner" style="margin: 0 auto;"></div>
+                <div style="margin-top: 15px;">Processing Discord login...</div>
+            </p>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════ -->
+        <!-- 👤 PROFILE SCREEN (หลังล็อกอินสำเร็จ) -->
+        <!-- ════════════════════════════════════════════════════════ -->
+        <div id="screen-profile" class="card" style="display: none;">
+            <h1>📊 Your Profile</h1>
+            <div class="user-profile">
+                <img id="user-avatar" src="" alt="avatar" style="display: none;">
+                <div class="user-profile-info">
+                    <div class="name" id="user-display-name">-</div>
+                    <div class="username" id="user-username">@-</div>
+                </div>
+            </div>
+            
+            <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin: 15px 0; text-align: left;">
+                <div style="font-size: 12px; margin-bottom: 8px;">
+                    <strong>Spore:</strong> <span id="profile-spore">0</span> 🍄
+                </div>
+                <div style="font-size: 12px; margin-bottom: 8px;">
+                    <strong>Level:</strong> <span id="profile-level">1</span> ⭐
+                </div>
+                <div style="font-size: 12px; margin-bottom: 8px;">
+                    <strong>EXP:</strong> <span id="profile-exp">0</span> / <span id="profile-exp-needed">100</span>
+                </div>
+                <div style="font-size: 12px;">
+                    <strong>Items:</strong> <span id="profile-items">0</span> 🎒
+                </div>
+            </div>
+
+            <button class="btn" id="btn-play">▶️ เริ่มเล่นเกม</button>
+            <button class="btn btn-discord" id="btn-logout" style="background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%); box-shadow: 0 6px 0 #991b1b;">
+                🚪 Logout
+            </button>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════ -->
+        <!-- 🎮 CHARACTER SETUP SCREEN -->
+        <!-- ════════════════════════════════════════════════════════ -->
+        <div id="screen-setup" class="card" style="display: none;">
+            <h1>MUSHROOM RUN</h1>
+            <h2>Voxel Endless Adventure</h2>
+            <input type="text" id="hero-name" placeholder="ตั้งชื่อเจ้าเห็ด..." value="เห็ดทะลวงฟัน">
+            <div class="color-picker" id="color-picker">
+                <div class="color-dot selected" style="background: #e74c3c;" data-color="0xe74c3c"></div>
+                <div class="color-dot" style="background: #3498db;" data-color="0x3498db"></div>
+                <div class="color-dot" style="background: #f1c40f;" data-color="0xf1c40f"></div>
+                <div class="color-dot" style="background: #9b59b6;" data-color="0x9b59b6"></div>
+            </div>
+            <button class="btn" id="btn-start">เริ่มออกผจญภัย 🏕️</button>
+        </div>
+    </div>
+
+    <div id="game-hud">
+        <div class="hud-stats">
+            <div style="font-size: 18px; color: #2ecc71; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5);" id="display-name">Player</div>
+            <div style="font-size: 13px; opacity: 0.8; margin-top: 2px;">
+                ⭐ Level <span id="display-lv" style="color: #fff; font-weight: bold;">1</span>
+            </div>
+            <div style="font-size: 13px; opacity: 0.8; margin-top: 4px;">HP: <span id="hp-text" style="color: #fff; font-weight: bold;">100/100</span></div>
+            <div class="hp-bar-bg"><div id="hp-bar" class="hp-bar-fill"></div></div>
+            <div style="margin-top: 6px;">
+                <div style="font-size: 11px; opacity: 0.7; display: flex; justify-content: space-between;">
+                    <span>📊 EXP</span>
+                    <span id="farm-exp-text">0/100</span>
+                </div>
+                <div class="hp-bar-bg" style="width: 160px; height: 6px; margin-top: 2px;">
+                    <div id="farm-exp-bar" style="height: 100%; background: linear-gradient(90deg, #f39c12, #f1c40f); transition: width 0.3s; border-radius: 6px;"></div>
+                </div>
+            </div>
+            <div style="font-size: 18px; margin-top: 8px; color: #f1c40f; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">🍄 <span id="display-spore">0</span> spore</div>
+            <div style="font-size: 13px; margin-top: 4px; color: #e91e63; font-weight: bold; display: flex; gap: 12px;">
+                <span>🧪 <span id="display-potion">0</span></span>
+                <span>🎒 <span id="display-items">0</span></span>
+            </div>
+            <div id="buffs-display" style="font-size: 10px; margin-top: 4px; opacity: 0.7; line-height: 1.4;"></div>
+        </div>
+
+        <button id="btn-potion" style="position: absolute; bottom: 90px; left: 25px; pointer-events: auto; background: linear-gradient(180deg, #e91e63 0%, #c2185b 100%); color: white; border: none; padding: 12px 18px; border-radius: 50px; cursor: pointer; font-size: 16px; box-shadow: 0 6px 0 #880e4f, 0 8px 25px rgba(0,0,0,0.5); transition: 0.1s; font-family: 'Mitr', sans-serif;">🧪 ฟื้นฟู</button>
+
+        <div id="toast-container" style="position: absolute; top: 20px; right: 20px; z-index: 20; pointer-events: none; display: flex; flex-direction: column; gap: 8px; max-width: 240px;"></div>
+        <div id="toast-msg" class="toast"></div>
+
+        <div id="battle-panel" class="popup-panel" style="border-top: 4px solid #e74c3c;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="flex: 1; text-align: left;">
+                    <h3 id="battle-title" style="color: #ff7979; margin: 0 0 4px 0; font-size: 16px;">👾 มอนสเตอร์ขวางทาง!</h3>
+                    <p id="battle-desc" style="font-size: 11px; margin: 0 0 6px 0; opacity: 0.75; font-style: italic; line-height: 1.3;">...</p>
+                    <p style="font-size: 13px; margin: 0; opacity: 0.9;">❤️ Enemy HP: <span id="enemy-hp" style="font-size: 16px; font-weight: bold; color: #fff;">50</span></p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px; min-width: 90px;">
+                    <button class="btn" style="margin:0; background: linear-gradient(180deg, #e74c3c 0%, #c0392b 100%); box-shadow: 0 6px 0 #922b21;" id="btn-attack">⚔️ โจมตี</button>
+                    <button class="btn" style="margin:0; background: linear-gradient(180deg, #7f8c8d 0%, #57606f 100%); box-shadow: 0 6px 0 #2f3542;" id="btn-runaway">💨 หนี</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="item-panel" class="popup-panel" style="border-top: 4px solid #f1c40f;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="flex: 1; text-align: left;">
+                    <h3 id="item-title" style="color: #f1c40f; margin: 0 0 4px 0; font-size: 16px;">✨ พบสมบัติ!</h3>
+                    <p style="font-size: 11px; margin: 0; opacity: 0.75; font-style: italic; line-height: 1.3;" id="item-desc">เจอเห็ดลึกลับในป่า</p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px; min-width: 90px;">
+                    <button class="btn" style="margin:0; background: linear-gradient(180deg, #f1c40f 0%, #f39c12 100%); color: #000; box-shadow: 0 6px 0 #d35400;" id="btn-collect">✨ เก็บ</button>
+                    <button class="btn" style="margin:0; background: linear-gradient(180deg, #7f8c8d 0%, #57606f 100%); box-shadow: 0 6px 0 #2f3542;" id="btn-ignore">🚫 ไม่เก็บ</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="btn-walk" class="btn">ออกเดินทาง 🚶♂️</button>
+        </div>
+    </div>
+
+    <script>
+        // ══════════════════════════════════════════════════════════════
+        // 🔐 AUTHENTICATION SYSTEM
+        // ══════════════════════════════════════════════════════════════
+        
+        class GameAuth {
+            constructor() {
+                this.token = localStorage.getItem('gameToken');
+                this.user = this.token ? this.parseToken(this.token) : null;
+                this.playerData = null;
+            }
+
+            parseToken(token) {
+                try {
+                    const parts = token.split('.');
+                    if (parts.length !== 2) return null;
+                    const payload = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/')));
+                    if (Date.now() > payload.exp) {
+                        localStorage.removeItem('gameToken');
+                        return null;
+                    }
+                    return payload;
+                } catch {
+                    return null;
+                }
+            }
+
+            async login() {
+                try {
+                    const apiBase = window.GAME_CONFIG.API_BASE || '';
+                    const res = await fetch(`${apiBase}/api/auth/login`, { 
+                        headers: { 'Origin': window.location.origin }
+                    });
+                    
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.message || 'Failed to get login URL');
+                    }
+                    
+                    const { url } = await res.json();
+                    window.location.href = url;  // redirect ไป Discord
+                } catch (err) {
+                    console.error('[auth] login error:', err);
+                    showLoginError(`❌ ไม่สามารถเชื่อมต่อ Discord: ${err.message}`);
+                }
+            }
+
+            async handleCallback() {
+                const params = new URLSearchParams(window.location.search);
+                const code = params.get('code');
+                
+                if (!code) {
+                    const error = params.get('error');
+                    showLoginError(`❌ Discord login ล้มเหลว: ${error}`);
+                    return false;
+                }
+
+                try {
+                    const apiBase = window.GAME_CONFIG.API_BASE || '';
+                    const res = await fetch(`${apiBase}/api/auth/callback`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        if (err.error === 'not_in_guild') {
+                            showLoginError('❌ คุณไม่ได้เป็นสมาชิกเซิร์ฟเวอร์ Discord นี้');
+                        } else {
+                            showLoginError(`❌ ${err.error || 'Login failed'}`);
+                        }
+                        return false;
+                    }
+
+                    const { token, user } = await res.json();
+                    localStorage.setItem('gameToken', token);
+                    this.token = token;
+                    this.user = user;
+
+                    // Clear URL (remove code)
+                    window.history.replaceState({}, '', window.location.pathname);
+                    
+                    return true;
+                } catch (err) {
+                    console.error('[auth] callback error:', err);
+                    showLoginError(`❌ ข้อผิดพลาด: ${err.message}`);
+                    return false;
+                }
+            }
+
+            async getPlayerData() {
+                if (!this.token) return null;
+
+                try {
+                    const apiBase = window.GAME_CONFIG.API_BASE || '';
+                    const res = await fetch(`${apiBase}/api/player`, {
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            localStorage.removeItem('gameToken');
+                            this.token = null;
+                        }
+                        return null;
+                    }
+
+                    this.playerData = await res.json();
+                    return this.playerData;
+                } catch (err) {
+                    console.error('[auth] get player error:', err);
+                    return null;
+                }
+            }
+
+            async syncPlayerData(updates) {
+                if (!this.token) {
+                    showToast('❌ Token หมดอายุ');
+                    return false;
+                }
+
+                try {
+                    const apiBase = window.GAME_CONFIG.API_BASE || '';
+                    const res = await fetch(`${apiBase}/api/player`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${this.token}`
+                        },
+                        body: JSON.stringify(updates)
+                    });
+
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            localStorage.removeItem('gameToken');
+                            this.token = null;
+                        }
+                        return false;
+                    }
+
+                    const { player } = await res.json();
+                    this.playerData = { ...this.playerData, ...player };
+                    return true;
+                } catch (err) {
+                    console.error('[sync] error:', err);
+                    return false;
+                }
+            }
+
+            logout() {
+                localStorage.removeItem('gameToken');
+                this.token = null;
+                this.user = null;
+                this.playerData = null;
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // 🎮 SCREEN MANAGEMENT
+        // ══════════════════════════════════════════════════════════════
+
+        function showScreen(screenId) {
+            document.querySelectorAll('[id^="screen-"]').forEach(el => {
+                el.style.display = 'none';
+            });
+            const screen = document.getElementById(screenId);
+            if (screen) screen.style.display = 'block';
+        }
+
+        function showLoginError(msg) {
+            const errorEl = document.getElementById('login-error');
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            setTimeout(() => errorEl.style.display = 'none', 5000);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast-msg');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // ⚡ INITIALIZATION & EVENT LISTENERS
+        // ══════════════════════════════════════════════════════════════
+
+        const gameAuth = new GameAuth();
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // ถ้า URL มี code → อยู่ในขั้นตอน callback
+            if (window.location.search.includes('code=')) {
+                showScreen('screen-callback');
+                const success = await gameAuth.handleCallback();
+                if (success) {
+                    await showProfileScreen();
+                } else {
+                    showScreen('screen-login');
+                }
+                return;
+            }
+
+            // ถ้ามี token ที่ valid → ไปหน้า profile
+            if (gameAuth.token) {
+                await showProfileScreen();
+            } else {
+                // ไม่มี token → แสดง login
+                showScreen('screen-login');
+            }
+        });
+
+        async function showProfileScreen() {
+            const data = await gameAuth.getPlayerData();
+            if (!data) {
+                showScreen('screen-login');
+                return;
+            }
+
+            document.getElementById('user-display-name').textContent = gameAuth.user.username;
+            document.getElementById('user-username').textContent = `@${gameAuth.user.username}`;
+            
+            // Update profile data
+            document.getElementById('profile-spore').textContent = data.spore;
+            document.getElementById('profile-level').textContent = data.level;
+            document.getElementById('profile-exp').textContent = data.exp;
+            document.getElementById('profile-exp-needed').textContent = data.level * 100;
+            document.getElementById('profile-items').textContent = (data.items || []).length;
+
+            showScreen('screen-profile');
+        }
+
+        // Login button
+        document.getElementById('btn-login-discord').addEventListener('click', () => {
+            gameAuth.login();
+        });
+
+        // Play button
+        document.getElementById('btn-play').addEventListener('click', () => {
+            showScreen('screen-setup');
+            setupGameFlow();
+        });
+
+        // Logout button
+        document.getElementById('btn-logout').addEventListener('click', async () => {
+            gameAuth.logout();
+            showScreen('screen-login');
+        });
+
+        // Character setup
+        document.getElementById('btn-start').addEventListener('click', () => {
+            document.getElementById('screen-setup').style.display = 'none';
+            document.getElementById('game-hud').style.display = 'block';
+            if (typeof init3D === 'function') {
+                init3D();
+            }
+        });
+
+        // Color picker
+        document.querySelectorAll('.color-dot').forEach(dot => {
+            dot.addEventListener('click', function() {
+                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'));
+                this.classList.add('selected');
+            });
+        });
+
+        function setupGameFlow() {
+            // Game initialization code (three.js part)
+            // เก็บ auth token ไว้ใช้ในเกม
+            window.gameAuth = gameAuth;
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // 🎮 GAME ENGINE (ตัด 3D code ออกชั่วคราว)
+        // ══════════════════════════════════════════════════════════════
+        // [ใส่ 3D game code จากเดิมตรงนี้]
+        // เพิ่ม: syncPlayerData() function ใช้ gameAuth.syncPlayerData()
+
+    </script>
+</body>
+</html>
