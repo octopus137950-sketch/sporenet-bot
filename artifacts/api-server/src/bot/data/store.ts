@@ -1147,6 +1147,33 @@ export function getTopPlayers(limit = 10): PlayerData[] {
     .slice(0, limit);
 }
 
+const discordUsernames = new Map<string, string>();
+const verificationCodes = new Map<string, { userId: string; code: string; expiresAt: number }>();
+
+export function rememberDiscordUsername(username: string, userId: string): void {
+  discordUsernames.set(username.trim().toLowerCase(), userId);
+}
+
+export function getPlayerByUsername(username: string): { userId: string; player: PlayerData } | undefined {
+  const userId = discordUsernames.get(username.trim().toLowerCase());
+  return userId ? { userId, player: getPlayer(userId) } : undefined;
+}
+
+export function createVerificationCode(userId: string, username: string): string {
+  rememberDiscordUsername(username, userId);
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  verificationCodes.set(userId, { userId, code, expiresAt: Date.now() + 10 * 60_000 });
+  return code;
+}
+
+export function consumeVerificationCode(username: string, code: string): string | undefined {
+  const userId = discordUsernames.get(username.trim().toLowerCase());
+  const entry = userId ? verificationCodes.get(userId) : undefined;
+  if (!entry || entry.code !== code.trim() || entry.expiresAt < Date.now()) return undefined;
+  verificationCodes.delete(userId);
+  return userId;
+}
+
 // ─── Verification ────────────────────────────────────────────
 
 export function saveVerificationPanel(panel: VerificationPanel): void {

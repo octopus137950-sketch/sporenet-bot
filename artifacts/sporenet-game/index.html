@@ -917,7 +917,7 @@
             body.scale.set(1.4, 1, 1); body.castShadow = true;
             g.add(body); g.userData.body = body;
 
-            // ���นแข็งบนหลัง (หลายๆ หนามเล็ก)
+            // �����นแข็งบนหลัง (หลายๆ หนามเล็ก)
             for(let i = 0; i < 6; i++) {
                 const spine = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 4), maneMat);
                 spine.position.set(-0.6 + i * 0.25, 0.7, 0);
@@ -2190,7 +2190,7 @@
                     window.history.replaceState({}, document.title, window.location.pathname);
                     return true;
                 } else if (data.error === 'not_in_guild') {
-                    showLoginError(`${data.message}\n\nGuild ID: ${data.guildId}\n\nกรุณาเข้าร่วมเซิร์ฟเวอร์ Discord ก่อน แล้วลองใหม่อีกครั้ง`);
+                    showLoginError(`${data.message}\n\nGuild ID: ${data.guildId}\n\nกรุณาเข้าร่วมเซิร์ฟเวอร์ Discord ก่อน ��ล้วลองใหม่อีกครั้ง`);
                 } else {
                     showLoginError(data.message || `ล็อกอินไม่สำเร็จ: ${data.error || 'unknown error'}`);
                 }
@@ -2309,26 +2309,44 @@
             layer.style.display = 'flex';
             layer.innerHTML = `
                 <div class="card" style="max-width: 420px;">
-                    <h1 style="font-size: 28px; color: #fff; margin-bottom: 8px;">🎮 SPORENET</h1>
+                    <h1 style="font-size: 28px; color: #fff; margin-bottom: 8px;">SPORENET</h1>
                     <h2 style="margin-bottom: 24px;">Mushroom Adventure</h2>
-                    ${mode === 'loading' ? `
-                        <div style="padding: 40px 0;">
-                            <div style="font-size: 18px; color: #f1c40f;">⏳ กำลังล็อกอิน...</div>
-                        </div>
-                    ` : `
-                        <p style="font-size: 14px; margin-bottom: 24px; line-height: 1.5; opacity: 0.9;">
-                            เกมผจญภัยเห็ด voxel 3D ที่เชื่อมต่อกับ Discord bot โดยตรง<br>
-                            สปอร์ เลเวล และไอเทม sync กับ <code>/farm</code> ในเซิร์ฟเวอร์
-                        </p>
-                        <button class="btn" id="btn-discord-login" style="background: linear-gradient(180deg, #5865f2 0%, #4752c4 100%); box-shadow: 0 6px 0 #3c45a5;">
-                            🔵 ล็อกอินด้วย Discord
-                        </button>
-                        <div id="login-error" style="color: #ff7979; font-size: 13px; margin-top: 16px; white-space: pre-line;"></div>
-                    `}
-                </div>
-            `;
-            const loginBtn = document.getElementById('btn-discord-login');
-            if (loginBtn) loginBtn.addEventListener('click', startDiscordLogin);
+                    <p style="font-size: 14px; margin-bottom: 18px; line-height: 1.5;">กรอก Discord username แล้วใช้คำสั่ง <code>/verify</code> ใน Discord เพื่อรับรหัสยืนยันทาง DM</p>
+                    <input id="verify-username" placeholder="Discord username" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:0;">
+                    <button class="btn" id="btn-find-player">ค้นหาผู้เล่น</button>
+                    <div id="player-preview" style="margin-top:14px;"></div>
+                    <input id="verify-code" placeholder="รหัส 6 หลักจาก DM" maxlength="6" inputmode="numeric" style="display:none; width:100%; padding:12px; margin-top:10px; border-radius:8px; border:0;">
+                    <button class="btn" id="btn-verify-code" style="display:none; margin-top:10px;">ยืนยันและเข้าเกม</button>
+                    <div id="login-error" style="color:#ff7979; font-size:13px; margin-top:16px; white-space:pre-line;"></div>
+                </div>`;
+            document.getElementById('btn-find-player')?.addEventListener('click', lookupPlayer);
+            document.getElementById('btn-verify-code')?.addEventListener('click', verifyPlayerCode);
+        }
+
+        async function lookupPlayer() {
+            const username = document.getElementById('verify-username')?.value.trim();
+            if (!username) return showLoginError('กรุณากรอก Discord username');
+            try {
+                const res = await apiGet('/api/player/lookup?username=' + encodeURIComponent(username));
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error === 'player_not_found' ? 'ยังไม่พบผู้เล่น กรุณาใช้ /verify ใน Discord ก่อน' : 'ค้นหาไม่สำเร็จ');
+                document.getElementById('player-preview').innerText = `พบผู้เล่น: ${data.username} | Lv.${data.level} | สปอร์ ${data.spore}`;
+                document.getElementById('verify-code').style.display = 'block';
+                document.getElementById('btn-verify-code').style.display = 'block';
+            } catch (err) { showLoginError('เชื่อมต่อ API ไม่ได้: ' + err.message); }
+        }
+
+        async function verifyPlayerCode() {
+            const username = document.getElementById('verify-username')?.value.trim();
+            const code = document.getElementById('verify-code')?.value.trim();
+            try {
+                const res = await apiPost('/api/player/verify', { username, code });
+                const data = await res.json();
+                if (!res.ok) throw new Error('รหัสไม่ถูกต้องหรือหมดอายุ');
+                authToken = data.token; currentUser = data.user;
+                localStorage.setItem('sporenet_token', authToken);
+                startGame();
+            } catch (err) { showLoginError(err.message); }
         }
 
         function showLoginError(msg) {

@@ -97,6 +97,7 @@ import * as fertilizeCmd from "./commands/fertilize.js";
 import * as weatherCmd from "./commands/weather.js";
 import * as natureCmd from "./commands/nature.js";
 import * as gachaCmd from "./commands/gacha.js";
+import * as verifyCmd from "./commands/verify.js";
 import {
   handleCrashBetButton,
   handleCrashBetModal,
@@ -177,6 +178,7 @@ commands.set("fertilize", fertilizeCmd);
 commands.set("weather", weatherCmd);
 commands.set("nature", natureCmd);
 commands.set("gacha", gachaCmd);
+commands.set("verify", verifyCmd);
 commands.set("water", waterCmd);
 commands.set("protect", protectCmd);
 commands.set("worldmushroom", worldmushroomCmd);

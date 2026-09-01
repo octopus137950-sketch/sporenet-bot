@@ -13,6 +13,8 @@ import {
 } from "../bot/auth/discord.js";
 import {
   getPlayer,
+  getPlayerByUsername,
+  consumeVerificationCode,
   savePlayer,
   getInventory,
   addItemToInventory,
@@ -133,6 +135,24 @@ router.get("/auth/me", requireAuth, (req, res) => {
     userId: user.userId,
     username: user.username,
   });
+});
+
+// ─── Public username lookup + Discord code verification ───────
+router.get("/player/lookup", (req, res) => {
+  const username = String(req.query.username ?? "").trim();
+  if (!username || username.length > 64) return res.status(400).json({ error: "invalid_username" });
+  const result = getPlayerByUsername(username);
+  if (!result) return res.status(404).json({ found: false, error: "player_not_found" });
+  return res.json({ found: true, username, spore: result.player.sporePoints, level: result.player.farmLevel, exp: result.player.farmExp });
+});
+
+router.post("/player/verify", (req, res) => {
+  const { username, code } = req.body as { username?: string; code?: string };
+  if (!username || !/^\\d{6}$/.test(code ?? "")) return res.status(400).json({ error: "invalid_verification" });
+  const userId = consumeVerificationCode(username, code!);
+  if (!userId) return res.status(401).json({ error: "invalid_or_expired_code" });
+  const player = getPlayer(userId);
+  return res.json({ token: createSessionToken(userId, username), user: { userId, username }, player: { spore: player.sporePoints, level: player.farmLevel, exp: player.farmExp } });
 });
 
 // ─── GET /api/player ──────────────────────────────────────────
