@@ -7,6 +7,7 @@ const DISCORD_CLIENT_SECRET = process.env["DISCORD_CLIENT_SECRET"] ?? "";
 const DISCORD_BOT_TOKEN = process.env["DISCORD_TOKEN"] ?? "";
 const DISCORD_GUILD_ID = process.env["DISCORD_GUILD_ID"] ?? "";
 const GAME_BASE_URL = process.env["GAME_BASE_URL"] ?? ""; // เช่น https://sporenet-game.vercel.app
+const DISCORD_REDIRECT_URI = process.env["DISCORD_REDIRECT_URI"] ?? `${GAME_BASE_URL}/auth/callback`;
 const SESSION_SECRET = process.env["SESSION_SECRET"] ?? randomBytes(32).toString("hex");
 
 // Discord API endpoints
@@ -17,7 +18,7 @@ const USER_GUILDS_URL = `${DISCORD_API}/users/@me/guilds`;
 
 // ─── สร้าง OAuth2 authorization URL ────────────────────────────
 export function buildAuthUrl(state: string): string {
-  const redirectUri = encodeURIComponent(`${GAME_BASE_URL}/auth/callback`);
+  const redirectUri = encodeURIComponent(DISCORD_REDIRECT_URI);
   const scope = encodeURIComponent("identify guilds");
   const params = new URLSearchParams({
     client_id: DISCORD_CLIENT_ID,
@@ -39,7 +40,7 @@ export interface DiscordTokenResponse {
 }
 
 export async function exchangeCodeForToken(code: string): Promise<DiscordTokenResponse | null> {
-  const redirectUri = `${GAME_BASE_URL}/auth/callback`;
+  const redirectUri = DISCORD_REDIRECT_URI;
   const body = new URLSearchParams({
     client_id: DISCORD_CLIENT_ID,
     client_secret: DISCORD_CLIENT_SECRET,
