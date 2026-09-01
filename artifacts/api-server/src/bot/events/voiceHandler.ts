@@ -48,6 +48,9 @@ async function sendLeaveNotification(
   session: VoiceSession,
   leftAt: number,
 ): Promise<void> {
+  // ✅ เฉพาะแจ้งเตือนเมื่อได้ reward จริง
+  if (session.earnedSpore === 0 && session.earnedExp === 0) return;
+
   try {
     const config = getVoiceRewardConfig(guild.id);
     if (!config?.enabled || !config.notifyChannelId) return;
@@ -70,10 +73,7 @@ async function sendLeaveNotification(
         { name: "⏱️ เวลาในห้องเสียง", value: formatDuration(leftAt - session.joinTime), inline: true }
       )
       .setFooter({
-        text:
-          session.earnedSpore > 0 || session.earnedExp > 0
-            ? "ระบบแจก reward ให้ครบตามรอบเวลาที่กำหนดแล้ว"
-            : "เซสชันนี้ยังไม่ครบเวลารับ reward รอบแรก",
+        text: "ระบบแจก reward ให้ครบตามรอบเวลาที่กำหนดแล้ว",
       })
       .setTimestamp();
 
