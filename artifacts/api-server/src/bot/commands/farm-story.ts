@@ -247,24 +247,28 @@ export async function handleStats(interaction: ButtonInteraction): Promise<void>
   if (!session) return rejectComponent(interaction, "ไม่พบ session นี้");
   const embed = new EmbedBuilder().setTitle("สเตตัสตัวละคร").setDescription(`แต้มที่เหลือ: **${session.stats.points}**\n\nHP +${session.stats.hp} | MP +${session.stats.mp}\nATK +${session.stats.atk} | DEF +${session.stats.def} | SPD +${session.stats.spd}\n\nSPD เพิ่มโอกาสหลบการโจมตีของมอนสเตอร์`).setColor(0x57f287);
   const stats = (["hp", "mp", "atk", "def", "spd"] as const);
-  return update(interaction, [embed], [new ActionRowBuilder<ButtonBuilder>().addComponents(...stats.map((stat) => new ButtonBuilder().setCustomId(`fs:statup:${session.userId}:${stat}`).setLabel(`เพิ่ม ${stat.toUpperCase()}`).setStyle(ButtonStyle.Success))), new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:back:${session.userId}`).setLabel("กลับ").setStyle(ButtonStyle.Secondary))]);
+  const presetLabel = session.pendingStatAmount ? `จำนวนต่อครั้ง: ${session.pendingStatAmount} แต้ม` : "ตั้งจำนวนแต้มต่อครั้ง";
+  return update(interaction, [embed], [
+    new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:statpreset:${session.userId}`).setLabel(presetLabel).setStyle(ButtonStyle.Primary)),
+    new ActionRowBuilder<ButtonBuilder>().addComponents(...stats.map((stat) => new ButtonBuilder().setCustomId(`fs:statup:${session.userId}:${stat}`).setLabel(`เพิ่ม ${stat.toUpperCase()}`).setStyle(ButtonStyle.Success))),
+    new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:back:${session.userId}`).setLabel("กลับ").setStyle(ButtonStyle.Secondary)),
+  ]);
 }
 
-export async function handleStatUpgrade(interaction: ButtonInteraction, stat: string): Promise<void> {
+export async function handleStatPreset(interaction: ButtonInteraction): Promise<void> {
   if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
-  if (!["hp", "mp", "atk", "def", "spd"].includes(stat)) return rejectComponent(interaction, "ค่าสเตตัสไม่ถูกต้อง");
-  const modal = new ModalBuilder().setCustomId(`fs:statamount:${interaction.user.id}:${stat}`).setTitle(`เพิ่ม ${stat.toUpperCase()}`);
-  const amount = new TextInputBuilder().setCustomId("amount").setLabel("ต้องการใช้กี่แต้ม?").setPlaceholder("เช่น 10").setStyle(TextInputStyle.Short).setRequired(true).setMinLength(1).setMaxLength(6);
+  const modal = new ModalBuilder().setCustomId(`fs:statpreset:${interaction.user.id}`).setTitle("ตั้งจำนวนแต้มต่อครั้ง");
+  const amount = new TextInputBuilder().setCustomId("amount").setLabel("จำนวนแต้มที่จะใช้ต่อการกด 1 ครั้ง").setPlaceholder("เช่น 10").setStyle(TextInputStyle.Short).setRequired(true).setMinLength(1).setMaxLength(6);
   modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(amount));
   return interaction.showModal(modal);
 }
 
-export async function handleStatAmount(interaction: ModalSubmitInteraction, stat: string): Promise<void> {
-  if (!validOwner(interaction)) return rejectComponent(interaction, "ฟอร์มนี้เป็นของผู้เล่นคนอื่น");
+export async function handleStatUpgrade(interaction: ButtonInteraction, stat: string): Promise<void> {
+  if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
-  const amount = Number.parseInt(interaction.fields.getTextInputValue("amount"), 10);
-  if (!session || !Number.isInteger(amount) || amount < 1) return rejectComponent(interaction, "กรุณากรอกจำนวนเต็มที่มากกว่า 0");
-  if (!session.stats || !["hp", "mp", "atk", "def", "spd"].includes(stat)) return rejectComponent(interaction, "ค่าสเตตัสไม่ถูกต้อง");
+  if (!session || !["hp", "mp", "atk", "def", "spd"].includes(stat)) return rejectComponent(interaction, "ค่าสเตตัสไม่ถูกต้อง");
+  const amount = session.pendingStatAmount;
+  if (!amount) return rejectComponent(interaction, "กรุณากด ตั้งจำนวนแต้มต่อครั้ง ก่อน");
   if (amount > session.stats.points) return rejectComponent(interaction, `แต้มไม่พอ มีอยู่ ${session.stats.points} แต้ม`);
   session.stats[stat as keyof PlayerStats] += amount;
   session.stats.points -= amount;
@@ -272,7 +276,18 @@ export async function handleStatAmount(interaction: ModalSubmitInteraction, stat
   if (stat === "mp") session.maxMP += amount * 10;
   session.lastAction = `upgrade_${stat}_${amount}`;
   saveSession(session);
-  const embed = new EmbedBuilder().setTitle("อัพสเตตัสสำเร็จ").setDescription(`ใช้แต้ม **${amount}** แต้มกับ **${stat.toUpperCase()}**\nแต้มที่เหลือ: **${session.stats.points}**`).setColor(0x57f287);
+  return handleStats(interaction);
+}
+
+export async function handleStatAmount(interaction: ModalSubmitInteraction): Promise<void> {
+  if (!validOwner(interaction)) return rejectComponent(interaction, "ฟอร์มนี้เป็นของผู้เล่นคนอื่น");
+  const session = getSession(interaction.user.id, interaction.guildId!);
+  const amount = Number.parseInt(interaction.fields.getTextInputValue("amount"), 10);
+  if (!session || !Number.isInteger(amount) || amount < 1) return rejectComponent(interaction, "กรุณากรอกจำนวนเต็มที่มากกว่า 0");
+  if (amount > session.stats.points) return rejectComponent(interaction, `แต้มไม่พอ มีอยู่ ${session.stats.points} แต้ม`);
+  session.pendingStatAmount = amount;
+  saveSession(session);
+  const embed = new EmbedBuilder().setTitle("ตั้งจำนวนแต้มแล้ว").setDescription(`กดปุ่มค่าสเตตัสเพื่อใช้ครั้งละ **${amount} แต้ม**\nแต้มที่เหลือ: **${session.stats.points}**`).setColor(0x57f287);
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
@@ -646,7 +661,7 @@ export async function handleEventAction(interaction: ButtonInteraction, action: 
     quests.push(event.quest);
     session.activeQuest = event.quest;
     finishEvent(session, "accepted_quest");
-    return renderMain(interaction, session, `รับเควส **${event.quest.title}** แล้ว — ดูความคืบหน้าได้ที่ปุ่ม เควส`);
+    return renderMain(interaction, session, `รับเควส **${event.quest.title}** แล้ว — ดูคว��มคืบหน้าได้ที่ปุ่ม เควส`);
   }
   if (action === "item_take" && event.kind === "item" && event.item) {
     session.inventory.push({ ...event.item, type: "item", quantity: 1 });
@@ -809,7 +824,7 @@ export async function handleProfile(interaction: ButtonInteraction): Promise<voi
   if (!session) return rejectComponent(interaction, "❌ ไม่พบ session นี้");
   const player = getPlayer(session.userId);
   const embed = new EmbedBuilder()
-    .setTitle(`👤 โปรไฟล์นักผจญภัย • Chapter ${session.chapter}`)
+    .setTitle(`👤 โป���ไฟล์นักผจญภัย • Chapter ${session.chapter}`)
     .setDescription(`อาวุธ **${session.weapon.emoji} ${session.weapon.name}**\n${session.weapon.description}`)
     .setColor(0x5865f2)
     .addFields(

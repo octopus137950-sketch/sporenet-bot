@@ -304,9 +304,8 @@ export async function startBot(): Promise<void> {
       }
 
       if (interaction.isModalSubmit()) {
-        if (interaction.customId.startsWith("fs:statamount:")) {
-          const [, , , stat] = interaction.customId.split(":");
-          await handleStatAmount(interaction, stat ?? "");
+        if (interaction.customId.startsWith("fs:statpreset:")) {
+          await handleStatAmount(interaction);
         } else if (interaction.customId.startsWith("verify_modal_")) {
           await handleVerifyModal(interaction);
         } else if (interaction.customId === "casino_bet_modal") {
