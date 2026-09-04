@@ -25,6 +25,7 @@ import {
   getWorldMushroom,
 } from "../data/store.js";
 import { getWorldMushroomBonuses } from "../utils/worldMushroom.js";
+import { getSession } from "../data/farmStoryStore.js";
 
 /** สุ่มไอเทมดรอปจากบอส — โอกาส 2% (สูงกว่าฟาร์มปกติ 0.75%) */
 function rollBossItemDrop(): typeof ITEMS_POOL[number] | null {
@@ -278,7 +279,11 @@ export function processBossAttack(
   const boss = activeBosses.get(guildId);
   if (!boss) return { hit: false, damage: 0, remaining: 0, dead: false };
 
-  // ── คำนวณโบนัสโจมตีจากไอเทมที่สวมใส่ (attack_percent, non-stack) ──
+  // ใช้ ATK เดียวกับ Farm Story เป็นฐาน; ผู้เล่นเก่าจะ fallback เป็นสูตรเลเวลเดิม
+  const farmSession = getSession(userId, guildId);
+  const baseAttack = farmSession ? farmSession.stats.atk + farmSession.weapon.baseDamage : 10 + 5 * Math.max(0, userLevel - 1);
+
+  // คำนวณโบนัสโจมตีจากไอเทมที่สวมใส่
   const inv = getInventory(userId);
   const seen = new Set<string>();
   let attackBonus = 0;
@@ -296,8 +301,7 @@ export function processBossAttack(
   ).bossDamageBonusPercent;
   const multiplier = 1 + (attackBonus + worldMushroomBonus) / 100;
 
-  const maxDmg = 10 + 5 * (userLevel - 1);
-  const baseDmg = Math.floor(Math.random() * maxDmg) + 1;
+  const baseDmg = Math.max(1, Math.floor(baseAttack * (0.9 + Math.random() * 0.2)));
   const dmg = Math.max(1, Math.floor(baseDmg * multiplier));
 
   boss.currentHp = Math.max(0, boss.currentHp - dmg);
