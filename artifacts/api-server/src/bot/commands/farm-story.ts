@@ -231,7 +231,7 @@ async function renderAdventureStart(interaction: ComponentInteraction, session: 
   await update(interaction, [embed], [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`fs:start:${session.userId}`).setLabel("เข้าป่า").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`fs:stats:${session.userId}`).setLabel("อัพสเตตัส").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`fs:stats:${session.userId}`).setLabel("อัพส��ตตัส").setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("กระเป๋า").setStyle(ButtonStyle.Secondary),
     ),
   ]);
@@ -421,8 +421,10 @@ async function renderMain(interaction: ComponentInteraction | ChatInputCommandIn
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`fs:farm:${session.userId}`).setLabel("🍄 ฟาร์ม").setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId(`fs:profile:${session.userId}`).setLabel("👤 โปรไฟล์").setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("🎒 กระเป๋า").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`fs:quests:${session.userId}`).setLabel("📜 เควส").setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("🎒 กระเป๋า").setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId(`fs:stats:${session.userId}`).setLabel("อัพสเตตัส").setStyle(ButtonStyle.Success),
+  new ButtonBuilder().setCustomId(`fs:quests:${session.userId}`).setLabel("📜 เควส").setStyle(ButtonStyle.Secondary),
+
   );
   if ("update" in interaction) await update(interaction, [embed], [row]);
   else await interaction.editReply({ embeds: [embed], components: [row] });
@@ -511,7 +513,7 @@ async function renderEvent(interaction: ComponentInteraction | ChatInputCommandI
   } else if (event.kind === "npc") {
     row.addComponents(new ButtonBuilder().setCustomId(`fs:npc_talk:${session.userId}`).setLabel("💬 ช่วยเหลือ").setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(`fs:leave:${session.userId}`).setLabel("เดินต่อ").setStyle(ButtonStyle.Secondary));
   } else if (event.kind === "quest") {
-    embed.addFields({ name: "ภารกิจ", value: `${event.quest!.description}\nรางวัล: ${event.quest!.rewardSpore} สปอร์ + ${event.quest!.rewardExp} EXP` });
+    embed.addFields({ name: "ภารกิจ", value: `${event.quest!.description}\nรา���วัล: ${event.quest!.rewardSpore} สปอร์ + ${event.quest!.rewardExp} EXP` });
     row.addComponents(new ButtonBuilder().setCustomId(`fs:quest_accept:${session.userId}`).setLabel("📜 รับเควสต์").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`fs:leave:${session.userId}`).setLabel("ปฏิเสธ").setStyle(ButtonStyle.Secondary));
   } else if (event.kind === "item") {
     row.addComponents(new ButtonBuilder().setCustomId(`fs:item_take:${session.userId}`).setLabel("🎁 เก็บไอเทม").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`fs:leave:${session.userId}`).setLabel("ทิ้งไว้").setStyle(ButtonStyle.Secondary));
@@ -597,7 +599,7 @@ export async function handleEventAction(interaction: ButtonInteraction, action: 
 
   if (action === "leave") {
     finishEvent(session, "left_event");
-    return renderMain(interaction, session, "ท่านเดินทางต่อโดยไม่รับข้อเสนอ");
+    return renderMain(interaction, session, "���่านเดินทางต่อโดยไม่รับข้อเสนอ");
   }
   if (action === "npc_talk" && event.kind === "npc") {
     session.currentHP = Math.min(session.maxHP, session.currentHP + 25);
@@ -642,7 +644,7 @@ export async function handleEventAction(interaction: ButtonInteraction, action: 
     session.inventory.push({ ...item, type: "item", quantity: 1 });
     const levelText = award(session, 0, 30);
     finishEvent(session, `opened_secret_${item.id}`);
-    return renderMain(interaction, session, `พื้นที่ลับมอบ ${item.name} และ +30 EXP${levelText}`);
+    return renderMain(interaction, session, `พื้นที���ลับมอบ ${item.name} และ +30 EXP${levelText}`);
   }
   if (action === "ruins_continue" && event.kind === "ruins") {
     const mushroom = randomOf(MUSHROOMS);
@@ -692,7 +694,7 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
     session.chapter += 1;
     session.lastAction = "fled_battle";
     saveSession(session);
-    return renderMain(interaction, session, `ท่านหนีจาก ${battle.monster.name} สำเร็จ แต่ไม่ได้รับรางวัล`);
+    return renderMain(interaction, session, `ท่านหนีจาก ${battle.monster.name} สำเร็จ แต่ไม่ได้ร���บรางวัล`);
   }
 
   let damage = 0;
