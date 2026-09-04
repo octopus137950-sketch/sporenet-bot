@@ -245,7 +245,7 @@ export async function handleWeaponSelect(interaction: StringSelectMenuInteractio
 
 async function renderAdventureStart(interaction: ComponentInteraction, session: FarmStorySession, accepted: boolean): Promise<void> {
   const embed = new EmbedBuilder()
-    .setTitle("🏰 เริ่มการผจญ���ัย")
+    .setTitle("🏰 เริ่มการผจญ�����ัย")
     .setDescription(
       accepted
         ? "ราชามอบสปอร์เริ่มต้น 1,000 ให้ท่านแล้ว จงออกเดินทางไปหยุดจอมมารเห็ด!"
@@ -719,8 +719,9 @@ export async function handleShopMushroomSelect(interaction: StringSelectMenuInte
   const event = session.pendingEvent;
   if (!event || event.kind !== "shop") return rejectComponent(interaction, "ร้านค้าหมดเวลาแล้ว");
   const embed = new EmbedBuilder().setTitle("ยืนยันการขายเห็ด").setDescription(`${summary}\n\nยอดรวมที่จะได้รับ: **${total.toLocaleString()} สปอร์**\nเห็ดทั้งหมดที่เลือกจะถูกนำออกจากกระเป๋า`).setColor(0x2ecc71);
-  const ids = selected.map((item) => encodeQuestId(item.id)).join(",");
-  await update(interaction, [embed], [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:shop_confirm:${session.userId}:${ids}`).setLabel("ยืนยันขายทั้งหมด").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`fs:event_leave:${session.userId}`).setLabel("ยกเลิก").setStyle(ButtonStyle.Secondary))]);
+  session.pendingShopMushroomIds = selected.map((item) => item.id);
+  saveSession(session);
+  await update(interaction, [embed], [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:shop_confirm:${session.userId}`).setLabel("ยืนยันขายทั้งหมด").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`fs:event_leave:${session.userId}`).setLabel("ยกเลิก").setStyle(ButtonStyle.Secondary))]);
 }
 
 export async function handleShopMushroomConfirm(interaction: ButtonInteraction, ids: string[]): Promise<void> {
@@ -728,16 +729,19 @@ export async function handleShopMushroomConfirm(interaction: ButtonInteraction, 
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session || !session.pendingEvent || session.pendingEvent.kind !== "shop") return rejectComponent(interaction, "ร้านค้าหมดเวลาแล้ว");
   let total = 0;
-  for (const id of ids) {
-    const item = session.inventory.find((entry) => entry.type === "mushroom" && entry.id === id);
+  const selectedIds = session.pendingShopMushroomIds ?? ids;
+  session.pendingShopMushroomIds = undefined;
+  for (const id of selectedIds) {
+  const item = session.inventory.find((entry) => entry.type === "mushroom" && entry.id === id);
+
     if (!item) continue;
     total += (item.value ?? 10) * item.quantity;
     session.inventory.splice(session.inventory.indexOf(item), 1);
   }
   if (!total) return rejectComponent(interaction, "เห็ดที่เลือกไม่มีอยู่แล้ว");
   award(session, total, Math.max(2, Math.floor(total / 40)));
-  finishEvent(session, `sold_mushrooms_${ids.length}`);
-  return renderMain(interaction, session, `ขายเห็ด ${ids.length} ชนิดสำเร็จ ได้รับ **${total.toLocaleString()} สปอร์**`);
+  finishEvent(session, `sold_mushrooms_${selectedIds.length}`);
+  return renderMain(interaction, session, `ขายเห็ด ${selectedIds.length} ชนิดสำเร็จ ได้รับ **${total.toLocaleString()} สปอร์**`);
 }
 
 export async function handleEventAction(interaction: ButtonInteraction, action: string): Promise<void> {

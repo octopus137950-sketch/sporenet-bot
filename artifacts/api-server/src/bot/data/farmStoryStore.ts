@@ -216,6 +216,7 @@ export interface FarmStorySession {
   activeMainQuestStage?: number;
   completedQuestIds?: string[];
   pendingEvent?: StoryEventState;
+  pendingShopMushroomIds?: string[];
   pendingQuestSubmission?: { questId: string; mushroomIds: string[] };
   pendingStatAmount?: number;
   farmStoryVoiceChannelId?: string;
