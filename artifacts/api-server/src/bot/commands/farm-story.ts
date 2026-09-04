@@ -518,7 +518,7 @@ function newFarmEvent(playerLevel = 1): StoryEventState | BattleState {
   if (roll < 97) {
     const offer = randomOf(ITEMS_POOL) as BuffItem;
     const marketPrice = Math.max(180, 180 + Math.round(offer.buffValue * 12) + (offer.buffType === "attack_percent" ? 120 : 0));
-    return { kind: "shop", id: `shop_${offer.id}`, title: "พ่อค้าเร่แห่งป่าเห็ด", description: `พ่อค้าเร่เปิดร้านชั่วคราว — ราคาตลาดของ ${offer.name} ปรับตามความหายาก`, image: IMAGES.shop, offer: { id: offer.id, name: offer.name, emoji: offer.emoji, description: offer.lore, price: marketPrice } };
+    return { kind: "shop", id: `shop_${offer.id}`, title: "พ่อค้าเร่แห่งป่าเห็ด", description: `พ่อค้าเร่เปิดร้านชั่วคราว — ราคาตลาดของ ${offer.name} ปรับตามค���ามหายาก`, image: IMAGES.shop, offer: { id: offer.id, name: offer.name, emoji: offer.emoji, description: offer.lore, price: marketPrice } };
   }
   if (roll < 99) return { kind: "secret", id: "hidden_grotto", title: "🌌 พื้นที่ลับใต้รากไม้", description: "ท่านพบทางลับท���่มีแสงสีฟ้าส่องออกมา เหมือนมีบางอย่างรออยู่", image: IMAGES.secret };
   return { kind: "ruins", id: "ancient_ruins", title: "🏛️ เหตุการณ��ต่อเนื่อง: ซากวิหาร", description: "��ระตูวิหารโบรา��เปิดอ��ก เผยร่องรอยของผู้กล้าคนก่อน", image: IMAGES.ruins };
@@ -538,7 +538,14 @@ export async function handleItems(interaction: ButtonInteraction): Promise<void>
   if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session) return rejectComponent(interaction, "ไม่พบ session นี้");
-  const items = session.inventory.filter((item) => item.type === "item" && item.quantity > 0 && (item.id === "healing_herb" || item.id === "mana_crystal"));
+  const grouped = new Map<string, FarmStorySession["inventory"][number]>();
+  for (const item of session.inventory) {
+    if (item.type !== "item" || item.quantity <= 0 || !["healing_herb", "mana_crystal"].includes(item.id)) continue;
+    const existing = grouped.get(item.id);
+    if (existing) existing.quantity += item.quantity;
+    else grouped.set(item.id, { ...item });
+  }
+  const items = [...grouped.values()];
   const embed = new EmbedBuilder().setTitle("ไอเทมฟื้นพลัง").setDescription("เลือกอาหารหรือไอเทมเพื่อฟื้น HP/MP").setColor(0x3498db);
   const buttons = items.map((item) => new ButtonBuilder().setCustomId(`fs:itemuse:${session.userId}:${item.id}`).setLabel(`${item.emoji ?? "ไอเทม"} ${item.name} x${item.quantity}`).setStyle(ButtonStyle.Primary));
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
@@ -559,8 +566,9 @@ export async function handleUseItem(interaction: ButtonInteraction, itemId: stri
   const restored = (itemId === "healing_herb" ? session.currentHP : session.currentMP) - before;
   item.quantity -= 1;
   if (item.quantity <= 0) session.inventory.splice(session.inventory.indexOf(item), 1);
+  session.lastAction = `used_${itemId}`;
   saveSession(session);
-  return handleItems(interaction).then(() => undefined);
+  return renderMain(interaction, session, `ใช้ ${item.name} แล้ว ฟื้น ${itemId === "healing_herb" ? "HP" : "MP"} +${restored}`);
 }
 
 export async function handleFarm(interaction: ButtonInteraction): Promise<void> {
