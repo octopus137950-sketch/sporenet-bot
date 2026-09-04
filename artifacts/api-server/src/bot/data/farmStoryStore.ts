@@ -163,6 +163,7 @@ export interface ActiveQuest {
   progress: number;
   rewardSpore: number;
   rewardExp: number;
+  requiredMushroomIds?: string[];
 }
 
 export interface FarmStorySession {

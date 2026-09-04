@@ -32,13 +32,15 @@ type ComponentInteraction = ButtonInteraction | StringSelectMenuInteraction;
 const IMAGE_BASE =
   "https://raw.githubusercontent.com/octopus137950-sketch/sporenet-bot/main/artifacts/api-server/assets/farm";
 const IMAGES = {
-  king: `${IMAGE_BASE}/story_mushroom_king.png`,
+  king: `${IMAGE_BASE}/story_king_pixel.png`,
   weapons: `${IMAGE_BASE}/farm_crystalheart_mushroom.png`,
   adventure: `${IMAGE_BASE}/farm_mooncap_mushroom.png`,
-  npc: `${IMAGE_BASE}/story_village_npc.png`,
-  quest: `${IMAGE_BASE}/story_village_npc.png`,
+  npc: `${IMAGE_BASE}/story_apothecary_quest_pixel.png`,
+  mushroomQuest: `${IMAGE_BASE}/story_mushroom_quest_pixel.png`,
+  monsterQuest: `${IMAGE_BASE}/story_monster_quest_pixel.png`,
+  itemQuest: `${IMAGE_BASE}/story_item_quest_pixel.png`,
   shop: `${IMAGE_BASE}/story_mushroom_merchant.png`,
-  item: `${IMAGE_BASE}/farm_embercap_mushroom.png`,
+  item: `${IMAGE_BASE}/story_item_quest_pixel.png`,
   secret: `${IMAGE_BASE}/story_secret_ruins.png`,
   ruins: `${IMAGE_BASE}/story_secret_ruins.png`,
 };
@@ -233,7 +235,7 @@ export async function handleStartAdventure(interaction: ButtonInteraction): Prom
   session.chapter = Math.max(1, session.chapter);
   session.lastAction = "adventure_started";
   saveSession(session);
-  await renderMain(interaction, session, "การผจญภัยเริ่มต้นขึ้นแล้ว");
+  await renderMain(interaction, session, "การผจญภ��ยเริ่มต้นขึ้นแล้ว");
 }
 
 async function renderSession(interaction: ChatInputCommandInteraction, session: FarmStorySession): Promise<void> {
@@ -265,6 +267,13 @@ function award(session: FarmStorySession, spore: number, exp: number): string {
 
 function questList(session: FarmStorySession): ActiveQuest[] {
   session.activeQuests ??= session.activeQuest ? [session.activeQuest] : [];
+  for (const quest of session.activeQuests) {
+    if (quest.id.startsWith("collect")) {
+      quest.progress = Math.min(quest.target, mushroomInventory(session).reduce((sum, item) => sum + item.quantity, 0));
+    } else if (quest.requiredMushroomIds) {
+      quest.progress = Math.min(quest.target, mushroomInventory(session).filter((item) => quest.requiredMushroomIds!.includes(item.id)).reduce((sum, item) => sum + item.quantity, 0));
+    }
+  }
   return session.activeQuests;
 }
 
@@ -296,7 +305,7 @@ export async function handleQuestChoose(interaction: ButtonInteraction, questId:
   const session = getSession(interaction.user.id, interaction.guildId!);
   const quest = session && questList(session).find((item) => item.id === questId);
   if (!session || !quest || quest.progress < quest.target) return rejectComponent(interaction, "เควสนี้ยังส่งไม่ได้");
-  const mushrooms = mushroomInventory(session);
+  const mushrooms = mushroomInventory(session).filter((item) => !quest.requiredMushroomIds || quest.requiredMushroomIds.includes(item.id));
   if (mushrooms.length === 0) return rejectComponent(interaction, "ไม่มีเห็ดในกระเป๋า");
   const embed = new EmbedBuilder().setTitle("เลือกเห็ดที่จะส่ง").setDescription(`เควส **${quest.title}** ต้องการเห็ด ${quest.target} ชิ้น\nเลือกเห็ดราคาถูกหรือเห็ดชนิดที่ต้องการส่งได้เอง`).setColor(0xf1c40f);
   const menu = new StringSelectMenuBuilder().setCustomId(`fs:quest_mushroom:${session.userId}:${encodeQuestId(quest.id)}`).setPlaceholder("เลือกชนิดเห็ด").setMinValues(1).setMaxValues(Math.min(mushrooms.length, 5)).addOptions(mushrooms.map((item) => ({ label: `${item.name} (${item.quantity} ชิ้น)`, value: item.id, description: `มูลค่าขาย ${item.value ?? 0} สปอร์`, emoji: item.emoji })));
@@ -326,7 +335,7 @@ export async function handleQuestSubmit(interaction: ButtonInteraction, questId:
   let remaining = quest.target;
   for (const id of mushroomIds) {
     const item = session.inventory.find((entry) => entry.type === "mushroom" && entry.id === id);
-    if (!item || item.quantity <= 0) return rejectComponent(interaction, "เห็ดบางชนิดไม่อยู่ในกระเป๋าแล้ว");
+    if (!item || item.quantity <= 0) return rejectComponent(interaction, "เห็ดบาง���นิดไม่อยู่ในกระเป๋าแล้ว");
     const used = Math.min(item.quantity, remaining);
     item.quantity -= used;
     remaining -= used;
@@ -381,12 +390,14 @@ function newFarmEvent(): StoryEventState | BattleState {
     const monster = randomOf(MONSTERS);
     return { monster, currentHP: monster.maxHP, enemyDefenseBrokenTurns: 0, enemyPoisonTurns: 0, enemyStunnedTurns: 0, playerDefending: false, turn: 1 };
   }
-  if (roll < 77) return { kind: "npc", id: "herbalist", title: "🧙 นักปรุงยาผู้หลงทาง", description: "นักปรุงยาขอให้ท่านช่วยชี้ทางกลับหมู่บ้าน แลกกับการรักษาและความรู้", image: IMAGES.npc };
-  if (roll < 85) return { kind: "quest", id: "collect_mushrooms", title: "📜 กระดาษคำร้องจากหมู่บ้าน", description: "ชาวบ้านต้องการเห็ดเพื่อปรุงยาป้องกันจอมมาร เก็บเห็ด 3 ดอกแล้วนำกลับมา", image: IMAGES.quest, quest: { id: "collect_mushrooms", title: "เก็บเห็ดช่วยหมู่บ้าน", description: "เก็บเห็ด 3 ดอก", target: 3, progress: 0, rewardSpore: 100, rewardExp: 45 } };
-  if (roll < 92) {
-    const item = randomOf(STORY_ITEMS);
-    return { kind: "item", id: item.id, title: `${item.emoji} หีบเสบียงเก่า`, description: `ท่านพบ ${item.name} ในหีบที่ถูกทิ้งไว้`, image: IMAGES.item, item };
+  if (roll < 77) return { kind: "npc", id: "apothecary", title: "นักปรุงยาเห็ดน้อยต้องการความช่วยเหลือ", description: "นักปรุงยาเห็ดน้อยทำขวดฟื้นพลังหล่นกระจาย ช่วยเก็บสมุนไพรให้เขา แล้วเขาจะรักษา HP และเปิดเควสต่อเนื่องให้", image: IMAGES.npc };
+  if (roll < 82) {
+    return { kind: "quest", id: "collect_mushrooms", title: "คำขอจากชาวบ้านเห็ด", description: "ชาวบ้านต้องการเห็ด 3 ชิ้นเพื่อทำยาป้องกันจอมมาร หากมีอยู่ในกระเป๋าแล้ว สามารถส่งได้ทันที", image: IMAGES.mushroomQuest, quest: { id: "collect_mushrooms", title: "ส่งเห็ดให้ชาวบ้าน", description: "ส่งเห็ดชนิดใดก็ได้ 3 ชิ้น", target: 3, progress: 0, rewardSpore: 100, rewardExp: 45 } };
   }
+  if (roll < 87) {
+    return { kind: "quest", id: "hunt_monster", title: "ประกาศจับมอนสเตอร์จอมซน", description: "ช่วยปกป้องหมู่บ้านจากมอนสเตอร์จอมซน 2 ตัว แล้วกลับมารับรางวัล", image: IMAGES.monsterQuest, quest: { id: "hunt_monster", title: "ปกป้องหมู่บ้าน", description: "ชนะมอนสเตอร์ 2 ตัว", target: 2, progress: 0, rewardSpore: 150, rewardExp: 70 } };
+  }
+
   if (roll < 97) {
     const offer = randomOf(ITEMS_POOL) as BuffItem;
     return { kind: "shop", id: `shop_${offer.id}`, title: "🛒 พ่อค้าเร่แห่งป่าเห็ด", description: "พ่อค้าเร่เปิดร้านชั่วคราว ก่อนจะเดินทางต่อในไม่ช้า", image: IMAGES.shop, offer: { id: offer.id, name: offer.name, emoji: offer.emoji, description: offer.lore, price: 100 + Math.floor(Math.random() * 151) } };
@@ -489,9 +500,12 @@ export async function handleEventAction(interaction: ButtonInteraction, action: 
   }
   if (action === "npc_talk" && event.kind === "npc") {
     session.currentHP = Math.min(session.maxHP, session.currentHP + 25);
+    const followUp: ActiveQuest = { id: "apothecary_herbs", title: "สมุนไพรให้ขวดฟื้นพลัง", description: "ส่งเห็ดเรืองแสงหรือเห็ดหัวใจผลึก 2 ชิ้นให้นักปรุงยา", target: 2, progress: 0, rewardSpore: 120, rewardExp: 55, requiredMushroomIds: ["glowing_mushroom", "crystalheart_mushroom"] };
+    const quests = questList(session);
+    if (!quests.some((quest) => quest.id === followUp.id)) quests.push(followUp);
     const levelText = award(session, 0, 20);
-    finishEvent(session, "helped_npc");
-    return renderMain(interaction, session, `นักปรุงยารักษาให้ +25 HP และมอบความรู้ +20 EXP${levelText}`);
+    finishEvent(session, "helped_apothecary");
+    return renderMain(interaction, session, `นักปรุงยาเห็ดน้อยรักษาให้ +25 HP และเปิดเควส **${followUp.title}** แล้ว — เข้าเมนูเควสเพื่อดูและส่งของได้ทันที${levelText}`);
   }
   if (action === "quest_accept" && event.kind === "quest" && event.quest) {
     const quests = questList(session);
