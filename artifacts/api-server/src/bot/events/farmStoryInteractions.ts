@@ -13,6 +13,8 @@ import {
   handleQuestChoose,
   handleQuestMushroomSelect,
   handleQuestSubmit,
+  handleShopMushroomSelect,
+  handleShopMushroomConfirm,
   handleSkipMushroom,
   handleStartAdventure,
   handleWeaponSelect,
@@ -55,6 +57,7 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
     case "quests": return handleQuests(interaction);
     case "quest_choose": return handleQuestChoose(interaction, decodeQuestId(parts[3] ?? ""));
     case "quest_confirm": return handleQuestSubmit(interaction, decodeQuestId(parts[3] ?? ""), (parts[4] ?? "").split(",").filter(Boolean).map(decodeQuestId));
+    case "shop_confirm": return handleShopMushroomConfirm(interaction, (parts[3] ?? "").split(",").filter(Boolean).map(decodeQuestId));
     case "back": return handleBack(interaction);
     case "collect": return handleCollect(interaction);
     case "skip": return handleSkipMushroom(interaction);
@@ -67,6 +70,8 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
     case "ruins_continue":
     case "leave":
       return handleEventAction(interaction, action);
+    case "event_leave":
+      return handleEventAction(interaction, "leave");
     case "battle":
       return handleBattleAction(interaction, "attack");
     case "skill":
@@ -82,4 +87,5 @@ async function handleSelect(interaction: StringSelectMenuInteraction): Promise<v
   const parts = interaction.customId.split(":");
   if (parts[1] === "weapon") return handleWeaponSelect(interaction, interaction.values[0]!, parts[3] === "1");
   if (parts[1] === "quest_mushroom") return handleQuestMushroomSelect(interaction, decodeQuestId(parts[3] ?? ""), interaction.values);
+  if (parts[1] === "shop_mushrooms") return handleShopMushroomSelect(interaction);
 }
