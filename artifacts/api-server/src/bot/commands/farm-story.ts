@@ -5,7 +5,11 @@ import {
   ButtonStyle,
   ChatInputCommandInteraction,
   EmbedBuilder,
+  ModalBuilder,
+  ModalSubmitInteraction,
   SlashCommandBuilder,
+  TextInputBuilder,
+  TextInputStyle,
   StringSelectMenuBuilder,
   StringSelectMenuInteraction,
 } from "discord.js";
@@ -231,7 +235,7 @@ async function renderAdventureStart(interaction: ComponentInteraction, session: 
   await update(interaction, [embed], [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`fs:start:${session.userId}`).setLabel("เข้าป่า").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`fs:stats:${session.userId}`).setLabel("อัพส��ตตัส").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`fs:stats:${session.userId}`).setLabel("อัพส���ตตัส").setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("กระเป๋า").setStyle(ButtonStyle.Secondary),
     ),
   ]);
@@ -247,6 +251,32 @@ export async function handleStats(interaction: ButtonInteraction): Promise<void>
 }
 
 export async function handleStatUpgrade(interaction: ButtonInteraction, stat: string): Promise<void> {
+  if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
+  if (!["hp", "mp", "atk", "def", "spd"].includes(stat)) return rejectComponent(interaction, "ค่าสเตตัสไม่ถูกต้อง");
+  const modal = new ModalBuilder().setCustomId(`fs:statamount:${interaction.user.id}:${stat}`).setTitle(`เพิ่ม ${stat.toUpperCase()}`);
+  const amount = new TextInputBuilder().setCustomId("amount").setLabel("ต้องการใช้กี่แต้ม?").setPlaceholder("เช่น 10").setStyle(TextInputStyle.Short).setRequired(true).setMinLength(1).setMaxLength(6);
+  modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(amount));
+  return interaction.showModal(modal);
+}
+
+export async function handleStatAmount(interaction: ModalSubmitInteraction, stat: string): Promise<void> {
+  if (!validOwner(interaction)) return rejectComponent(interaction, "ฟอร์มนี้เป็นของผู้เล่นคนอื่น");
+  const session = getSession(interaction.user.id, interaction.guildId!);
+  const amount = Number.parseInt(interaction.fields.getTextInputValue("amount"), 10);
+  if (!session || !Number.isInteger(amount) || amount < 1) return rejectComponent(interaction, "กรุณากรอกจำนวนเต็มที่มากกว่า 0");
+  if (!session.stats || !["hp", "mp", "atk", "def", "spd"].includes(stat)) return rejectComponent(interaction, "ค่าสเตตัสไม่ถูกต้อง");
+  if (amount > session.stats.points) return rejectComponent(interaction, `แต้มไม่พอ มีอยู่ ${session.stats.points} แต้ม`);
+  session.stats[stat as keyof PlayerStats] += amount;
+  session.stats.points -= amount;
+  if (stat === "hp") session.maxHP += amount * 10;
+  if (stat === "mp") session.maxMP += amount * 10;
+  session.lastAction = `upgrade_${stat}_${amount}`;
+  saveSession(session);
+  const embed = new EmbedBuilder().setTitle("อัพสเตตัสสำเร็จ").setDescription(`ใช้แต้ม **${amount}** แต้มกับ **${stat.toUpperCase()}**\nแต้มที่เหลือ: **${session.stats.points}**`).setColor(0x57f287);
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
+export async function handleStatUpgradeLegacy(interaction: ButtonInteraction, stat: string): Promise<void> {
   if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session || !["hp", "mp", "atk", "def", "spd"].includes(stat)) return rejectComponent(interaction, "ค่าสเตตัสไม่ถูกต้อง");
@@ -595,7 +625,7 @@ export async function handleEventAction(interaction: ButtonInteraction, action: 
   if (!validOwner(interaction)) return rejectComponent(interaction, "❌ ปุ่มนี้เป็นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   const event = session?.pendingEvent;
-  if (!session || !event) return rejectComponent(interaction, "❌ เหตุการณ์นี้หมดอายุแล้ว");
+  if (!session || !event) return rejectComponent(interaction, "❌ เหตุการณ์นี้หมดอา��ุแล้ว");
 
   if (action === "leave") {
     finishEvent(session, "left_event");

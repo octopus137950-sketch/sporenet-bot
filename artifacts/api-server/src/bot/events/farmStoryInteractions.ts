@@ -1,4 +1,4 @@
-import { Client, Events, ButtonInteraction, StringSelectMenuInteraction } from "discord.js";
+import { Client, Events, ButtonInteraction, ModalSubmitInteraction, StringSelectMenuInteraction } from "discord.js";
 import {
   handleAccept,
   handleBag,
@@ -19,6 +19,7 @@ import {
   handleStartAdventure,
   handleStats,
   handleStatUpgrade,
+  handleStatAmount,
   handleWeaponSelect,
 } from "../commands/farm-story.js";
 
@@ -33,6 +34,8 @@ export function registerFarmStoryInteractions(client: Client): void {
         await handleButton(interaction);
       } else if (interaction.isStringSelectMenu() && interaction.customId.startsWith("fs:")) {
         await handleSelect(interaction);
+      } else if (interaction.isModalSubmit() && interaction.customId.startsWith("fs:")) {
+        await handleModal(interaction);
       }
     } catch (error) {
       console.error("[farmStoryInteractions] Error:", error);
@@ -85,6 +88,11 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
     default:
       return;
   }
+}
+
+async function handleModal(interaction: ModalSubmitInteraction): Promise<void> {
+  const parts = interaction.customId.split(":");
+  if (parts[1] === "statamount") return handleStatAmount(interaction, parts[3] ?? "");
 }
 
 async function handleSelect(interaction: StringSelectMenuInteraction): Promise<void> {
