@@ -32,12 +32,18 @@ import {
   type WeaponSkill,
 } from "../data/farmStoryStore.js";
 import { requireVoiceChannel } from "../utils/voiceChannelGuard.js";
+import { MAIN_QUESTS, newSideQuest, mainStage, rewardText, FARM_EQUIPMENT } from "../data/farmStoryContent.js";
 
 type ComponentInteraction = ButtonInteraction | StringSelectMenuInteraction;
 
 const IMAGE_BASE =
   "https://raw.githubusercontent.com/octopus137950-sketch/sporenet-bot/main/artifacts/api-server/assets/farm";
 const IMAGES = {
+  mainAwakening: `${IMAGE_BASE}/story_main_awakening_pixel.png`,
+  mainGuardian: `${IMAGE_BASE}/quest_main_guardian_pixel.png`,
+  mainCrystal: `${IMAGE_BASE}/quest_main_crystal_pixel.png`,
+  moonGrove: `${IMAGE_BASE}/event_moon_grove_pixel.png`,
+  merchant: `${IMAGE_BASE}/event_mushroom_merchant_pixel.png`,
   king: `${IMAGE_BASE}/story_king_pixel.png`,
   weapons: `${IMAGE_BASE}/farm_crystalheart_mushroom.png`,
   adventure: `${IMAGE_BASE}/farm_mooncap_mushroom.png`,
@@ -96,6 +102,20 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   if (session) {
   if (voiceChannelId) session.farmStoryVoiceChannelId = voiceChannelId;
   session.activeQuests ??= session.activeQuest ? [session.activeQuest] : [];
+  session.completedQuestIds ??= [];
+  if (!session.activeMainQuestId && Math.random() < 0.08) {
+    const chain = MAIN_QUESTS[Math.floor(Math.random() * MAIN_QUESTS.length)]!;
+    session.activeMainQuestId = chain.id;
+    session.activeMainQuestStage = 0;
+    session.activeQuest = mainStage(chain, 0);
+  } else if (!session.activeMainQuestId && session.activeQuests.length === 0) {
+    session.activeQuests.push(newSideQuest());
+    session.activeQuest = session.activeQuests[0];
+  }
+  if (session.inventory.length === 0) {
+    const starterEquipment = FARM_EQUIPMENT[0]!;
+    session.inventory.push({ id: starterEquipment.id, name: starterEquipment.name, emoji: starterEquipment.emoji, type: "equipment", quantity: 1, value: starterEquipment.value, equipment: starterEquipment });
+  }
   // Opening the menu is a read-only action; only actions after this should trigger a leave summary.
   session.lastAction = undefined;
   syncFromPlayer(session);
@@ -390,8 +410,9 @@ export async function handleQuests(interaction: ButtonInteraction): Promise<void
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session) return rejectComponent(interaction, "ไม่พบ session นี้");
   const quests = questList(session);
-  const description = quests.length ? quests.map((quest) => `**${quest.title}**\n${quest.description}\nความคืบหน้า: **${quest.progress}/${quest.target}**\nรางวัล: ${quest.rewardSpore} สปอร์ + ${quest.rewardExp} EXP`).join("\n\n") : "ยังไม่มีเควสที่กำลังทำ\nออกสำรวจเพื่อพบชาวบ้านและรับเควสใหม่";
-  const embed = new EmbedBuilder().setTitle("📜 กระดานเควส").setDescription(description).setColor(0xf1c40f);
+  const description = quests.length ? quests.map((quest) => `${quest.id.includes(":") ? "เควสหลัก" : "เควสรอง"} — **${quest.title}**\n${quest.description}\nความคืบหน้า: **${quest.progress}/${quest.target}**\n${rewardText(quest)}`).join("\n\n") : "ยังไม่มีเควสที่กำลังทำ\nออกสำรวจเพื่อพบชาวบ้านและรับเควสใหม่";
+  const embed = new EmbedBuilder().setTitle("กระดานเควส").setDescription(description).setColor(0xf1c40f);
+  if (session.activeMainQuestId) embed.setThumbnail(IMAGES.mainAwakening);
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
     ...quests.filter((quest) => quest.progress >= quest.target).slice(0, 4).map((quest) => new ButtonBuilder().setCustomId(`fs:quest_choose:${session.userId}:${encodeQuestId(quest.id)}`).setLabel(`เลือกเห็ดส่ง: ${quest.title.slice(0, 16)}`).setStyle(ButtonStyle.Success)),
     new ButtonBuilder().setCustomId(`fs:back:${session.userId}`).setLabel("กลับ").setStyle(ButtonStyle.Secondary),
@@ -623,7 +644,7 @@ async function renderEvent(interaction: ComponentInteraction | ChatInputCommandI
     .setThumbnail(eventImage(event));
   const row = new ActionRowBuilder<ButtonBuilder>();
   if (event.kind === "mushroom") {
-    embed.addFields({ name: "💰 ราคาขาย", value: `${event.mushroom!.value} สปอร์`, inline: true }, { name: "⭐ EXP เมื่อเก็บ", value: `${event.mushroom!.exp} EXP`, inline: true });
+    embed.addFields({ name: "💰 ราคาขาย", value: `${event.mushroom!.value} สปอร��`, inline: true }, { name: "⭐ EXP เมื่อเก็บ", value: `${event.mushroom!.exp} EXP`, inline: true });
     row.addComponents(new ButtonBuilder().setCustomId(`fs:collect:${session.userId}`).setLabel("🧺 เก็บ").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`fs:skip:${session.userId}`).setLabel("ไม���เก็บ (+5 EXP)").setStyle(ButtonStyle.Secondary));
   } else if (event.kind === "npc") {
     row.addComponents(new ButtonBuilder().setCustomId(`fs:npc_talk:${session.userId}`).setLabel("💬 ช่วยเหลือ").setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(`fs:leave:${session.userId}`).setLabel("เดินต่อ").setStyle(ButtonStyle.Secondary));
