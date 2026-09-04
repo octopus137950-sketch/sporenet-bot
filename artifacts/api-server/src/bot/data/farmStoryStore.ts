@@ -146,13 +146,40 @@ export interface BattleState {
   turn: number;
 }
 
+export type EquipmentSlot = "weapon" | "helmet" | "armor" | "pants" | "boots" | "item";
+
+export interface EquipmentItem {
+  id: string;
+  name: string;
+  emoji: string;
+  slot: EquipmentSlot;
+  description: string;
+  attack?: number;
+  defense?: number;
+  hp?: number;
+  mp?: number;
+  speed?: number;
+  value: number;
+}
+
+export interface PlayerStats {
+  hp: number;
+  mp: number;
+  atk: number;
+  def: number;
+  spd: number;
+  points: number;
+  awardedLevel: number;
+}
+
 export interface InventoryItem {
   id: string;
   name: string;
   emoji?: string;
-  type: "mushroom" | "item";
+  type: "mushroom" | "item" | "equipment";
   quantity: number;
   value?: number;
+  equipment?: EquipmentItem;
 }
 
 export interface ActiveQuest {
@@ -170,6 +197,8 @@ export interface FarmStorySession {
   userId: string;
   guildId: string;
   weapon: Weapon;
+  stats: PlayerStats;
+  equipment: Partial<Record<EquipmentSlot, EquipmentItem>>;
   chapter: number;
   isAccepted: boolean;
   currentHP: number;
@@ -205,6 +234,11 @@ function loadStore(): FarmStoryStore {
     const sessions = parsed.sessions ?? {};
     for (const session of Object.values(sessions) as FarmStorySession[]) {
       session.activeQuests ??= session.activeQuest ? [session.activeQuest] : [];
+      const level = Math.max(1, Math.floor((session.currentExp ?? 0) / 100) + 1);
+      session.stats ??= { hp: 0, mp: 0, atk: 0, def: 0, spd: 0, points: 5 + Math.max(0, level - 1) * 3, awardedLevel: level };
+      session.stats.awardedLevel ??= level;
+      session.stats.points ??= 0;
+      session.equipment ??= { weapon: session.weapon };
     }
     return { sessions };
   } catch (error) {
@@ -240,6 +274,8 @@ export function createSession(
     userId,
     guildId,
     weapon,
+    stats: { hp: 0, mp: 0, atk: 0, def: 0, spd: 0, points: 5, awardedLevel: 1 },
+    equipment: { weapon },
     chapter: 1,
     isAccepted,
     currentHP: weapon.baseHP,

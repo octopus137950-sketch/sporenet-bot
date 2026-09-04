@@ -17,6 +17,8 @@ import {
   handleShopMushroomConfirm,
   handleSkipMushroom,
   handleStartAdventure,
+  handleStats,
+  handleStatUpgrade,
   handleWeaponSelect,
 } from "../commands/farm-story.js";
 
@@ -54,6 +56,8 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
     case "farm": return handleFarm(interaction);
     case "profile": return handleProfile(interaction);
     case "bag": return handleBag(interaction);
+    case "stats": return handleStats(interaction);
+    case "statup": return handleStatUpgrade(interaction, parts[3] ?? "");
     case "quests": return handleQuests(interaction);
     case "quest_choose": return handleQuestChoose(interaction, decodeQuestId(parts[3] ?? ""));
     case "quest_confirm": return handleQuestSubmit(interaction);

@@ -17,6 +17,8 @@ import {
   saveSession,
   type ActiveQuest,
   type BattleState,
+  type EquipmentSlot,
+  type PlayerStats,
   type FarmStorySession,
   type MushroomDefinition,
   type StoryEventState,
@@ -219,13 +221,43 @@ async function renderAdventureStart(interaction: ComponentInteraction, session: 
     .setImage(IMAGES.adventure)
     .addFields(
       { name: "⚔️ อาวุธ", value: `${session.weapon.emoji} ${session.weapon.name}`, inline: true },
-      { name: "❤️ HP", value: `${session.currentHP}/${session.maxHP}`, inline: true },
+      { name: "❤️ HP", value: `${session.currentHP}/${session.maxHP} (+${session.stats.hp})`, inline: true },
+      { name: "💧 MP", value: `${session.currentMP}/${session.maxMP} (+${session.stats.mp})`, inline: true },
+      { name: "⚔️ ATK / 🛡️ DEF", value: `${statTotal(session, "atk")} / ${statTotal(session, "def")}`, inline: true },
+      { name: "💨 SPD / แต้ม", value: `${session.stats.spd} / ${session.stats.points}`, inline: true },
       { name: "💰 Wallet", value: session.currentSpore.toLocaleString(), inline: true },
       { name: "⭐ EXP / Level", value: `${session.currentExp} / ${getPlayer(session.userId).farmLevel}`, inline: true },
     );
-  await update(interaction, [embed], [new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`fs:start:${session.userId}`).setLabel("🚀 เข้าป่า").setStyle(ButtonStyle.Primary),
-  )]);
+  await update(interaction, [embed], [
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId(`fs:start:${session.userId}`).setLabel("เข้าป่า").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`fs:stats:${session.userId}`).setLabel("อัพสเตตัส").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("กระเป๋า").setStyle(ButtonStyle.Secondary),
+    ),
+  ]);
+}
+
+export async function handleStats(interaction: ButtonInteraction): Promise<void> {
+  if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
+  const session = getSession(interaction.user.id, interaction.guildId!);
+  if (!session) return rejectComponent(interaction, "ไม่พบ session นี้");
+  const embed = new EmbedBuilder().setTitle("สเตตัสตัวละคร").setDescription(`แต้มที่เหลือ: **${session.stats.points}**\n\nHP +${session.stats.hp} | MP +${session.stats.mp}\nATK +${session.stats.atk} | DEF +${session.stats.def} | SPD +${session.stats.spd}\n\nSPD เพิ่มโอกาสหลบการโจมตีของมอนสเตอร์`).setColor(0x57f287);
+  const stats = (["hp", "mp", "atk", "def", "spd"] as const);
+  return update(interaction, [embed], [new ActionRowBuilder<ButtonBuilder>().addComponents(...stats.map((stat) => new ButtonBuilder().setCustomId(`fs:statup:${session.userId}:${stat}`).setLabel(`เพิ่ม ${stat.toUpperCase()}`).setStyle(ButtonStyle.Success))), new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:back:${session.userId}`).setLabel("กลับ").setStyle(ButtonStyle.Secondary))]);
+}
+
+export async function handleStatUpgrade(interaction: ButtonInteraction, stat: string): Promise<void> {
+  if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
+  const session = getSession(interaction.user.id, interaction.guildId!);
+  if (!session || !["hp", "mp", "atk", "def", "spd"].includes(stat)) return rejectComponent(interaction, "ค่าสเตตัสไม่ถูกต้อง");
+  if (session.stats.points < 1) return rejectComponent(interaction, "แต้มสเตตัสไม่พอ");
+  session.stats[stat as keyof PlayerStats] += 1;
+  session.stats.points -= 1;
+  if (stat === "hp") session.maxHP += 10;
+  if (stat === "mp") session.maxMP += 10;
+  session.lastAction = `upgrade_${stat}`;
+  saveSession(session);
+  return handleStats(interaction);
 }
 
 export async function handleStartAdventure(interaction: ButtonInteraction): Promise<void> {
@@ -248,6 +280,18 @@ function syncFromPlayer(session: FarmStorySession): void {
   const player = getPlayer(session.userId);
   session.currentSpore = player.sporePoints;
   session.currentExp = player.farmExp;
+  const level = Math.max(1, player.farmLevel ?? 1);
+  session.stats ??= { hp: 0, mp: 0, atk: 0, def: 0, spd: 0, points: 5, awardedLevel: 1 };
+  session.equipment ??= { weapon: session.weapon };
+  const expectedLevel = Math.max(1, level);
+  if (session.stats.awardedLevel < expectedLevel) {
+    session.stats.points += (expectedLevel - session.stats.awardedLevel) * 3;
+    session.stats.awardedLevel = expectedLevel;
+  }
+}
+
+function statTotal(session: FarmStorySession, stat: keyof Omit<PlayerStats, "points" | "awardedLevel">): number {
+  return session.stats[stat] + (stat === "atk" ? session.weapon.baseDamage : stat === "def" ? session.weapon.baseDefense : stat === "hp" ? session.weapon.baseHP : 0);
 }
 
 function award(session: FarmStorySession, spore: number, exp: number): string {
@@ -388,15 +432,19 @@ function randomOf<T>(items: readonly T[]): T {
   return items[Math.floor(Math.random() * items.length)]!;
 }
 
-function newFarmEvent(): StoryEventState | BattleState {
+function newFarmEvent(playerLevel = 1): StoryEventState | BattleState {
   const roll = Math.random() * 100;
   if (roll < 42) {
     const mushroom = randomOf(MUSHROOMS);
     return { kind: "mushroom", id: mushroom.id, title: `${mushroom.emoji} พบเห็ด!`, description: mushroom.description, image: mushroom.image, mushroom };
   }
   if (roll < 67) {
-    const monster = randomOf(MONSTERS);
-    return { monster, currentHP: monster.maxHP, enemyDefenseBrokenTurns: 0, enemyPoisonTurns: 0, enemyStunnedTurns: 0, playerDefending: false, turn: 1 };
+  const base = randomOf(MONSTERS);
+  const level = Math.max(1, playerLevel + randInt(-5, 5));
+  const variance = 0.75 + Math.random() * 0.5;
+  const monster = { ...base, level, maxHP: Math.max(20, Math.floor(base.maxHP * (0.7 + level * 0.12) * variance)), damageMin: Math.max(2, Math.floor(base.damageMin * (0.7 + level * 0.1) * variance)), damageMax: Math.max(4, Math.floor(base.damageMax * (0.7 + level * 0.1) * variance)), rewardSpore: Math.floor(base.rewardSpore * (0.8 + level * 0.12)), rewardExp: Math.floor(base.rewardExp * (0.8 + level * 0.12)) };
+  return { monster, currentHP: monster.maxHP, enemyDefenseBrokenTurns: 0, enemyPoisonTurns: 0, enemyStunnedTurns: 0, playerDefending: false, turn: 1 };
+
   }
   if (roll < 77) return { kind: "npc", id: "apothecary", title: "นักปรุงยาเห็ดน้อยต้องการความช่วยเหลือ", description: "นักปรุงยาเห็ดน้อยทำขวดฟื้นพลังหล่นกระจาย ช่วยเก็บสมุนไพรให้เขา แล้วเขาจะรักษา HP และเปิดเควสต่อเนื่องให้", image: IMAGES.npc };
   if (roll < 82) {
@@ -411,8 +459,8 @@ function newFarmEvent(): StoryEventState | BattleState {
     const marketPrice = Math.max(180, 180 + Math.round(offer.buffValue * 12) + (offer.buffType === "attack_percent" ? 120 : 0));
     return { kind: "shop", id: `shop_${offer.id}`, title: "พ่อค้าเร่แห่งป่าเห็ด", description: `พ่อค้าเร่เปิดร้านชั่วคราว — ราคาตลาดของ ${offer.name} ปรับตามความหายาก`, image: IMAGES.shop, offer: { id: offer.id, name: offer.name, emoji: offer.emoji, description: offer.lore, price: marketPrice } };
   }
-  if (roll < 99) return { kind: "secret", id: "hidden_grotto", title: "🌌 พื้นที่ลับใต้รากไม้", description: "ท่านพบทางลับที่มีแสงสีฟ้าส่องออกมา เหมือนมีบางอย่างรออยู่", image: IMAGES.secret };
-  return { kind: "ruins", id: "ancient_ruins", title: "🏛️ เหตุการณ��ต่อเนื่อง: ซากวิหาร", description: "��ระตูวิหารโบราณเปิดออก เผยร่องรอยของผู้กล้าคนก่อน", image: IMAGES.ruins };
+  if (roll < 99) return { kind: "secret", id: "hidden_grotto", title: "🌌 พื้นที่ลับใต้รากไม้", description: "ท่านพบทางลับท���่มีแสงสีฟ้าส่องออกมา เหมือนมีบางอย่างรออยู่", image: IMAGES.secret };
+  return { kind: "ruins", id: "ancient_ruins", title: "🏛️ เหตุการณ��ต่อเนื่อง: ซากวิหาร", description: "��ระตูวิหารโบรา��เปิดออก เผยร่องรอยของผู้กล้าคนก่อน", image: IMAGES.ruins };
 }
 
 export async function handleFarm(interaction: ButtonInteraction): Promise<void> {
@@ -423,7 +471,7 @@ export async function handleFarm(interaction: ButtonInteraction): Promise<void> 
   if (session.pendingEvent) return renderEvent(interaction, session, session.pendingEvent);
 
   session.chapter += 1;
-  const event = newFarmEvent();
+  const event = newFarmEvent(getPlayer(session.userId).farmLevel ?? 1);
   if ("monster" in event) session.battle = event;
   else session.pendingEvent = event;
   session.lastAction = "farm";
@@ -657,7 +705,7 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
     if (Math.random() * 100 > skill.hitChance) {
       playerText = `ใช้ **${skill.name}** แต่พลาดเป้า`;
     } else {
-      damage = Math.max(1, Math.floor(session.weapon.baseDamage * skill.damageMultiplier * (0.9 + Math.random() * 0.25)));
+      damage = Math.max(1, Math.floor(statTotal(session, "atk") * skill.damageMultiplier * (0.9 + Math.random() * 0.25)));
       if (skill.effect === "double_hit") damage += Math.floor(damage * 0.65);
       if (skill.effect === "pierce") battle.enemyDefenseBrokenTurns = skill.effectDuration ?? 2;
       if (skill.effect === "poison") battle.enemyPoisonTurns = skill.effectDuration ?? 3;
@@ -667,7 +715,7 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
       playerText = `ใช้ **${skill.name}** สร้างความเสียหาย **${damage}**`;
     }
   } else {
-    damage = Math.max(1, Math.floor(session.weapon.baseDamage * (0.9 + Math.random() * 0.2)));
+    damage = Math.max(1, Math.floor(statTotal(session, "atk") * (0.9 + Math.random() * 0.2)));
     playerText = `โจมตีปกติ สร้างความเสียหาย **${damage}**`;
   }
 
@@ -693,10 +741,15 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
     battle.enemyStunnedTurns -= 1;
     enemyText = `${battle.monster.name} ชะงัก จึงโจมตีไม่ได้`;
   } else {
-    const enemyDamage = Math.max(1, randInt(battle.monster.damageMin, battle.monster.damageMax) - Math.floor(session.weapon.baseDefense / 3));
-    const actualDamage = battle.playerDefending ? Math.ceil(enemyDamage / 2) : enemyDamage;
-    session.currentHP = Math.max(0, session.currentHP - actualDamage);
-    enemyText = `${battle.monster.name} ใช้ ${randomOf(battle.monster.attackSkills)} ทำให้เสีย **${actualDamage} HP**`;
+    const dodgeChance = Math.min(45, session.stats.spd * 2);
+    if (Math.random() * 100 < dodgeChance) {
+      enemyText = `${battle.monster.name} ใช้ ${randomOf(battle.monster.attackSkills)} แต่พลาดเป้า — หลบได้ (${dodgeChance}% )`;
+    } else {
+      const enemyDamage = Math.max(1, randInt(battle.monster.damageMin, battle.monster.damageMax) - Math.floor((session.weapon.baseDefense + session.stats.def) / 3));
+      const actualDamage = battle.playerDefending ? Math.ceil(enemyDamage / 2) : enemyDamage;
+      session.currentHP = Math.max(0, session.currentHP - actualDamage);
+      enemyText = `${battle.monster.name} ใช้ ${randomOf(battle.monster.attackSkills)} ทำให้เสีย **${actualDamage} HP**`;
+    }
   }
   battle.playerDefending = false;
   session.currentMP = Math.min(session.maxMP, session.currentMP + 5);
@@ -719,7 +772,7 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
 }
 
 export async function handleProfile(interaction: ButtonInteraction): Promise<void> {
-  if (!validOwner(interaction)) return rejectComponent(interaction, "❌ ปุ่มนี้เป็นของผู้เล่นคนอื่น");
+  if (!validOwner(interaction)) return rejectComponent(interaction, "❌ ปุ่มนี้เป���นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session) return rejectComponent(interaction, "❌ ไม่พบ session นี้");
   const player = getPlayer(session.userId);
@@ -750,11 +803,13 @@ export async function handleBag(interaction: ButtonInteraction): Promise<void> {
   });
   const embed = new EmbedBuilder()
     .setTitle("🎒 กระเป๋าผจญภัย")
-    .setDescription("เห็ดในตะกร้าต้องนำไปขายผ่านเหตุการณ์ร้านค้า ส่วนไอเทมบัฟอยู่ใน wallet inventory เดิม")
+    .setDescription("อุปกรณ์แต่ละช่องแยกกัน: อาวุธ หมวก เกราะ กางเกง และรองเท้า — ของที่สวมอยู่จะถูกล็อกไม่ให้ขาย")
     .setColor(0x9b59b6)
     .addFields(
-      { name: "🍄 Story inventory", value: storyItems, inline: false },
-      { name: "🎁 Wallet inventory", value: globalItems.length ? globalItems.join("\n") : "ว่างเปล่า", inline: false },
+  { name: "🍄 Story inventory", value: storyItems, inline: false },
+  { name: "อุปกรณ์ที่สวมใส่", value: (["weapon", "helmet", "armor", "pants", "boots"] as const).map((slot) => `${slot}: ${session.equipment[slot]?.emoji ?? "ว่าง"} ${session.equipment[slot]?.name ?? "ยังไม่มี"}`).join("\n"), inline: false },
+  { name: "🎁 Wallet inventory", value: globalItems.length ? globalItems.join("\n") : "ว่างเปล่า", inline: false },
+
     );
   await update(interaction, [embed], [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:back:${session.userId}`).setLabel("↩️ กลับ").setStyle(ButtonStyle.Secondary))]);
 }
