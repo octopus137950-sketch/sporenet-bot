@@ -56,7 +56,7 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
     case "bag": return handleBag(interaction);
     case "quests": return handleQuests(interaction);
     case "quest_choose": return handleQuestChoose(interaction, decodeQuestId(parts[3] ?? ""));
-    case "quest_confirm": return handleQuestSubmit(interaction, decodeQuestId(parts[3] ?? ""), (parts[4] ?? "").split(",").filter(Boolean).map(decodeQuestId));
+    case "quest_confirm": return handleQuestSubmit(interaction);
     case "shop_confirm": return handleShopMushroomConfirm(interaction, (parts[3] ?? "").split(",").filter(Boolean).map(decodeQuestId));
     case "back": return handleBack(interaction);
     case "collect": return handleCollect(interaction);

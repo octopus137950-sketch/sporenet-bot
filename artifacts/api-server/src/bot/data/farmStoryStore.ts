@@ -183,6 +183,7 @@ export interface FarmStorySession {
   activeQuest?: ActiveQuest;
   activeQuests: ActiveQuest[];
   pendingEvent?: StoryEventState;
+  pendingQuestSubmission?: { questId: string; mushroomIds: string[] };
   battle?: BattleState;
   createdAt: number;
   lastSavedAt: number;

@@ -323,14 +323,18 @@ export async function handleQuestMushroomSelect(interaction: StringSelectMenuInt
   if (selected.length !== mushroomIds.length || selected.reduce((sum, item) => sum + item.quantity, 0) < quest.target) return rejectComponent(interaction, `เลือกเห็ดให้ครบ ${quest.target} ชิ้น`);
   const embed = new EmbedBuilder().setTitle("ยืนยันการส่งเห็ด").setDescription(`จะส่ง: ${selected.map((item) => `${item.emoji} ${item.name} x${Math.min(item.quantity, quest.target)}`).join("\n")}\n\nเมื่อยืนยัน เห็ดจะถูกหักออกจากกระเป๋าจริง`).setColor(0xe67e22);
   const chosenIds = selected.map((item) => item.id);
-  const confirm = new ButtonBuilder().setCustomId(`fs:quest_confirm:${session.userId}:${encodeQuestId(quest.id)}:${chosenIds.map(encodeQuestId).join(",")}`).setLabel("ยืนยันส่งเห็ด").setStyle(ButtonStyle.Success);
+  session.pendingQuestSubmission = { questId: quest.id, mushroomIds: chosenIds };
+  saveSession(session);
+  const confirm = new ButtonBuilder().setCustomId(`fs:quest_confirm:${session.userId}`).setLabel("ยืนยันส่งเห็ด").setStyle(ButtonStyle.Success);
   await update(interaction, [embed], [new ActionRowBuilder<ButtonBuilder>().addComponents(confirm, new ButtonBuilder().setCustomId(`fs:quests:${session.userId}`).setLabel("ยกเลิก").setStyle(ButtonStyle.Secondary))]);
 }
 
-export async function handleQuestSubmit(interaction: ButtonInteraction, questId: string, mushroomIds: string[] = []): Promise<void> {
+export async function handleQuestSubmit(interaction: ButtonInteraction, questId = "", mushroomIds: string[] = []): Promise<void> {
   if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session) return rejectComponent(interaction, "ไม่พบ session นี้");
+  questId ||= session.pendingQuestSubmission?.questId ?? "";
+  mushroomIds = mushroomIds.length ? mushroomIds : (session.pendingQuestSubmission?.mushroomIds ?? []);
   const quests = questList(session);
   const index = quests.findIndex((quest) => quest.id === questId);
   const quest = quests[index];
@@ -348,6 +352,7 @@ export async function handleQuestSubmit(interaction: ButtonInteraction, questId:
   const levelText = award(session, quest.rewardSpore, quest.rewardExp);
   quests.splice(index, 1);
   session.activeQuest = quests[0];
+  session.pendingQuestSubmission = undefined;
   session.lastAction = `submitted_quest_${quest.id}`;
   saveSession(session);
   await renderMain(interaction, session, `ส่งเควส ${quest.title} สำเร็จ เห็ดถูกหักออกจากกระเป๋าแล้ว +${quest.rewardSpore} สปอร์ +${quest.rewardExp} EXP${levelText}`);
@@ -407,7 +412,7 @@ function newFarmEvent(): StoryEventState | BattleState {
     return { kind: "shop", id: `shop_${offer.id}`, title: "พ่อค้าเร่แห่งป่าเห็ด", description: `พ่อค้าเร่เปิดร้านชั่วคราว — ราคาตลาดของ ${offer.name} ปรับตามความหายาก`, image: IMAGES.shop, offer: { id: offer.id, name: offer.name, emoji: offer.emoji, description: offer.lore, price: marketPrice } };
   }
   if (roll < 99) return { kind: "secret", id: "hidden_grotto", title: "🌌 พื้นที่ลับใต้รากไม้", description: "ท่านพบทางลับที่มีแสงสีฟ้าส่องออกมา เหมือนมีบางอย่างรออยู่", image: IMAGES.secret };
-  return { kind: "ruins", id: "ancient_ruins", title: "🏛️ เหตุการณ์ต่อเนื่อง: ซากวิหาร", description: "��ระตูวิหารโบราณเปิดออก เผยร่องรอยของผู้กล้าคนก่อน", image: IMAGES.ruins };
+  return { kind: "ruins", id: "ancient_ruins", title: "🏛️ เหตุการณ��ต่อเนื่อง: ซากวิหาร", description: "��ระตูวิหารโบราณเปิดออก เผยร่องรอยของผู้กล้าคนก่อน", image: IMAGES.ruins };
 }
 
 export async function handleFarm(interaction: ButtonInteraction): Promise<void> {
