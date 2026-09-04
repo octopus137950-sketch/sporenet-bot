@@ -134,6 +134,7 @@ export interface MonsterDefinition {
   attackSkills: string[];
   rewardSpore: number;
   rewardExp: number;
+  stats?: { hp: number; mp: number; atk: number; def: number; spd: number };
 }
 
 export interface BattleState {

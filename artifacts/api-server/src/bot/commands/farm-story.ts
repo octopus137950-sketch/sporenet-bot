@@ -245,7 +245,7 @@ export async function handleWeaponSelect(interaction: StringSelectMenuInteractio
 
 async function renderAdventureStart(interaction: ComponentInteraction, session: FarmStorySession, accepted: boolean): Promise<void> {
   const embed = new EmbedBuilder()
-    .setTitle("🏰 เริ่มการผจญภัย")
+    .setTitle("🏰 เริ่มการผจญ���ัย")
     .setDescription(
       accepted
         ? "ราชามอบสปอร์เริ่มต้น 1,000 ให้ท่านแล้ว จงออกเดินทางไปหยุดจอมมารเห็ด!"
@@ -523,8 +523,21 @@ function newFarmEvent(playerLevel = 1): StoryEventState | BattleState {
   if (roll < 67) {
   const base = randomOf(MONSTERS);
   const level = Math.max(1, playerLevel + randInt(-5, 5));
-  const variance = 0.75 + Math.random() * 0.5;
-  const monster = { ...base, level, maxHP: Math.max(20, Math.floor(base.maxHP * (0.7 + level * 0.12) * variance)), damageMin: Math.max(2, Math.floor(base.damageMin * (0.7 + level * 0.1) * variance)), damageMax: Math.max(4, Math.floor(base.damageMax * (0.7 + level * 0.1) * variance)), rewardSpore: Math.floor(base.rewardSpore * (0.8 + level * 0.12)), rewardExp: Math.floor(base.rewardExp * (0.8 + level * 0.12)) };
+  const statPoints = level * 3;
+  const stats = { hp: 0, mp: 0, atk: 0, def: 0, spd: 0 };
+  const statKeys = Object.keys(stats) as Array<keyof typeof stats>;
+  for (let point = 0; point < statPoints; point += 1) stats[randomOf(statKeys)] += 1;
+  const variance = 0.9 + Math.random() * 0.2;
+  const monster = {
+    ...base,
+    level,
+    stats,
+    maxHP: Math.max(20, Math.floor((base.maxHP + stats.hp * 10) * variance)),
+    damageMin: Math.max(2, Math.floor((base.damageMin + stats.atk * 1.5) * variance)),
+    damageMax: Math.max(4, Math.floor((base.damageMax + stats.atk * 2) * variance)),
+    rewardSpore: Math.floor(base.rewardSpore * (0.8 + level * 0.12)),
+    rewardExp: Math.floor(base.rewardExp * (0.8 + level * 0.12)),
+  };
   return { monster, currentHP: monster.maxHP, enemyDefenseBrokenTurns: 0, enemyPoisonTurns: 0, enemyStunnedTurns: 0, playerDefending: false, turn: 1 };
 
   }
@@ -804,7 +817,7 @@ async function renderBattle(interaction: ComponentInteraction | ChatInputCommand
   const battle = session.battle!;
   const embed = new EmbedBuilder()
     .setTitle(`⚔️ Battle • Lv.${battle.monster.level} ${battle.monster.emoji} ${battle.monster.name}`)
-    .setDescription(`${notice ? `> ${notice}\n\n` : ""}${battle.monster.description}\n\n❤️ ศัตรู: **${Math.max(0, battle.currentHP)}/${battle.monster.maxHP} HP**\n❤️ ท่าน: **${session.currentHP}/${session.maxHP} HP** · 💙 **${session.currentMP}/${session.maxMP} MP**\n\nเทิร์นที่ **${battle.turn}** — เลือกการกระทำของท่าน`)
+    .setDescription(`${notice ? `> ${notice}\n\n` : ""}${battle.monster.description}\n\n❤️ ศัตรู: **${Math.max(0, battle.currentHP)}/${battle.monster.maxHP} HP**\n📊 สเตตัสสุ่ม: HP ${battle.monster.stats?.hp ?? "-"} · MP ${battle.monster.stats?.mp ?? "-"} · ATK ${battle.monster.stats?.atk ?? "-"} · DEF ${battle.monster.stats?.def ?? "-"} · SPD ${battle.monster.stats?.spd ?? "-"}\n❤️ ท่าน: **${session.currentHP}/${session.maxHP} HP** · 💙 **${session.currentMP}/${session.maxMP} MP**\n\nเทิร์นที่ **${battle.turn}** — เลือกการกระทำของท่าน`)
     .setColor(0xff4444)
     .setImage(battle.monster.image)
     .addFields({ name: "📜 Skills", value: session.weapon.skills.map(skillDescription).join("\n") });
