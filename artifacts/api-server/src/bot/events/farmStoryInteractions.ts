@@ -9,6 +9,8 @@ import {
   handleEventAction,
   handleFarm,
   handleProfile,
+  handleQuests,
+  handleQuestSubmit,
   handleSkipMushroom,
   handleStartAdventure,
   handleWeaponSelect,
@@ -44,6 +46,8 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
     case "farm": return handleFarm(interaction);
     case "profile": return handleProfile(interaction);
     case "bag": return handleBag(interaction);
+    case "quests": return handleQuests(interaction);
+    case "quest_submit": return handleQuestSubmit(interaction, parts[3] ?? "");
     case "back": return handleBack(interaction);
     case "collect": return handleCollect(interaction);
     case "skip": return handleSkipMushroom(interaction);

@@ -180,6 +180,7 @@ export interface FarmStorySession {
   inventory: InventoryItem[];
   statusEffects: { type: string; duration: number }[];
   activeQuest?: ActiveQuest;
+  activeQuests: ActiveQuest[];
   pendingEvent?: StoryEventState;
   battle?: BattleState;
   createdAt: number;
@@ -199,7 +200,11 @@ function loadStore(): FarmStoryStore {
   if (!fs.existsSync(FARM_STORY_FILE)) return emptyStore();
   try {
     const parsed = JSON.parse(fs.readFileSync(FARM_STORY_FILE, "utf-8")) as Partial<FarmStoryStore>;
-    return { sessions: parsed.sessions ?? {} };
+    const sessions = parsed.sessions ?? {};
+    for (const session of Object.values(sessions) as FarmStorySession[]) {
+      session.activeQuests ??= session.activeQuest ? [session.activeQuest] : [];
+    }
+    return { sessions };
   } catch (error) {
     console.error("[farmStoryStore] Could not load session store:", error);
     return emptyStore();
@@ -243,6 +248,7 @@ export function createSession(
     currentSpore: initialSpore,
     inventory: [],
     statusEffects: [],
+    activeQuests: [],
     createdAt: now,
     lastSavedAt: now,
     lastAction: "weapon_selected",
