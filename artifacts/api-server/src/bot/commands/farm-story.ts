@@ -93,8 +93,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const userId = interaction.user.id;
   const session = getSession(userId, guildId);
   if (session) {
-    session.activeQuests ??= session.activeQuest ? [session.activeQuest] : [];
-    syncFromPlayer(session);
+  session.activeQuests ??= session.activeQuest ? [session.activeQuest] : [];
+  // Opening the menu is a read-only action; only actions after this should trigger a leave summary.
+  session.lastAction = undefined;
+  syncFromPlayer(session);
+
     saveSession(session);
     await renderSession(interaction, session);
     return;
