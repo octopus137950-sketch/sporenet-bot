@@ -12,7 +12,7 @@ export function handleVoiceLeaveWithFarmStory(
   if (!member || member.user.bot || !oldState.channelId || newState.channelId) return;
 
   const session = getSession(member.id, newState.guild.id);
-  if (!session) return;
+  if (!session || !session.lastAction || session.lastAction === "voice_leave") return;
 
   session.lastAction = "voice_leave";
   const player = getPlayer(member.id);

@@ -467,10 +467,11 @@ async function renderMain(interaction: ComponentInteraction | ChatInputCommandIn
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`fs:farm:${session.userId}`).setLabel("🍄 ฟาร์ม").setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId(`fs:profile:${session.userId}`).setLabel("👤 โปรไฟล์").setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("🎒 กระเป๋า").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`fs:items:${session.userId}`).setLabel("ใช้ไอเทมฟื้น HP/MP").setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`fs:stats:${session.userId}`).setLabel("อัพสเตตัส").setStyle(ButtonStyle.Success),
-
+      new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("🎒 กระเป๋า").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(`fs:items:${session.userId}`).setLabel("ใช้ไอเทมฟื้น HP/MP").setStyle(ButtonStyle.Primary),
+    ),
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId(`fs:stats:${session.userId}`).setLabel("อัพสเตตัส").setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId(`fs:quests:${session.userId}`).setLabel("📜 เควส").setStyle(ButtonStyle.Secondary),
     ),
   ];
