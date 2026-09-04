@@ -477,7 +477,7 @@ async function renderMain(interaction: ComponentInteraction | ChatInputCommandIn
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`fs:farm:${session.userId}`).setLabel("🍄 ฟาร์ม").setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId(`fs:profile:${session.userId}`).setLabel("👤 โปรไฟล์").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("🎒 กระเป๋า").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("🎒 กระเป๋า/สวมใส่").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId(`fs:items:${session.userId}`).setLabel("ใช้ไอเทมฟื้น HP/MP").setStyle(ButtonStyle.Primary),
     ),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -518,7 +518,7 @@ function newFarmEvent(playerLevel = 1): StoryEventState | BattleState {
   if (roll < 97) {
     const offer = randomOf(ITEMS_POOL) as BuffItem;
     const marketPrice = Math.max(180, 180 + Math.round(offer.buffValue * 12) + (offer.buffType === "attack_percent" ? 120 : 0));
-    return { kind: "shop", id: `shop_${offer.id}`, title: "พ่อค้าเร่แห่งป่าเห็ด", description: `พ่อค้าเร่เปิดร้านชั่วคราว — ราคาตลาดของ ${offer.name} ปรับตามค���ามหายาก`, image: IMAGES.shop, offer: { id: offer.id, name: offer.name, emoji: offer.emoji, description: offer.lore, price: marketPrice } };
+    return { kind: "shop", id: `shop_${offer.id}`, title: "พ่อค้าเร่แห่งป่าเห็ด", description: `พ่อค้าเร่เปิดร้านชั่วคราว — ราคาตลาดของ ${offer.name} ปรับตามค�����ามหายาก`, image: IMAGES.shop, offer: { id: offer.id, name: offer.name, emoji: offer.emoji, description: offer.lore, price: marketPrice } };
   }
   if (roll < 99) return { kind: "secret", id: "hidden_grotto", title: "🌌 พื้นที่ลับใต้รากไม้", description: "ท่านพบทางลับท���่มีแสงสีฟ้าส่องออกมา เหมือนมีบางอย่างรออยู่", image: IMAGES.secret };
   return { kind: "ruins", id: "ancient_ruins", title: "🏛️ เหตุการณ��ต่อเนื่อง: ซากวิหาร", description: "��ระตูวิหารโบรา��เปิดอ��ก เผยร่องรอยของผู้กล้าคนก่อน", image: IMAGES.ruins };
@@ -547,7 +547,7 @@ export async function handleItems(interaction: ButtonInteraction): Promise<void>
   }
   const items = [...grouped.values()];
   const embed = new EmbedBuilder().setTitle("ไอเทมฟื้นพลัง").setDescription("เลือกอาหารหรือไอเทมเพื่อฟื้น HP/MP").setColor(0x3498db);
-  const buttons = items.map((item) => new ButtonBuilder().setCustomId(`fs:itemuse:${session.userId}:${item.id}`).setLabel(`${item.emoji ?? "ไอเทม"} ${item.name} x${item.quantity}`).setStyle(ButtonStyle.Primary));
+  const buttons = items.map((item, index) => new ButtonBuilder().setCustomId(`fs:itemuse:${session.userId}:${item.id}:${index}`).setLabel(`${item.emoji ?? "ไอเทม"} ${item.name} x${item.quantity}`).setStyle(ButtonStyle.Primary));
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
   for (let index = 0; index < buttons.length; index += 5) rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons.slice(index, index + 5)));
   rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:back:${session.userId}`).setLabel("กลับ").setStyle(ButtonStyle.Secondary)));
@@ -616,7 +616,7 @@ async function renderEvent(interaction: ComponentInteraction | ChatInputCommandI
   const row = new ActionRowBuilder<ButtonBuilder>();
   if (event.kind === "mushroom") {
     embed.addFields({ name: "💰 ราคาขาย", value: `${event.mushroom!.value} สปอร์`, inline: true }, { name: "⭐ EXP เมื่อเก็บ", value: `${event.mushroom!.exp} EXP`, inline: true });
-    row.addComponents(new ButtonBuilder().setCustomId(`fs:collect:${session.userId}`).setLabel("🧺 เก็บ").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`fs:skip:${session.userId}`).setLabel("ไม่เก็บ (+5 EXP)").setStyle(ButtonStyle.Secondary));
+    row.addComponents(new ButtonBuilder().setCustomId(`fs:collect:${session.userId}`).setLabel("🧺 เก็บ").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`fs:skip:${session.userId}`).setLabel("ไม���เก็บ (+5 EXP)").setStyle(ButtonStyle.Secondary));
   } else if (event.kind === "npc") {
     row.addComponents(new ButtonBuilder().setCustomId(`fs:npc_talk:${session.userId}`).setLabel("💬 ช่วยเหลือ").setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(`fs:leave:${session.userId}`).setLabel("เดินต่อ").setStyle(ButtonStyle.Secondary));
   } else if (event.kind === "quest") {
@@ -702,7 +702,7 @@ export async function handleEventAction(interaction: ButtonInteraction, action: 
   if (!validOwner(interaction)) return rejectComponent(interaction, "❌ ปุ่มนี้เป็นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   const event = session?.pendingEvent;
-  if (!session || !event) return rejectComponent(interaction, "❌ เหตุการณ์นี้หมดอา��ุแล้ว");
+  if (!session || !event) return rejectComponent(interaction, "❌ เหตุการณ���นี้หมดอา��ุแล้ว");
 
   if (action === "leave") {
     finishEvent(session, "left_event");
