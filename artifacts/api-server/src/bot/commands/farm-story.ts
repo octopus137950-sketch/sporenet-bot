@@ -187,7 +187,7 @@ async function renderWeaponSelection(interaction: ComponentInteraction, accepted
     )
     .setColor(accepted ? 0x57f287 : 0xff9900)
     .addFields(
-      { name: "⚔️ ดาบแห่งเมืองหิน", value: "สมดุล • ATK 25 • DEF 8 • HP 100", inline: true },
+      { name: "⚔️ ดาบแห่งเมืองหิน", value: "สมดุ�� • ATK 25 • DEF 8 • HP 100", inline: true },
       { name: "🗡️ หอกเวทมนตร์", value: "เร็ว • ATK 28 • DEF 4 • HP 85", inline: true },
       { name: "🏹 ธนูแสงจันทร์", value: "อึด • ATK 22 • DEF 11 • HP 110", inline: true },
       { name: "🪓 ขวา��ไฟแห่งสงคราม", value: "แรง • ATK 32 • DEF 2 • HP 75", inline: true },
@@ -546,8 +546,16 @@ export async function handleItems(interaction: ButtonInteraction): Promise<void>
     else grouped.set(item.id, { ...item });
   }
   const items = [...grouped.values()];
-  const embed = new EmbedBuilder().setTitle("ไอเทมฟื้นพลัง").setDescription("เลือกอาหารหรือไอเทมเพื่อฟื้น HP/MP").setColor(0x3498db);
-  const buttons = items.map((item, index) => new ButtonBuilder().setCustomId(`fs:itemuse:${session.userId}:${item.id}:${index}`).setLabel(`${item.emoji ?? "ไอเทม"} ${item.name} x${item.quantity}`).setStyle(ButtonStyle.Primary));
+  const embed = new EmbedBuilder()
+    .setTitle("ไอเทมฟื้นพลัง")
+    .setDescription("เลือกอาหารหรือไอเทมเพื่อฟื้น HP/MP")
+    .setColor(0x3498db)
+    .addFields(items.map((item) => ({
+      name: `${item.emoji ?? "ไอเทม"} ${item.name} ×${item.quantity}`,
+      value: item.description ?? (item.id === "healing_herb" ? "ฟื้น HP 25 แต้ม" : "ฟื้น MP 20 แต้ม"),
+      inline: false,
+    })));
+  const buttons = items.map((item, index) => new ButtonBuilder().setCustomId(`fs:itemuse:${session.userId}:${item.id}:${index}`).setLabel(`${item.emoji ?? "ไอเทม"} ใช้ ${item.name}`).setStyle(ButtonStyle.Primary));
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
   for (let index = 0; index < buttons.length; index += 5) rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons.slice(index, index + 5)));
   rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:back:${session.userId}`).setLabel("กลับ").setStyle(ButtonStyle.Secondary)));
@@ -821,7 +829,7 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
       if (skill.effect === "stun" && Math.random() * 100 < (skill.effectChance ?? 50)) battle.enemyStunnedTurns = skill.effectDuration ?? 1;
       if (skill.effect === "defend" || skill.effect === "whirlwind") battle.playerDefending = true;
       if (skill.id === "moonlight") session.currentHP = Math.min(session.maxHP, session.currentHP + 10);
-      playerText = `ใช้ **${skill.name}** สร้างความเสียหาย **${damage}**`;
+      playerText = `ใช้ **${skill.name}** สร้างความเส���ยหาย **${damage}**`;
     }
   } else {
     damage = Math.max(1, Math.floor(statTotal(session, "atk") * (0.9 + Math.random() * 0.2)));
