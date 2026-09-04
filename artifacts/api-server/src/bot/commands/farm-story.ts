@@ -245,7 +245,7 @@ export async function handleWeaponSelect(interaction: StringSelectMenuInteractio
 
 async function renderAdventureStart(interaction: ComponentInteraction, session: FarmStorySession, accepted: boolean): Promise<void> {
   const embed = new EmbedBuilder()
-    .setTitle("🏰 เริ่มการผจญ�������ัย")
+    .setTitle("🏰 เริ่มการผจญ���������ัย")
     .setDescription(
       accepted
         ? "ราชามอบสปอร์เริ่มต้น 1,000 ให้ท่านแล้ว จงออกเดินทางไปหยุดจอมมารเห็ด!"
@@ -437,7 +437,7 @@ export async function handleQuestMushroomSelect(interaction: StringSelectMenuInt
   if (!validOwner(interaction)) return rejectComponent(interaction, "เมนูนี้เป็นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   const quest = session && questList(session).find((item) => item.id === questId);
-  if (!session || !quest || quest.progress < quest.target) return rejectComponent(interaction, "เควสนี้ยังส่งไม่ได้");
+  if (!session || !quest || quest.progress < quest.target) return rejectComponent(interaction, "เควสนี้ยังส่งไม่ไ��้");
   const mushrooms = mushroomInventory(session).filter((item) => !quest.requiredMushroomIds || quest.requiredMushroomIds.includes(item.id));
   const selected = mushroomIds.map((value) => mushrooms[Number(value.replace("slot_", ""))]).filter((item) => item?.quantity > 0) as typeof session.inventory;
   if (selected.length !== mushroomIds.length || selected.reduce((sum, item) => sum + item.quantity, 0) < quest.target) return rejectComponent(interaction, `เลือกเห็ดให้ครบ ${quest.target} ชิ้น`);
@@ -635,7 +635,7 @@ export async function handleBack(interaction: ButtonInteraction): Promise<void> 
   if (!validOwner(interaction)) return rejectComponent(interaction, "❌ ปุ่มนี้เป็นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session) return rejectComponent(interaction, "❌ ไม่พบ session นี้");
-  await renderMain(interaction, session, "กลับสู่การผจญภัย");
+  await renderMain(interaction, session, "กลับสู่การผจญภั���");
 }
 
 function eventImage(event: StoryEventState): string {
@@ -830,7 +830,7 @@ async function renderBattle(interaction: ComponentInteraction | ChatInputCommand
     .setImage(battle.monster.image);
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`fs:battle:${session.userId}:attack`).setLabel("⚔️ โจมตีปกติ").setStyle(ButtonStyle.Danger),
-    ...session.weapon.skills.map((skill) => new ButtonBuilder().setCustomId(`fs:skill:${session.userId}:${skill.id}`).setLabel(`✨ ${skill.name} · ${skill.costMP} MP · ${skill.description}`.slice(0, 80)).setStyle(ButtonStyle.Primary)),
+    ...session.weapon.skills.map((skill) => new ButtonBuilder().setCustomId(`fs:skill:${session.userId}:${skill.id}`).setLabel(`✨ ${skill.name} · ${skill.costMP} MP · ดาเมจ ${Math.round(skill.damageMultiplier * 100)}% ATK`).setStyle(ButtonStyle.Primary)),
   );
   const fleeRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`fs:flee:${session.userId}`).setLabel("🏃 หนี").setStyle(ButtonStyle.Secondary),
