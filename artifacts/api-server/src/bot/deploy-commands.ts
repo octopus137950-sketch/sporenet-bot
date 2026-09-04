@@ -7,6 +7,7 @@ import { data as setwelcomeData } from "./commands/setwelcome.js";
 import { data as setgoodbyeData } from "./commands/setgoodbye.js";
 import { data as disablewelcomeData } from "./commands/disablewelcome.js";
 import { data as farmData } from "./commands/farm.js";
+import { data as farmStoryData } from "./commands/farm-story.js";
 import { data as playData } from "./commands/play.js";
 import { data as walletData } from "./commands/wallet.js";
 import { data as shopData } from "./commands/shop.js";
@@ -83,6 +84,7 @@ export async function deployCommands(): Promise<void> {
     setgoodbyeData.toJSON(),
     disablewelcomeData.toJSON(),
     farmData.toJSON(),
+    farmStoryData.toJSON(),
     playData.toJSON(),
     walletData.toJSON(),
     shopData.toJSON(),

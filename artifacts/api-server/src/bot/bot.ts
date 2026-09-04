@@ -116,6 +116,9 @@ import * as marketSellCmd from "./commands/marketSell.js";
 import * as marketHistoryCmd from "./commands/marketHistory.js";
 import { handleMarketplaceButton } from "./events/marketplaceHandler.js";
 import { startMarketplaceScheduler } from "./events/marketplaceScheduler.js";
+import * as farmStoryCmd from "./commands/farm-story.js";
+import { registerFarmStoryInteractions } from "./events/farmStoryInteractions.js";
+import { handleVoiceLeaveWithFarmStory } from "./utils/farmStoryVoiceHandler.js";
 
 interface Command {
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
@@ -133,6 +136,7 @@ commands.set("setwelcome", setwelcomeCmd);
 commands.set("setgoodbye", setgoodbyeCmd);
 commands.set("disablewelcome", disablewelcomeCmd);
 commands.set("farm", farmCmd);
+commands.set("farm-story", farmStoryCmd);
 commands.set("play", playCmd);
 commands.set("wallet", walletCmd);
 commands.set("shop", shopCmd);
@@ -212,6 +216,7 @@ export async function startBot(): Promise<void> {
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
   });
   botClient = client;
+  registerFarmStoryInteractions(client);
 
   client.once(Events.ClientReady, (c) => {
     logger.info(`✅ บอทออนไลน์แล้ว! ชื่อ: ${c.user.tag}`);
@@ -363,6 +368,8 @@ export async function startBot(): Promise<void> {
   client.on(Events.VoiceStateUpdate, (oldState, newState) => {
     try { handleVoiceStateUpdate(oldState, newState, client); }
     catch (err) { logger.error({ err }, "Error handling voice state update"); }
+    try { handleVoiceLeaveWithFarmStory(oldState, newState, client); }
+    catch (err) { logger.error({ err }, "Error handling farm-story voice leave"); }
     handleVoiceShareState(oldState, newState).catch((err) => logger.error({ err }, "Error handling voice share"));
   handleFriendVoiceState(oldState, newState).catch((err) =>
       logger.error({ err }, "Error handling friend match voice room")
