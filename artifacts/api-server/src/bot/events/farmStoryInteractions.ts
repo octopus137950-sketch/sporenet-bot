@@ -2,6 +2,8 @@ import { Client, Events, ButtonInteraction, ModalSubmitInteraction, StringSelect
 import {
   handleAccept,
   handleBag,
+  handleItems,
+  handleUseItem,
   handleBack,
   handleBattleAction,
   handleCollect,
@@ -60,6 +62,8 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
     case "farm": return handleFarm(interaction);
     case "profile": return handleProfile(interaction);
     case "bag": return handleBag(interaction);
+    case "items": return handleItems(interaction);
+    case "itemuse": return handleUseItem(interaction, parts[3] ?? "");
     case "stats": return handleStats(interaction);
     case "statpreset": return handleStatPreset(interaction);
     case "statup": return handleStatUpgrade(interaction, parts[3] ?? "");

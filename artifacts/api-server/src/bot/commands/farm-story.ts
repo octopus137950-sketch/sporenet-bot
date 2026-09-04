@@ -466,8 +466,10 @@ async function renderMain(interaction: ComponentInteraction | ChatInputCommandIn
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`fs:farm:${session.userId}`).setLabel("🍄 ฟาร์ม").setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId(`fs:profile:${session.userId}`).setLabel("👤 โปรไฟล์").setStyle(ButtonStyle.Primary),
-  new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("🎒 กระเป๋า").setStyle(ButtonStyle.Secondary),
-  new ButtonBuilder().setCustomId(`fs:stats:${session.userId}`).setLabel("อัพสเตตัส").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("🎒 กระเป๋า").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`fs:items:${session.userId}`).setLabel("ใช้ไอเทมฟื้น HP/MP").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`fs:stats:${session.userId}`).setLabel("อัพสเตตัส").setStyle(ButtonStyle.Success),
+
   new ButtonBuilder().setCustomId(`fs:quests:${session.userId}`).setLabel("📜 เควส").setStyle(ButtonStyle.Secondary),
 
   );
@@ -507,7 +509,46 @@ function newFarmEvent(playerLevel = 1): StoryEventState | BattleState {
     return { kind: "shop", id: `shop_${offer.id}`, title: "พ่อค้าเร่แห่งป่าเห็ด", description: `พ่อค้าเร่เปิดร้านชั่วคราว — ราคาตลาดของ ${offer.name} ปรับตามความหายาก`, image: IMAGES.shop, offer: { id: offer.id, name: offer.name, emoji: offer.emoji, description: offer.lore, price: marketPrice } };
   }
   if (roll < 99) return { kind: "secret", id: "hidden_grotto", title: "🌌 พื้นที่ลับใต้รากไม้", description: "ท่านพบทางลับท���่มีแสงสีฟ้าส่องออกมา เหมือนมีบางอย่างรออยู่", image: IMAGES.secret };
-  return { kind: "ruins", id: "ancient_ruins", title: "🏛️ เหตุการณ��ต่อเนื่อง: ซากวิหาร", description: "��ระตูวิหารโบรา��เปิดออก เผยร่องรอยของผู้กล้าคนก่อน", image: IMAGES.ruins };
+  return { kind: "ruins", id: "ancient_ruins", title: "🏛️ เหตุการณ��ต่อเนื่อง: ซากวิหาร", description: "��ระตูวิหารโบรา��เปิดอ��ก เผยร่องรอยของผู้กล้าคนก่อน", image: IMAGES.ruins };
+}
+
+function regenerateAfterFarm(session: FarmStorySession): string {
+  const hp = Math.max(1, Math.ceil(session.maxHP * 0.1));
+  const mp = Math.max(1, Math.ceil(session.maxMP * 0.1));
+  const oldHP = session.currentHP;
+  const oldMP = session.currentMP;
+  session.currentHP = Math.min(session.maxHP, session.currentHP + hp);
+  session.currentMP = Math.min(session.maxMP, session.currentMP + mp);
+  return `ฟื้น HP +${session.currentHP - oldHP} และ MP +${session.currentMP - oldMP}`;
+}
+
+export async function handleItems(interaction: ButtonInteraction): Promise<void> {
+  if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
+  const session = getSession(interaction.user.id, interaction.guildId!);
+  if (!session) return rejectComponent(interaction, "ไม่พบ session นี้");
+  const items = session.inventory.filter((item) => item.type === "item" && item.quantity > 0 && (item.id === "healing_herb" || item.id === "mana_crystal"));
+  const embed = new EmbedBuilder().setTitle("ไอเทมฟื้นพลัง").setDescription("เลือกอาหารหรือไอเทมเพื่อฟื้น HP/MP").setColor(0x3498db);
+  const buttons = items.map((item) => new ButtonBuilder().setCustomId(`fs:itemuse:${session.userId}:${item.id}`).setLabel(`${item.emoji ?? "ไอเทม"} ${item.name} x${item.quantity}`).setStyle(ButtonStyle.Primary));
+  const rows: ActionRowBuilder<ButtonBuilder>[] = [];
+  for (let index = 0; index < buttons.length; index += 5) rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons.slice(index, index + 5)));
+  rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:back:${session.userId}`).setLabel("กลับ").setStyle(ButtonStyle.Secondary)));
+  return update(interaction, [embed], rows);
+}
+
+export async function handleUseItem(interaction: ButtonInteraction, itemId: string): Promise<void> {
+  if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
+  const session = getSession(interaction.user.id, interaction.guildId!);
+  const item = session?.inventory.find((entry) => entry.id === itemId && entry.type === "item" && entry.quantity > 0);
+  if (!session || !item) return rejectComponent(interaction, "ไม่มีไอเทมนี้ในกระเป๋า");
+  const amount = itemId === "healing_herb" ? 25 : 20;
+  const before = itemId === "healing_herb" ? session.currentHP : session.currentMP;
+  if (itemId === "healing_herb") session.currentHP = Math.min(session.maxHP, session.currentHP + amount);
+  else session.currentMP = Math.min(session.maxMP, session.currentMP + amount);
+  const restored = (itemId === "healing_herb" ? session.currentHP : session.currentMP) - before;
+  item.quantity -= 1;
+  if (item.quantity <= 0) session.inventory.splice(session.inventory.indexOf(item), 1);
+  saveSession(session);
+  return handleItems(interaction).then(() => undefined);
 }
 
 export async function handleFarm(interaction: ButtonInteraction): Promise<void> {
@@ -518,12 +559,13 @@ export async function handleFarm(interaction: ButtonInteraction): Promise<void> 
   if (session.pendingEvent) return renderEvent(interaction, session, session.pendingEvent);
 
   session.chapter += 1;
+  const regenText = regenerateAfterFarm(session);
   const event = newFarmEvent(getPlayer(session.userId).farmLevel ?? 1);
   if ("monster" in event) session.battle = event;
   else session.pendingEvent = event;
   session.lastAction = "farm";
   saveSession(session);
-  if ("monster" in event) await renderBattle(interaction, session, `${event.monster.emoji} ${event.monster.name} ปรากฏตัว!`);
+  if ("monster" in event) await renderBattle(interaction, session, `${regenText}\n${event.monster.emoji} ${event.monster.name} ปรากฏตัว!`);
   else await renderEvent(interaction, session, event);
 }
 
@@ -597,7 +639,7 @@ export async function handleCollect(interaction: ButtonInteraction): Promise<voi
 export async function handleSkipMushroom(interaction: ButtonInteraction): Promise<void> {
   if (!validOwner(interaction)) return rejectComponent(interaction, "❌ ปุ่มนี้เป็นขอ��ผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
-  if (!session || session.pendingEvent?.kind !== "mushroom") return rejectComponent(interaction, "❌ เหตุการณ์นี้หมดอายุแล้ว");
+  if (!session || session.pendingEvent?.kind !== "mushroom") return rejectComponent(interaction, "�� เหตุการณ์นี้หมดอายุแล้ว");
   const levelText = award(session, 0, 5);
   finishEvent(session, "skipped_mushroom");
   await renderMain(interaction, session, `ท่านปล่อยเห็ดไว้ในป่า ได้รับ +5 EXP${levelText}`);
@@ -775,12 +817,19 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
   }
   if (battle.currentHP <= 0) {
     const levelText = award(session, battle.monster.rewardSpore, battle.monster.rewardExp);
+    const regenText = regenerateAfterFarm(session);
     const questText = completeQuestIfNeeded(session, "monster");
+    let dropName = "";
+    if (Math.random() < 0.25) {
+      const drop = Math.random() < 0.5 ? STORY_ITEMS[0] : STORY_ITEMS[1];
+      dropName = drop.name;
+      addItemToSession(session, { ...drop, type: "item", quantity: 1 });
+    }
     session.battle = undefined;
     session.chapter += 1;
     session.lastAction = "won_battle";
     saveSession(session);
-    return renderMain(interaction, session, `ชนะ ${battle.monster.name}! +${battle.monster.rewardSpore} สปอร์ +${battle.monster.rewardExp} EXP${questText}.${levelText}`);
+    return renderMain(interaction, session, `ชนะ ${battle.monster.name}! +${battle.monster.rewardSpore} สปอร์ +${battle.monster.rewardExp} EXP${questText}.${levelText} ${regenText}${dropName ? ` ได้รับ ${dropName}` : ""}`);
   }
 
   let enemyText = "";
@@ -804,12 +853,12 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
   if (session.currentHP <= 0) {
     const penalty = Math.floor(getPlayer(session.userId).sporePoints * 0.1);
     award(session, -penalty, 0);
-    session.currentHP = Math.max(1, Math.ceil(session.maxHP / 2));
+    session.currentHP = 1;
     session.battle = undefined;
     session.chapter += 1;
     session.lastAction = "lost_battle";
     saveSession(session);
-    return renderMain(interaction, session, `พ่ายแพ้ต่อ ${battle.monster.name} เสีย ${penalty} สปอร์ และถูกส่งกลับพร้อม HP ครึ่งหนึ่ง`);
+    return renderMain(interaction, session, `พ่ายแพ้ต่อ ${battle.monster.name} เสีย ${penalty} สปอร์ และถูกส่งกลับพร้อม HP คร���่งหนึ่ง`);
   }
 
   battle.turn += 1;
