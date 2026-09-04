@@ -4,6 +4,7 @@ import {
   handleBag,
   handleItems,
   handleUseItem,
+  handleEquip,
   handleBack,
   handleBattleAction,
   handleCollect,
@@ -103,6 +104,7 @@ async function handleModal(interaction: ModalSubmitInteraction): Promise<void> {
 
 async function handleSelect(interaction: StringSelectMenuInteraction): Promise<void> {
   const parts = interaction.customId.split(":");
+  if (parts[1] === "equip") return handleEquip(interaction);
   if (parts[1] === "weapon") return handleWeaponSelect(interaction, interaction.values[0]!, parts[3] === "1");
   if (parts[1] === "quest_mushroom") return handleQuestMushroomSelect(interaction, decodeQuestId(parts[3] ?? ""), interaction.values);
   if (parts[1] === "shop_mushrooms") return handleShopMushroomSelect(interaction);

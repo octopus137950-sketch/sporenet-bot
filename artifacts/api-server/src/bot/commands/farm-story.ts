@@ -463,18 +463,19 @@ async function renderMain(interaction: ComponentInteraction | ChatInputCommandIn
       { name: "🎁 ไอเทม", value: `${globalItems.length + session.inventory.filter((item) => item.type === "item").reduce((sum, item) => sum + item.quantity, 0)} ชิ้น`, inline: true },
     )
     .setFooter({ text: "ฟาร์มในโหมดนี้ไม่มี cooldown • ทุก action สำคัญจะ autosave" });
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`fs:farm:${session.userId}`).setLabel("🍄 ฟาร์ม").setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(`fs:profile:${session.userId}`).setLabel("👤 โปรไฟล์").setStyle(ButtonStyle.Primary),
+  const rows = [
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId(`fs:farm:${session.userId}`).setLabel("🍄 ฟาร์ม").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`fs:profile:${session.userId}`).setLabel("👤 โปรไฟล์").setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("🎒 กระเป๋า").setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId(`fs:items:${session.userId}`).setLabel("ใช้ไอเทมฟื้น HP/MP").setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`fs:stats:${session.userId}`).setLabel("อัพสเตตัส").setStyle(ButtonStyle.Success),
 
-  new ButtonBuilder().setCustomId(`fs:quests:${session.userId}`).setLabel("📜 เควส").setStyle(ButtonStyle.Secondary),
-
-  );
-  if ("update" in interaction) await update(interaction, [embed], [row]);
-  else await interaction.editReply({ embeds: [embed], components: [row] });
+      new ButtonBuilder().setCustomId(`fs:quests:${session.userId}`).setLabel("📜 เควส").setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+  if ("update" in interaction) await update(interaction, [embed], rows);
+  else await interaction.editReply({ embeds: [embed], components: rows });
 }
 
 function randomOf<T>(items: readonly T[]): T {
@@ -824,6 +825,10 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
       const drop = Math.random() < 0.5 ? STORY_ITEMS[0] : STORY_ITEMS[1];
       dropName = drop.name;
       addItemToSession(session, { ...drop, type: "item", quantity: 1 });
+    } else if (Math.random() < 0.15) {
+      const equipment = { id: `drop_weapon_${Date.now()}`, name: "ดาบนักล่าเห็ด", emoji: "⚔️", type: "equipment" as const, quantity: 1, equipment: { id: `drop_weapon_${Date.now()}`, name: "ดาบนักล่าเห็ด", emoji: "⚔️", slot: "weapon" as const, description: "อาวุธที่ดรอปจากมอนสเตอร์", attack: 12, defense: 2, value: 120 } };
+      dropName = equipment.name;
+      addItemToSession(session, equipment);
     }
     session.battle = undefined;
     session.chapter += 1;
@@ -886,26 +891,36 @@ export async function handleProfile(interaction: ButtonInteraction): Promise<voi
   await update(interaction, [embed], [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:back:${session.userId}`).setLabel("↩️ กลับ").setStyle(ButtonStyle.Secondary))]);
 }
 
-export async function handleBag(interaction: ButtonInteraction): Promise<void> {
+export async function handleBag(interaction: ComponentInteraction): Promise<void> {
   if (!validOwner(interaction)) return rejectComponent(interaction, "❌ ปุ่มนี้เป็นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session) return rejectComponent(interaction, "❌ ไม่พบ session นี้");
-  const storyItems = session.inventory.length
-    ? session.inventory.map((item) => `${item.emoji ?? "🎁"} **${item.name}** ×${item.quantity}${item.type === "mushroom" ? ` — ขายได้ ${item.value ?? 10}/ชิ้น` : ""}`).join("\n")
-    : "ว่างเปล่า";
-  const globalItems = getInventory(session.userId).map((entry) => {
-    const item = getItemById(entry.itemId);
-    return `${item?.emoji ?? "🎁"} **${item?.name ?? entry.itemId}**${entry.isEquipped ? " (สวมใส่)" : ""}`;
-  });
-  const embed = new EmbedBuilder()
-    .setTitle("🎒 กระเป๋าผจญภัย")
-    .setDescription("อุปกรณ์แต่ละช่องแยกกัน: อาวุธ หมวก เกราะ กางเกง และรองเท้า — ของที่สวมอยู่จะถูกล็อกไม่ให้ขาย")
-    .setColor(0x9b59b6)
-    .addFields(
-  { name: "🍄 Story inventory", value: storyItems, inline: false },
-  { name: "อุปกรณ์ที่สวมใส่", value: (["weapon", "helmet", "armor", "pants", "boots"] as const).map((slot) => `${slot}: ${session.equipment[slot]?.emoji ?? "ว่าง"} ${session.equipment[slot]?.name ?? "ยังไม่มี"}`).join("\n"), inline: false },
-  { name: "🎁 Wallet inventory", value: globalItems.length ? globalItems.join("\n") : "ว่างเปล่า", inline: false },
+  const storyItems = session.inventory.length ? session.inventory.map((item) => `${item.emoji ?? "🎁"} **${item.name}** ×${item.quantity}${item.type === "mushroom" ? ` — ขายได้ ${item.value ?? 10}/ชิ้น` : ""}`).join("\n") : "ว่างเปล่า";
+  const globalItems = getInventory(session.userId).map((entry) => { const item = getItemById(entry.itemId); return `${item?.emoji ?? "🎁"} **${item?.name ?? entry.itemId}**${entry.isEquipped ? " (สวมใส่)" : ""}`; });
+  const embed = new EmbedBuilder().setTitle("🎒 กระเป๋าผจญภัย").setDescription("เลือกอุปกรณ์ด้านล่างเพื่อสวมใส่ อุปกรณ์ที่สวมอยู่จะไม่ถูกขาย").setColor(0x9b59b6).addFields(
+    { name: "🍄 Story inventory", value: storyItems, inline: false },
+    { name: "อุปกรณ์ที่สวมใส่", value: (["weapon", "helmet", "armor", "pants", "boots"] as const).map((slot) => `${slot}: ${session.equipment[slot]?.emoji ?? "ว่าง"} ${session.equipment[slot]?.name ?? "ยังไม่มี"}`).join("\n"), inline: false },
+    { name: "🎁 Wallet inventory", value: globalItems.length ? globalItems.join("\n") : "ว่างเปล่า", inline: false },
+  );
+  const equipment = session.inventory.filter((item) => item.type === "equipment" && item.equipment);
+  const components: Array<ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>> = [];
+  if (equipment.length) {
+    const menu = new StringSelectMenuBuilder().setCustomId(`fs:equip:${session.userId}`).setPlaceholder("เลือกอุปกรณ์เพื่อสวมใส่").addOptions(equipment.slice(0, 25).map((item) => ({ label: item.name.slice(0, 100), value: item.id, description: `${item.equipment!.slot} ${item.equipment!.description}`.slice(0, 100), emoji: item.emoji ?? "⚔️" })));
+    components.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu));
+  }
+  components.push(new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:back:${session.userId}`).setLabel("↩️ กลับ").setStyle(ButtonStyle.Secondary)));
+  await update(interaction, [embed], components);
+}
 
-    );
-  await update(interaction, [embed], [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:back:${session.userId}`).setLabel("↩️ กลับ").setStyle(ButtonStyle.Secondary))]);
+export async function handleEquip(interaction: StringSelectMenuInteraction): Promise<void> {
+  if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
+  const session = getSession(interaction.user.id, interaction.guildId!);
+  const item = session?.inventory.find((entry) => entry.id === interaction.values[0] && entry.type === "equipment" && entry.equipment);
+  if (!session || !item?.equipment) return rejectComponent(interaction, "ไม่พบอุปกรณ์นี้");
+  session.equipment[item.equipment.slot] = item.equipment;
+  if (item.equipment.slot === "weapon") session.weapon = { ...session.weapon, name: item.equipment.name, emoji: item.equipment.emoji, description: item.equipment.description, baseDamage: item.equipment.attack ?? session.weapon.baseDamage, baseDefense: item.equipment.defense ?? session.weapon.baseDefense, baseHP: item.equipment.hp ?? session.weapon.baseHP };
+  session.maxHP += item.equipment.hp ?? 0;
+  session.maxMP += item.equipment.mp ?? 0;
+  saveSession(session);
+  await update(interaction, [new EmbedBuilder().setTitle("สวมใส่อุปกรณ์แล้ว").setDescription(`${item.equipment.emoji} ${item.equipment.name} ถูกสวมใส่ในช่อง ${item.equipment.slot}`).setColor(0x57f287)], [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:bag:${session.userId}`).setLabel("กลับไปกระเป๋า").setStyle(ButtonStyle.Secondary))]);
 }
