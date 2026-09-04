@@ -38,6 +38,7 @@ import {
   handleInventoryUnequip,
 } from "./events/inventoryHandler.js";
 import { startQuestDailyReset } from "./utils/questScheduler.js";
+import { handleStatAmount } from "./commands/farm-story.js";
 
 import * as reactionroleCmd from "./commands/reactionrole.js";
 import * as listrolesCmd from "./commands/listroles.js";
@@ -303,7 +304,10 @@ export async function startBot(): Promise<void> {
       }
 
       if (interaction.isModalSubmit()) {
-        if (interaction.customId.startsWith("verify_modal_")) {
+        if (interaction.customId.startsWith("fs:statamount:")) {
+          const [, , , stat] = interaction.customId.split(":");
+          await handleStatAmount(interaction, stat ?? "");
+        } else if (interaction.customId.startsWith("verify_modal_")) {
           await handleVerifyModal(interaction);
         } else if (interaction.customId === "casino_bet_modal") {
           await handleCasinoModal(interaction);
