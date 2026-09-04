@@ -18,6 +18,7 @@ import {
   handleSkipMushroom,
   handleStartAdventure,
   handleStats,
+  handleStatPreset,
   handleStatUpgrade,
   handleStatAmount,
   handleWeaponSelect,
@@ -60,6 +61,7 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
     case "profile": return handleProfile(interaction);
     case "bag": return handleBag(interaction);
     case "stats": return handleStats(interaction);
+    case "statpreset": return handleStatPreset(interaction);
     case "statup": return handleStatUpgrade(interaction, parts[3] ?? "");
     case "quests": return handleQuests(interaction);
     case "quest_choose": return handleQuestChoose(interaction, decodeQuestId(parts[3] ?? ""));
@@ -92,7 +94,7 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
 
 async function handleModal(interaction: ModalSubmitInteraction): Promise<void> {
   const parts = interaction.customId.split(":");
-  if (parts[1] === "statamount") return handleStatAmount(interaction, parts[3] ?? "");
+  if (parts[1] === "statpreset") return handleStatAmount(interaction);
 }
 
 async function handleSelect(interaction: StringSelectMenuInteraction): Promise<void> {
