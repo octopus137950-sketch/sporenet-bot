@@ -245,7 +245,7 @@ export async function handleWeaponSelect(interaction: StringSelectMenuInteractio
 
 async function renderAdventureStart(interaction: ComponentInteraction, session: FarmStorySession, accepted: boolean): Promise<void> {
   const embed = new EmbedBuilder()
-    .setTitle("🏰 เริ่มการผจญ�����ัย")
+    .setTitle("🏰 เริ่มการผจญ�������ัย")
     .setDescription(
       accepted
         ? "ราชามอบสปอร์เริ่มต้น 1,000 ให้ท่านแล้ว จงออกเดินทางไปหยุดจอมมารเห็ด!"
@@ -813,21 +813,24 @@ function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function skillDescription(skill: WeaponSkill): string {
-  return `${skill.name} (${skill.costMP} MP) — ${skill.description}`;
-}
-
 async function renderBattle(interaction: ComponentInteraction | ChatInputCommandInteraction, session: FarmStorySession, notice = ""): Promise<void> {
   const battle = session.battle!;
+  const [playerLog, enemyLog] = notice.includes("\n") ? notice.split("\n", 2) : [notice, ""];
   const embed = new EmbedBuilder()
     .setTitle(`⚔️ Battle • Lv.${battle.monster.level} ${battle.monster.emoji} ${battle.monster.name}`)
-    .setDescription(`${notice ? `> ${notice}\n\n` : ""}${battle.monster.description}\n\n❤️ ศัตรู: **${Math.max(0, battle.currentHP)}/${battle.monster.maxHP} HP**\n📊 สเตตัสสุ่ม: HP ${battle.monster.stats?.hp ?? "-"} · MP ${battle.monster.stats?.mp ?? "-"} · ATK ${battle.monster.stats?.atk ?? "-"} · DEF ${battle.monster.stats?.def ?? "-"} · SPD ${battle.monster.stats?.spd ?? "-"}\n❤️ ท่าน: **${session.currentHP}/${session.maxHP} HP** · 💙 **${session.currentMP}/${session.maxMP} MP**\n\nเทิร์นที่ **${battle.turn}** — เลือกการกระทำของท่าน`)
+    .setDescription(battle.monster.description)
+    .addFields(
+      { name: "❤️ ศัตรู", value: `**${Math.max(0, battle.currentHP)}/${battle.monster.maxHP} HP**\nHP ${battle.monster.stats?.hp ?? "-"} · MP ${battle.monster.stats?.mp ?? "-"} · ATK ${battle.monster.stats?.atk ?? "-"} · DEF ${battle.monster.stats?.def ?? "-"} · SPD ${battle.monster.stats?.spd ?? "-"}`, inline: false },
+      { name: "❤️ ผู้เล่น", value: `**${session.currentHP}/${session.maxHP} HP** · 💙 **${session.currentMP}/${session.maxMP} MP**`, inline: false },
+      ...(playerLog ? [{ name: "🗡️ การกระทำของผู้เล่น", value: playerLog, inline: false }] : []),
+      ...(enemyLog ? [{ name: "🪨 การตอบโต้ของศัตรู", value: enemyLog, inline: false }] : []),
+      { name: `เทิร์นที่ ${battle.turn}`, value: "เลือกการกระทำด้านล่าง", inline: false },
+    )
     .setColor(0xff4444)
-    .setImage(battle.monster.image)
-    .addFields({ name: "📜 Skills", value: session.weapon.skills.map(skillDescription).join("\n") });
+    .setImage(battle.monster.image);
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`fs:battle:${session.userId}:attack`).setLabel("⚔️ โจมตีปกติ").setStyle(ButtonStyle.Danger),
-    ...session.weapon.skills.map((skill) => new ButtonBuilder().setCustomId(`fs:skill:${session.userId}:${skill.id}`).setLabel(`✨ ${skill.name}`).setStyle(ButtonStyle.Primary)),
+    ...session.weapon.skills.map((skill) => new ButtonBuilder().setCustomId(`fs:skill:${session.userId}:${skill.id}`).setLabel(`✨ ${skill.name} · ${skill.costMP} MP · ${skill.description}`.slice(0, 80)).setStyle(ButtonStyle.Primary)),
   );
   const fleeRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`fs:flee:${session.userId}`).setLabel("🏃 หนี").setStyle(ButtonStyle.Secondary),
@@ -867,7 +870,7 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
       if (skill.effect === "stun" && Math.random() * 100 < (skill.effectChance ?? 50)) battle.enemyStunnedTurns = skill.effectDuration ?? 1;
       if (skill.effect === "defend" || skill.effect === "whirlwind") battle.playerDefending = true;
       if (skill.id === "moonlight") session.currentHP = Math.min(session.maxHP, session.currentHP + 10);
-      playerText = `ใช้ **${skill.name}** สร้างความเส���ยหาย **${damage}**`;
+      playerText = `ใช้ **${skill.name}** สร้างความเสียหาย **${damage}**`;
     }
   } else {
     damage = Math.max(1, Math.floor(statTotal(session, "atk") * (0.9 + Math.random() * 0.2)));
@@ -928,7 +931,7 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
     session.chapter += 1;
     session.lastAction = "lost_battle";
     saveSession(session);
-    return renderMain(interaction, session, `พ่ายแพ้ต่อ ${battle.monster.name} เสีย ${penalty} สปอร์ และถูกส่งกลับพร้อม HP คร���่งหนึ่ง`);
+    return renderMain(interaction, session, `พ่ายแพ้ต่อ ${battle.monster.name} เสีย ${penalty} สปอร์ และถูกส่งกลับพร้อม HP ครึ่งหนึ่ง`);
   }
 
   battle.turn += 1;
@@ -938,7 +941,7 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
 }
 
 export async function handleProfile(interaction: ButtonInteraction): Promise<void> {
-  if (!validOwner(interaction)) return rejectComponent(interaction, "❌ ปุ่มนี้เป���นของผู้เล่นคนอื่น");
+  if (!validOwner(interaction)) return rejectComponent(interaction, "❌ ปุ่มนี้เ�����นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session) return rejectComponent(interaction, "❌ ไม่พบ session นี้");
   const player = getPlayer(session.userId);
