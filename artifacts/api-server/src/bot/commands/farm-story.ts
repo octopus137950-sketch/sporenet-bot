@@ -430,12 +430,23 @@ export async function handleBack(interaction: ButtonInteraction): Promise<void> 
   await renderMain(interaction, session, "กลับสู่การผจญภัย");
 }
 
+function eventImage(event: StoryEventState): string {
+  if (event.kind === "npc" || event.id === "apothecary") return IMAGES.npc;
+  if (event.kind === "quest" && event.id === "collect_mushrooms") return IMAGES.mushroomQuest;
+  if (event.kind === "quest" && event.id === "hunt_monster") return IMAGES.monsterQuest;
+  if (event.kind === "item") return IMAGES.itemQuest;
+  if (event.kind === "shop") return IMAGES.shop;
+  if (event.kind === "secret") return IMAGES.secret;
+  if (event.kind === "ruins") return IMAGES.ruins;
+  return event.image;
+}
+
 async function renderEvent(interaction: ComponentInteraction | ChatInputCommandInteraction, session: FarmStorySession, event: StoryEventState): Promise<void> {
   const embed = new EmbedBuilder()
     .setTitle(event.title)
     .setDescription(`${event.description}\n\n🍄 Wallet: **${session.currentSpore.toLocaleString()}** · ⭐ EXP: **${session.currentExp}**`)
     .setColor(event.kind === "secret" ? 0xb05cff : 0x66bb6a)
-    .setThumbnail(event.image);
+    .setThumbnail(eventImage(event));
   const row = new ActionRowBuilder<ButtonBuilder>();
   if (event.kind === "mushroom") {
     embed.addFields({ name: "💰 ราคาขาย", value: `${event.mushroom!.value} สปอร์`, inline: true }, { name: "⭐ EXP เมื่อเก็บ", value: `${event.mushroom!.exp} EXP`, inline: true });
