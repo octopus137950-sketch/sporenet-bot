@@ -10,11 +10,17 @@ import {
   handleFarm,
   handleProfile,
   handleQuests,
+  handleQuestChoose,
+  handleQuestMushroomSelect,
   handleQuestSubmit,
   handleSkipMushroom,
   handleStartAdventure,
   handleWeaponSelect,
 } from "../commands/farm-story.js";
+
+function decodeQuestId(value: string): string {
+  return Buffer.from(value, "base64url").toString("utf8");
+}
 
 export function registerFarmStoryInteractions(client: Client): void {
   client.on(Events.InteractionCreate, async (interaction) => {
@@ -47,7 +53,8 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
     case "profile": return handleProfile(interaction);
     case "bag": return handleBag(interaction);
     case "quests": return handleQuests(interaction);
-    case "quest_submit": return handleQuestSubmit(interaction, parts[3] ?? "");
+    case "quest_choose": return handleQuestChoose(interaction, decodeQuestId(parts[3] ?? ""));
+    case "quest_confirm": return handleQuestSubmit(interaction, decodeQuestId(parts[3] ?? ""), (parts[4] ?? "").split(",").filter(Boolean).map(decodeQuestId));
     case "back": return handleBack(interaction);
     case "collect": return handleCollect(interaction);
     case "skip": return handleSkipMushroom(interaction);
@@ -73,6 +80,6 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
 
 async function handleSelect(interaction: StringSelectMenuInteraction): Promise<void> {
   const parts = interaction.customId.split(":");
-  if (parts[1] !== "weapon") return;
-  await handleWeaponSelect(interaction, interaction.values[0]!, parts[3] === "1");
+  if (parts[1] === "weapon") return handleWeaponSelect(interaction, interaction.values[0]!, parts[3] === "1");
+  if (parts[1] === "quest_mushroom") return handleQuestMushroomSelect(interaction, decodeQuestId(parts[3] ?? ""), interaction.values);
 }

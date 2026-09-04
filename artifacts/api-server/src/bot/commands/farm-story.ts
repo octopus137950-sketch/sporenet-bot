@@ -85,6 +85,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const userId = interaction.user.id;
   const session = getSession(userId, guildId);
   if (session) {
+    session.activeQuests ??= session.activeQuest ? [session.activeQuest] : [];
     syncFromPlayer(session);
     saveSession(session);
     await renderSession(interaction, session);
@@ -104,6 +105,18 @@ function validOwner(interaction: ComponentInteraction): boolean {
 
 async function update(interaction: ComponentInteraction, embeds: EmbedBuilder[], components: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] = []): Promise<void> {
   await interaction.update({ embeds, components });
+}
+
+function mushroomInventory(session: FarmStorySession) {
+  return session.inventory.filter((item) => item.type === "mushroom" && item.quantity > 0);
+}
+
+function encodeQuestId(value: string): string {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
+function decodeQuestId(value: string): string {
+  return Buffer.from(value, "base64url").toString("utf8");
 }
 
 async function rejectComponent(interaction: ComponentInteraction, message: string): Promise<void> {
@@ -226,7 +239,7 @@ export async function handleStartAdventure(interaction: ButtonInteraction): Prom
 async function renderSession(interaction: ChatInputCommandInteraction, session: FarmStorySession): Promise<void> {
   if (session.battle) return renderBattle(interaction, session, "กลับเข้าสู่การต่อสู้");
   if (session.pendingEvent) return renderEvent(interaction, session, session.pendingEvent);
-  await renderMain(interaction, session, "โหล�� session เดิมสำเร็จ");
+  await renderMain(interaction, session, "โหล�� session ��ดิมสำเร็จ");
 }
 
 function syncFromPlayer(session: FarmStorySession): void {
@@ -272,13 +285,37 @@ export async function handleQuests(interaction: ButtonInteraction): Promise<void
   const description = quests.length ? quests.map((quest) => `**${quest.title}**\n${quest.description}\nความคืบหน้า: **${quest.progress}/${quest.target}**\nรางวัล: ${quest.rewardSpore} สปอร์ + ${quest.rewardExp} EXP`).join("\n\n") : "ยังไม่มีเควสที่กำลังทำ\nออกสำรวจเพื่อพบชาวบ้านและรับเควสใหม่";
   const embed = new EmbedBuilder().setTitle("📜 กระดานเควส").setDescription(description).setColor(0xf1c40f);
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    ...quests.filter((quest) => quest.progress >= quest.target).slice(0, 4).map((quest) => new ButtonBuilder().setCustomId(`fs:quest_submit:${session.userId}:${quest.id}`).setLabel(`ส่ง: ${quest.title.slice(0, 20)}`).setStyle(ButtonStyle.Success)),
+    ...quests.filter((quest) => quest.progress >= quest.target).slice(0, 4).map((quest) => new ButtonBuilder().setCustomId(`fs:quest_choose:${session.userId}:${encodeQuestId(quest.id)}`).setLabel(`เลือกเห็ดส่ง: ${quest.title.slice(0, 16)}`).setStyle(ButtonStyle.Success)),
     new ButtonBuilder().setCustomId(`fs:back:${session.userId}`).setLabel("กลับ").setStyle(ButtonStyle.Secondary),
   );
   await update(interaction, [embed], [row]);
 }
 
-export async function handleQuestSubmit(interaction: ButtonInteraction, questId: string): Promise<void> {
+export async function handleQuestChoose(interaction: ButtonInteraction, questId: string): Promise<void> {
+  if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
+  const session = getSession(interaction.user.id, interaction.guildId!);
+  const quest = session && questList(session).find((item) => item.id === questId);
+  if (!session || !quest || quest.progress < quest.target) return rejectComponent(interaction, "เควสนี้ยังส่งไม่ได้");
+  const mushrooms = mushroomInventory(session);
+  if (mushrooms.length === 0) return rejectComponent(interaction, "ไม่มีเห็ดในกระเป๋า");
+  const embed = new EmbedBuilder().setTitle("เลือกเห็ดที่จะส่ง").setDescription(`เควส **${quest.title}** ต้องการเห็ด ${quest.target} ชิ้น\nเลือกเห็ดราคาถูกหรือเห็ดชนิดที่ต้องการส่งได้เอง`).setColor(0xf1c40f);
+  const menu = new StringSelectMenuBuilder().setCustomId(`fs:quest_mushroom:${session.userId}:${encodeQuestId(quest.id)}`).setPlaceholder("เลือกชนิดเห็ด").setMinValues(1).setMaxValues(Math.min(mushrooms.length, 5)).addOptions(mushrooms.map((item) => ({ label: `${item.name} (${item.quantity} ชิ้น)`, value: item.id, description: `มูลค่าขาย ${item.value ?? 0} สปอร์`, emoji: item.emoji })));
+  await update(interaction, [embed], [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu), new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:quests:${session.userId}`).setLabel("ยกเลิก").setStyle(ButtonStyle.Secondary))]);
+}
+
+export async function handleQuestMushroomSelect(interaction: StringSelectMenuInteraction, questId: string, mushroomIds: string[]): Promise<void> {
+  if (!validOwner(interaction)) return rejectComponent(interaction, "เมนูนี้เป็นของผู้เล่นคนอื่น");
+  const session = getSession(interaction.user.id, interaction.guildId!);
+  const quest = session && questList(session).find((item) => item.id === questId);
+  if (!session || !quest || quest.progress < quest.target) return rejectComponent(interaction, "เควสนี้ยังส่งไม่ได้");
+  const selected = mushroomIds.map((id) => session.inventory.find((item) => item.type === "mushroom" && item.id === id && item.quantity > 0)).filter(Boolean) as typeof session.inventory;
+  if (selected.length !== mushroomIds.length || selected.reduce((sum, item) => sum + item.quantity, 0) < quest.target) return rejectComponent(interaction, `เลือกเห็ดให้ครบ ${quest.target} ชิ้น`);
+  const embed = new EmbedBuilder().setTitle("ยืนยันการส่งเห็ด").setDescription(`จะส่ง: ${selected.map((item) => `${item.emoji} ${item.name} x${Math.min(item.quantity, quest.target)}`).join("\n")}\n\nเมื่อยืนยัน เห็ดจะถูกหักออกจากกระเป๋าจริง`).setColor(0xe67e22);
+  const confirm = new ButtonBuilder().setCustomId(`fs:quest_confirm:${session.userId}:${encodeQuestId(quest.id)}:${mushroomIds.map(encodeQuestId).join(",")}`).setLabel("ยืนยันส่งเห็ด").setStyle(ButtonStyle.Success);
+  await update(interaction, [embed], [new ActionRowBuilder<ButtonBuilder>().addComponents(confirm, new ButtonBuilder().setCustomId(`fs:quests:${session.userId}`).setLabel("ยกเลิก").setStyle(ButtonStyle.Secondary))]);
+}
+
+export async function handleQuestSubmit(interaction: ButtonInteraction, questId: string, mushroomIds: string[] = []): Promise<void> {
   if (!validOwner(interaction)) return rejectComponent(interaction, "ปุ่มนี้เป็นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session) return rejectComponent(interaction, "ไม่พบ session นี้");
@@ -286,12 +323,22 @@ export async function handleQuestSubmit(interaction: ButtonInteraction, questId:
   const index = quests.findIndex((quest) => quest.id === questId);
   const quest = quests[index];
   if (!quest || quest.progress < quest.target) return rejectComponent(interaction, "เควสนี้ยังทำไม่ครบ");
+  let remaining = quest.target;
+  for (const id of mushroomIds) {
+    const item = session.inventory.find((entry) => entry.type === "mushroom" && entry.id === id);
+    if (!item || item.quantity <= 0) return rejectComponent(interaction, "เห็ดบางชนิดไม่อยู่ในกระเป๋าแล้ว");
+    const used = Math.min(item.quantity, remaining);
+    item.quantity -= used;
+    remaining -= used;
+    if (item.quantity <= 0) session.inventory.splice(session.inventory.indexOf(item), 1);
+  }
+  if (remaining > 0) return rejectComponent(interaction, `เห็ดไม่ครบ ${quest.target} ชิ้น`);
   const levelText = award(session, quest.rewardSpore, quest.rewardExp);
   quests.splice(index, 1);
   session.activeQuest = quests[0];
   session.lastAction = `submitted_quest_${quest.id}`;
   saveSession(session);
-  await renderMain(interaction, session, `ส่งเควส ${quest.title} สำเร็จ! +${quest.rewardSpore} สปอร์ +${quest.rewardExp} EXP${levelText}`);
+  await renderMain(interaction, session, `ส่งเควส ${quest.title} สำเร็จ เห็ดถูกหักออกจากกระเป๋าแล้ว +${quest.rewardSpore} สปอร์ +${quest.rewardExp} EXP${levelText}`);
 }
 
 async function renderMain(interaction: ComponentInteraction | ChatInputCommandInteraction, session: FarmStorySession, notice = ""): Promise<void> {
@@ -422,7 +469,7 @@ export async function handleCollect(interaction: ButtonInteraction): Promise<voi
 }
 
 export async function handleSkipMushroom(interaction: ButtonInteraction): Promise<void> {
-  if (!validOwner(interaction)) return rejectComponent(interaction, "❌ ปุ่มนี้เป็นของผู้เล่นคนอื่น");
+  if (!validOwner(interaction)) return rejectComponent(interaction, "❌ ปุ่มนี้เป็นขอ��ผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session || session.pendingEvent?.kind !== "mushroom") return rejectComponent(interaction, "❌ เหตุการณ์นี้หมดอายุแล้ว");
   const levelText = award(session, 0, 5);
