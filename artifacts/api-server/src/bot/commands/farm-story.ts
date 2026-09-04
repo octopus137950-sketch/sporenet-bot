@@ -92,7 +92,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const guildId = interaction.guild!.id;
   const userId = interaction.user.id;
   const session = getSession(userId, guildId);
+  const voiceChannelId = interaction.member && "voice" in interaction.member ? interaction.member.voice.channelId : null;
   if (session) {
+  if (voiceChannelId) session.farmStoryVoiceChannelId = voiceChannelId;
   session.activeQuests ??= session.activeQuest ? [session.activeQuest] : [];
   // Opening the menu is a read-only action; only actions after this should trigger a leave summary.
   session.lastAction = undefined;
@@ -103,6 +105,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
   await renderKingScene(interaction, userId);
+  const created = getSession(userId, guildId);
+  if (created && voiceChannelId) {
+    created.farmStoryVoiceChannelId = voiceChannelId;
+    saveSession(created);
+  }
 }
 
 function userIdFromCustomId(customId: string): string | undefined {
@@ -183,7 +190,7 @@ async function renderWeaponSelection(interaction: ComponentInteraction, accepted
       { name: "⚔️ ดาบแห่งเมืองหิน", value: "สมดุล • ATK 25 • DEF 8 • HP 100", inline: true },
       { name: "🗡️ หอกเวทมนตร์", value: "เร็ว • ATK 28 • DEF 4 • HP 85", inline: true },
       { name: "🏹 ธนูแสงจันทร์", value: "อึด • ATK 22 • DEF 11 • HP 110", inline: true },
-      { name: "🪓 ขวานไฟแห่งสงคราม", value: "แรง • ATK 32 • DEF 2 • HP 75", inline: true },
+      { name: "🪓 ขวา��ไฟแห่งสงคราม", value: "แรง • ATK 32 • DEF 2 • HP 75", inline: true },
     )
     .setImage(IMAGES.weapons);
 
@@ -502,7 +509,7 @@ function newFarmEvent(playerLevel = 1): StoryEventState | BattleState {
   }
   if (roll < 77) return { kind: "npc", id: "apothecary", title: "นักปรุงยาเห็ดน้อยต้องการความช่วยเหลือ", description: "นักปรุงยาเห็ดน้อยทำขวดฟื้นพลังหล่นกระจาย ช่วยเก็บสมุนไพรให้เขา แล้วเขาจะรักษา HP และเปิดเควสต่อเนื่องให้", image: IMAGES.npc };
   if (roll < 82) {
-    return { kind: "quest", id: "collect_mushrooms", title: "คำขอจากชาวบ้านเห็ด", description: "ชาวบ้านต้องการเห็ด 3 ชิ้นเพื่อทำยาป้องกันจอมมาร หากมีอยู่ในกระเป๋าแล้ว สามารถส่งได้ทันที", image: IMAGES.mushroomQuest, quest: { id: "collect_mushrooms", title: "ส่งเห็ดให้ชาวบ้าน", description: "ส่งเห็ดชนิดใดก็ได้ 3 ชิ้น", target: 3, progress: 0, rewardSpore: 100, rewardExp: 45 } };
+    return { kind: "quest", id: "collect_mushrooms", title: "คำขอจากชาวบ้านเห็ด", description: "ชาวบ้านต้องการเห็ด 3 ชิ้นเพื่อ��ำยาป้องกันจอมมาร หากมีอยู่ในกระเป๋าแล้ว สามารถส่งได้ทันที", image: IMAGES.mushroomQuest, quest: { id: "collect_mushrooms", title: "ส่งเห็ดให้ชาวบ้าน", description: "ส่งเห็ดชนิดใดก็ได้ 3 ชิ้น", target: 3, progress: 0, rewardSpore: 100, rewardExp: 45 } };
   }
   if (roll < 87) {
     return { kind: "quest", id: "hunt_monster", title: "ประกาศจับมอนสเตอร์จอมซน", description: "ช่วยปกป้องหมู่บ้านจากมอนสเตอร์จอมซน 2 ตัว แล้วกลับมารับรางวัล", image: IMAGES.monsterQuest, quest: { id: "hunt_monster", title: "ปกป้องหมู่บ้าน", description: "ชนะมอนสเตอร์ 2 ตัว", target: 2, progress: 0, rewardSpore: 150, rewardExp: 70 } };

@@ -214,6 +214,7 @@ export interface FarmStorySession {
   pendingEvent?: StoryEventState;
   pendingQuestSubmission?: { questId: string; mushroomIds: string[] };
   pendingStatAmount?: number;
+  farmStoryVoiceChannelId?: string;
   battle?: BattleState;
   createdAt: number;
   lastSavedAt: number;
