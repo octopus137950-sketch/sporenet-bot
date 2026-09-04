@@ -308,7 +308,7 @@ export async function handleQuestChoose(interaction: ButtonInteraction, questId:
   const mushrooms = mushroomInventory(session).filter((item) => !quest.requiredMushroomIds || quest.requiredMushroomIds.includes(item.id));
   if (mushrooms.length === 0) return rejectComponent(interaction, "ไม่มีเห็ดในกระเป๋า");
   const embed = new EmbedBuilder().setTitle("เลือกเห็ดที่จะส่ง").setDescription(`เควส **${quest.title}** ต้องการเห็ด ${quest.target} ชิ้น\nเลือกเห็ดราคาถูกหรือเห็ดชนิดที่ต้องการส่งได้เอง`).setColor(0xf1c40f);
-  const menu = new StringSelectMenuBuilder().setCustomId(`fs:quest_mushroom:${session.userId}:${encodeQuestId(quest.id)}`)    .setPlaceholder("เลือกชนิดเห็ด").setMinValues(1).setMaxValues(Math.min(mushrooms.length, 5)).addOptions(mushrooms.slice(0, 25).map((item, index) => ({ label: `${item.name} (${item.quantity} ชิ้น)`.slice(0, 100), value: `${item.id}:${index}`, description: `มูลค่าขาย ${item.value ?? 0} สปอร์/ชิ้น`.slice(0, 100), emoji: item.emoji })));
+  const menu = new StringSelectMenuBuilder().setCustomId(`fs:quest_mushroom:${session.userId}:${encodeQuestId(quest.id)}`)    .setPlaceholder("เลือกชนิดเห็ด").setMinValues(1).setMaxValues(Math.min(mushrooms.length, 5)).addOptions(mushrooms.slice(0, 25).map((item, index) => ({ label: `${item.name} (${item.quantity} ชิ้น)`.slice(0, 100), value: `slot_${index}`, description: `มูลค่าขาย ${item.value ?? 0} สปอร์/ชิ้น`.slice(0, 100), emoji: item.emoji })));
 
   await update(interaction, [embed], [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu), new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:quests:${session.userId}`).setLabel("ยกเลิก").setStyle(ButtonStyle.Secondary))]);
 }
@@ -318,10 +318,11 @@ export async function handleQuestMushroomSelect(interaction: StringSelectMenuInt
   const session = getSession(interaction.user.id, interaction.guildId!);
   const quest = session && questList(session).find((item) => item.id === questId);
   if (!session || !quest || quest.progress < quest.target) return rejectComponent(interaction, "เควสนี้ยังส่งไม่ได้");
-  const selected = mushroomIds.map((value) => session.inventory.find((item) => item.type === "mushroom" && item.id === value.split(":")[0] && item.quantity > 0)).filter(Boolean) as typeof session.inventory;
+  const mushrooms = mushroomInventory(session).filter((item) => !quest.requiredMushroomIds || quest.requiredMushroomIds.includes(item.id));
+  const selected = mushroomIds.map((value) => mushrooms[Number(value.replace("slot_", ""))]).filter((item) => item?.quantity > 0) as typeof session.inventory;
   if (selected.length !== mushroomIds.length || selected.reduce((sum, item) => sum + item.quantity, 0) < quest.target) return rejectComponent(interaction, `เลือกเห็ดให้ครบ ${quest.target} ชิ้น`);
   const embed = new EmbedBuilder().setTitle("ยืนยันการส่งเห็ด").setDescription(`จะส่ง: ${selected.map((item) => `${item.emoji} ${item.name} x${Math.min(item.quantity, quest.target)}`).join("\n")}\n\nเมื่อยืนยัน เห็ดจะถูกหักออกจากกระเป๋าจริง`).setColor(0xe67e22);
-  const chosenIds = mushroomIds.map((value) => value.split(":")[0]);
+  const chosenIds = selected.map((item) => item.id);
   const confirm = new ButtonBuilder().setCustomId(`fs:quest_confirm:${session.userId}:${encodeQuestId(quest.id)}:${chosenIds.map(encodeQuestId).join(",")}`).setLabel("ยืนยันส่งเห็ด").setStyle(ButtonStyle.Success);
   await update(interaction, [embed], [new ActionRowBuilder<ButtonBuilder>().addComponents(confirm, new ButtonBuilder().setCustomId(`fs:quests:${session.userId}`).setLabel("ยกเลิก").setStyle(ButtonStyle.Secondary))]);
 }
@@ -359,7 +360,7 @@ async function renderMain(interaction: ComponentInteraction | ChatInputCommandIn
   const globalItems = getInventory(session.userId);
   const embed = new EmbedBuilder()
     .setTitle(`🌲 ผจญภัยในป่าเห็ด • Chapter ${session.chapter}`)
-    .setDescription(`${notice ? `> ${notice}\n\n` : ""}เลือกการกระทำของท่านจากปุ่มด้านล่าง\n\n❤️ HP **${session.currentHP}/${session.maxHP}** · 💙 MP **${session.currentMP}/${session.maxMP}**\n⚔️ ${session.weapon.name} · ⭐ Lv.${player.farmLevel} · 🍄 ${player.sporePoints.toLocaleString()} สปอร์`)
+    .setDescription(`${notice ? `> ${notice}\n\n` : ""}เลือก���ารกระทำของท่านจากปุ่มด้านล่าง\n\n❤️ HP **${session.currentHP}/${session.maxHP}** · 💙 MP **${session.currentMP}/${session.maxMP}**\n⚔️ ${session.weapon.name} · ⭐ Lv.${player.farmLevel} · 🍄 ${player.sporePoints.toLocaleString()} สปอร์`)
     .setColor(0x57f287)
     .setThumbnail(IMAGES.adventure)
     .addFields(
@@ -406,7 +407,7 @@ function newFarmEvent(): StoryEventState | BattleState {
     return { kind: "shop", id: `shop_${offer.id}`, title: "พ่อค้าเร่แห่งป่าเห็ด", description: `พ่อค้าเร่เปิดร้านชั่วคราว — ราคาตลาดของ ${offer.name} ปรับตามความหายาก`, image: IMAGES.shop, offer: { id: offer.id, name: offer.name, emoji: offer.emoji, description: offer.lore, price: marketPrice } };
   }
   if (roll < 99) return { kind: "secret", id: "hidden_grotto", title: "🌌 พื้นที่ลับใต้รากไม้", description: "ท่านพบทางลับที่มีแสงสีฟ้าส่องออกมา เหมือนมีบางอย่างรออยู่", image: IMAGES.secret };
-  return { kind: "ruins", id: "ancient_ruins", title: "🏛️ เหตุการณ์ต่อเนื่อง: ซากวิหาร", description: "ประตูวิหารโบราณเปิดออก เผยร่องรอยของผู้กล้าคนก่อน", image: IMAGES.ruins };
+  return { kind: "ruins", id: "ancient_ruins", title: "🏛️ เหตุการณ์ต่อเนื่อง: ซากวิหาร", description: "��ระตูวิหารโบราณเปิดออก เผยร่องรอยของผู้กล้าคนก่อน", image: IMAGES.ruins };
 }
 
 export async function handleFarm(interaction: ButtonInteraction): Promise<void> {
@@ -506,7 +507,8 @@ export async function handleShopMushroomSelect(interaction: StringSelectMenuInte
   if (!validOwner(interaction)) return rejectComponent(interaction, "เมนูนี้เป็นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session) return rejectComponent(interaction, "ไม่พบ session นี้");
-  const selected = interaction.values.map((value) => value.split(":")[0]).map((id) => session.inventory.find((item) => item.type === "mushroom" && item.id === id && item.quantity > 0)).filter(Boolean) as typeof session.inventory;
+  const mushrooms = mushroomInventory(session);
+  const selected = interaction.values.map((value) => mushrooms[Number(value.replace("slot_", ""))]).filter((item) => item?.quantity > 0) as typeof session.inventory;
   const total = selected.reduce((sum, item) => sum + (item.value ?? 10) * item.quantity, 0);
   if (!selected.length) return rejectComponent(interaction, "ไม่พบเห็ดที่เลือก");
   const summary = selected.map((item) => `${item.emoji} ${item.name} x${item.quantity} = ${(item.value ?? 10) * item.quantity} สปอร์`).join("\n");
@@ -569,7 +571,7 @@ export async function handleEventAction(interaction: ButtonInteraction, action: 
   if (action === "shop_sell" && event.kind === "shop") {
     const mushrooms = mushroomInventory(session);
     if (!mushrooms.length) return rejectComponent(interaction, "ยังไม่มีเห็ดให้ขาย");
-    const menu = new StringSelectMenuBuilder().setCustomId(`fs:shop_mushrooms:${session.userId}`).setPlaceholder("เลือกเห็ดและจำนวนที่จะขาย").setMinValues(1).setMaxValues(Math.min(mushrooms.length, 25)).addOptions(mushrooms.slice(0, 25).map((item, index) => ({ label: `${item.name} x${item.quantity}`.slice(0, 100), value: `${item.id}:${index}`, description: `${item.value ?? 10} สปอร์/ชิ้น · ยอดสูงสุด ${(item.value ?? 10) * item.quantity}`.slice(0, 100), emoji: item.emoji })));
+    const menu = new StringSelectMenuBuilder().setCustomId(`fs:shop_mushrooms:${session.userId}`).setPlaceholder("เลือกเห็ดและจำนวนที่จะขาย").setMinValues(1).setMaxValues(Math.min(mushrooms.length, 25)).addOptions(mushrooms.slice(0, 25).map((item, index) => ({ label: `${item.name} x${item.quantity}`.slice(0, 100), value: `slot_${index}`, description: `${item.value ?? 10} สปอร์/ชิ้น · ยอดสูงสุด ${(item.value ?? 10) * item.quantity}`.slice(0, 100), emoji: item.emoji })));
     const embed = new EmbedBuilder().setTitle("เลือกเห็ดที่จะขาย").setDescription("เลือกชนิดเห็ดได้หลายรายการ ระบบจะสรุปยอดรวมก่อนยืนยัน").setColor(0x2ecc71);
     return update(interaction, [embed], [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu), new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:event_leave:${session.userId}`).setLabel("ยกเลิก").setStyle(ButtonStyle.Secondary))]);
   }
