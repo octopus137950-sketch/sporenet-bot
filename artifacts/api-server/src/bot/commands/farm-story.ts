@@ -35,6 +35,7 @@ import { requireVoiceChannel } from "../utils/voiceChannelGuard.js";
 import { CHAPTERS, MAIN_QUESTS, newSideQuest, mainStage, rewardText, FARM_EQUIPMENT } from "../data/farmStoryContent.js";
 
 type ComponentInteraction = ButtonInteraction | StringSelectMenuInteraction;
+const CHAPTER_ENTRY_CHANCE = 0.05;
 
 function farmStoryBuffs(userId: string): { sporePercent: number; sporeFlat: number; expPercent: number } {
   return getInventory(userId).reduce((buffs, entry) => {
@@ -122,7 +123,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   if (voiceChannelId) session.farmStoryVoiceChannelId = voiceChannelId;
   session.activeQuests ??= session.activeQuest ? [session.activeQuest] : [];
   session.completedQuestIds ??= [];
-  if (!session.activeMainQuestId && Math.random() < 0.08) {
+  if (session.chapter > 0 && !session.chapterUnlockReady && !session.activeMainQuestId && Math.random() < 0.08) {
     const chain = MAIN_QUESTS.find((quest) => quest.chapter === session.chapter);
     if (!chain) {
       session.storyFlags ??= {};
@@ -363,7 +364,7 @@ export async function handleStartAdventure(interaction: ButtonInteraction): Prom
   if (!validOwner(interaction)) return rejectComponent(interaction, "❌ ปุ่มนี้เป็นของผู้เล่นคนอื่น");
   const session = getSession(interaction.user.id, interaction.guildId!);
   if (!session) return rejectComponent(interaction, "❌ ไม่พบ session นี้ กรุณาใช้ /farm-story ใหม่");
-  session.chapter = Math.max(1, session.chapter);
+  session.chapter = Math.max(0, session.chapter);
   session.lastAction = "adventure_started";
   saveSession(session);
   await renderMain(interaction, session, "การผจญภ��ยเริ่มต้นขึ้นแล้ว");
@@ -420,9 +421,16 @@ function questList(session: FarmStorySession): ActiveQuest[] {
   return session.activeQuests;
 }
 
-function completeQuestIfNeeded(session: FarmStorySession, kind: "mushroom" | "monster"): string {
+function completeQuestIfNeeded(session: FarmStorySession, kind: "farm" | "mushroom" | "monster"): string {
   const quests = questList(session);
-  const matching = quests.filter((quest) => (kind === "mushroom" ? quest.id.startsWith("collect") : quest.id.startsWith("hunt")) && quest.progress < quest.target);
+  const stageId = (quest: ActiveQuest): string => quest.id.split(":").at(-1) ?? quest.id;
+  const matching = quests.filter((quest) => {
+    if (quest.progress >= quest.target) return false;
+    const id = stageId(quest);
+    if (kind === "farm") return ["find_grove", "root_village"].includes(id);
+    if (kind === "monster") return quest.id.startsWith("hunt") || ["defeat_guardian", "village_guard", "rift_sealed"].includes(id);
+    return quest.id.startsWith("collect") || ["return_crystal", "ruined_city", "world_war"].includes(id);
+  });
   for (const quest of matching) quest.progress = Math.min(quest.target, quest.progress + 1);
   session.activeQuest = quests[0];
   saveSession(session);
@@ -509,11 +517,14 @@ export async function handleQuestSubmit(interaction: ButtonInteraction, questId 
       session.activeMainQuestId = undefined;
       session.activeMainQuestStage = undefined;
       session.activeQuest = undefined;
-      session.chapter = Math.min(5, session.chapter + 1);
       session.storyFlags ??= {};
-      session.storyFlags[`chapter_${session.chapter - 1}_complete`] = true;
-      session.unlockedAreaIds ??= ["forest_edge"];
-      session.unlockedAreaIds.push(`chapter_${session.chapter}`);
+      if (session.chapter < 5) {
+        session.chapterUnlockReady = true;
+        session.storyFlags[`chapter_${session.chapter}_quest_complete`] = true;
+      } else {
+        session.chapterUnlockReady = false;
+        session.storyFlags.chapter_5_complete = true;
+      }
     }
   }
   session.activeQuest ??= quests[0];
@@ -529,16 +540,26 @@ async function renderMain(interaction: ComponentInteraction | ChatInputCommandIn
   saveSession(session);
   const player = getPlayer(session.userId);
   const chapter = CHAPTERS.find((entry) => entry.id === session.chapter) ?? CHAPTERS[0]!;
+  const chapterTitle = session.chapter === 0
+    ? `🌱 ${chapter.title} • Stage ${session.stage}`
+    : `🌲 ${chapter.title} • Chapter ${session.chapter} • Stage ${session.stage}`;
+  const progressionText = session.chapter === 0
+    ? "กำลังค้นหาเส้นทางเข้าสู่ Chapter 1 — ทุกครั้งที่ฟาร์มจะเพิ่ม Stage และมีโอกาสสุ่มพบเส้นทาง"
+    : session.chapterUnlockReady && session.chapter < 5
+      ? `เควสหลักของ Chapter ${session.chapter} สำเร็จแล้ว — รอโอกาสสุ่มเข้าสู่ Chapter ${session.chapter + 1}`
+      : session.chapter === 5 && session.storyFlags?.chapter_5_complete
+        ? "เนื้อเรื่องหลักจบครบแล้ว — ยังสำรวจและฟาร์มต่อได้"
+        : "ทำเควสหลักของบทนี้ให้สำเร็จเพื่อปลดล็อกเส้นทางถัดไป";
   const globalItems = getInventory(session.userId);
   const embed = new EmbedBuilder()
-    .setTitle(`🌲 ${chapter.title} • Chapter ${chapter.id}`)
-    .setDescription(`${chapter.intro}\n\n${chapter.lore[0]}`)
+    .setTitle(chapterTitle)
 
-    .setDescription(`${notice ? `> ${notice}\n\n` : ""}เลือกการกระทำของท่านจากปุ่มด้านล่าง\n\n❤️ HP **${session.currentHP}/${session.maxHP}** · 💙 MP **${session.currentMP}/${session.maxMP}**\n⚔️ ${session.weapon.name} · ⭐ Lv.${player.farmLevel} · 🍄 ${player.sporePoints.toLocaleString()} สปอร์`)
+    .setDescription(`${notice ? `> ${notice}\n\n` : ""}${chapter.intro}\n\n${chapter.lore[0]}\n\n📍 ${progressionText}\n\nเลือกการกระทำของท่านจากปุ่มด้านล่าง\n\n❤️ HP **${session.currentHP}/${session.maxHP}** · 💙 MP **${session.currentMP}/${session.maxMP}**\n⚔️ ${session.weapon.name} · ⭐ Lv.${player.farmLevel} · 🍄 ${player.sporePoints.toLocaleString()} สปอร์`)
     .setColor(0x57f287)
     .setThumbnail(IMAGES.adventure)
     .addFields(
       { name: "⭐ EXP", value: `${player.farmExp}/${player.farmLevel * 100}`, inline: true },
+      { name: "📍 Stage", value: `${session.stage}`, inline: true },
       { name: "🎒 เห็ดในตะกร้า", value: `${session.inventory.filter((item) => item.type === "mushroom").reduce((sum, item) => sum + item.quantity, 0)} ชิ้น`, inline: true },
       { name: "🎁 ไอเทม", value: `${globalItems.reduce((sum, entry) => sum + entry.quantity, 0) + session.inventory.filter((item) => item.type === "item").reduce((sum, item) => sum + item.quantity, 0)} ชิ้น`, inline: true },
     )
@@ -670,13 +691,30 @@ export async function handleFarm(interaction: ButtonInteraction): Promise<void> 
   if (session.battle) return renderBattle(interaction, session, "ต่อสู้ให้จบก่อนจึงจะออกฟาร์มได้");
   if (session.pendingEvent) return renderEvent(interaction, session, session.pendingEvent);
 
+  session.stage += 1;
+  const questText = completeQuestIfNeeded(session, "farm");
+  let chapterNotice = "";
+  if (session.chapter < 5 && session.chapterUnlockReady && Math.random() < CHAPTER_ENTRY_CHANCE) {
+    const previousChapter = session.chapter;
+    session.chapter += 1;
+    session.chapterUnlockReady = false;
+    session.storyFlags ??= {};
+    session.storyFlags[`chapter_${session.chapter}_entered`] = true;
+    session.unlockedAreaIds ??= ["forest_edge"];
+    const chapterAreaId = `chapter_${session.chapter}`;
+    if (!session.unlockedAreaIds.includes(chapterAreaId)) session.unlockedAreaIds.push(chapterAreaId);
+    chapterNotice = previousChapter === 0
+      ? `🌟 เส้นทางเปิดออกแล้ว! เข้าสู่ Chapter 1 • Stage ${session.stage}`
+      : `🌟 โชคชะตาเปิดทาง! เข้าสู่ Chapter ${session.chapter} • Stage ${session.stage}`;
+  }
+
   const regenText = regenerateAfterFarm(session);
   const event = newFarmEvent(getPlayer(session.userId).farmLevel ?? 1);
   if ("monster" in event) session.battle = event;
   else session.pendingEvent = event;
   session.lastAction = "farm";
   saveSession(session);
-  if ("monster" in event) await renderBattle(interaction, session, `${regenText}\n${event.monster.emoji} ${event.monster.name} ปรากฏตัว!`);
+  if ("monster" in event) await renderBattle(interaction, session, `${chapterNotice ? `${chapterNotice}\n` : ""}${questText ? `${questText}\n` : ""}${regenText}\n${event.monster.emoji} ${event.monster.name} ปรากฏตัว!`);
   else await renderEvent(interaction, session, event);
 }
 
@@ -904,7 +942,6 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
 
   if (action === "flee") {
     session.battle = undefined;
-    session.chapter += 1;
     session.lastAction = "fled_battle";
     saveSession(session);
     return renderMain(interaction, session, `ท่านหนีจาก ${battle.monster.name} สำเร็จ แต่ไม่ได้ร���บรางวัล`);
@@ -956,7 +993,6 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
       addItemToSession(session, equipment);
     }
     session.battle = undefined;
-    session.chapter += 1;
     session.lastAction = "won_battle";
     saveSession(session);
     return renderMain(interaction, session, `ชนะ ${battle.monster.name}! +${battle.monster.rewardSpore} สปอร์ +${battle.monster.rewardExp} EXP${questText}.${levelText} ${regenText}${dropName ? ` ได้รับ ${dropName}` : ""}`);
@@ -985,7 +1021,6 @@ export async function handleBattleAction(interaction: ButtonInteraction, action:
     award(session, -penalty, 0);
     session.currentHP = 1;
     session.battle = undefined;
-    session.chapter += 1;
     session.lastAction = "lost_battle";
     saveSession(session);
     return renderMain(interaction, session, `พ่ายแพ้ต่อ ${battle.monster.name} เสีย ${penalty} สปอร์ และถูกส่งกลับพร้อม HP ครึ่งหนึ่ง`);

@@ -202,6 +202,8 @@ export interface FarmStorySession {
   stats: PlayerStats;
   equipment: Partial<Record<EquipmentSlot, EquipmentItem>>;
   chapter: number;
+  stage: number;
+  chapterUnlockReady: boolean;
   isAccepted: boolean;
   currentHP: number;
   maxHP: number;
@@ -231,17 +233,26 @@ export interface FarmStorySession {
 }
 
 interface FarmStoryStore {
+  version: number;
   sessions: Record<string, FarmStorySession>;
 }
 
+export const FARM_STORY_STORE_VERSION = 2;
+
 function emptyStore(): FarmStoryStore {
-  return { sessions: {} };
+  return { version: FARM_STORY_STORE_VERSION, sessions: {} };
 }
 
 function loadStore(): FarmStoryStore {
   if (!fs.existsSync(FARM_STORY_FILE)) return emptyStore();
   try {
     const parsed = JSON.parse(fs.readFileSync(FARM_STORY_FILE, "utf-8")) as Partial<FarmStoryStore>;
+    if (parsed.version !== FARM_STORY_STORE_VERSION) {
+      console.log(`[farmStoryStore] Resetting old farm-story history (store version ${parsed.version ?? "missing"} -> ${FARM_STORY_STORE_VERSION})`);
+      const resetStore = emptyStore();
+      fs.writeFileSync(FARM_STORY_FILE, JSON.stringify(resetStore, null, 2), "utf-8");
+      return resetStore;
+    }
     const sessions = parsed.sessions ?? {};
     for (const session of Object.values(sessions) as FarmStorySession[]) {
       session.activeQuests ??= session.activeQuest ? [session.activeQuest] : [];
@@ -249,14 +260,16 @@ function loadStore(): FarmStoryStore {
       session.storyFlags ??= {};
       session.discoveredNpcIds ??= [];
       session.unlockedAreaIds ??= ["forest_edge"];
-      session.chapter = Math.max(1, Math.min(5, session.chapter ?? 1));
+       session.chapter = Math.max(0, Math.min(5, session.chapter ?? 0));
+       session.stage = Math.max(0, Math.floor(session.stage ?? 0));
+       session.chapterUnlockReady = session.chapter === 0 || Boolean(session.chapterUnlockReady);
       const level = Math.max(1, Math.floor((session.currentExp ?? 0) / 100) + 1);
       session.stats ??= { hp: 0, mp: 0, atk: 0, def: 0, spd: 0, points: 5 + Math.max(0, level - 1) * 3, awardedLevel: level };
       session.stats.awardedLevel ??= level;
       session.stats.points ??= 0;
       session.equipment ??= { weapon: session.weapon };
     }
-    return { sessions };
+    return { version: FARM_STORY_STORE_VERSION, sessions };
   } catch (error) {
     console.error("[farmStoryStore] Could not load session store:", error);
     return emptyStore();
@@ -292,7 +305,9 @@ export function createSession(
     weapon,
     stats: { hp: 0, mp: 0, atk: 0, def: 0, spd: 0, points: 5, awardedLevel: 1 },
     equipment: { weapon },
-    chapter: 1,
+    chapter: 0,
+    stage: 0,
+    chapterUnlockReady: true,
     isAccepted,
     currentHP: weapon.baseHP,
     maxHP: weapon.baseHP,
