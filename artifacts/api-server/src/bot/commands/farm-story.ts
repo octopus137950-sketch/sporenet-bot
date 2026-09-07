@@ -102,7 +102,7 @@ const MONSTERS = [
 ].map((monster) => ({ ...monster, image: MONSTER_IMAGES[monster.id]! }));
 
 const STORY_ITEMS: StoryItem[] = [
-  { id: "healing_herb", name: "สมุนไพรฟื้นพลัง", emoji: "🌿", description: "ใช้ฟื้น HP 25 แต้มระหว่างการผจญภัย" },
+  { id: "healing_herb", name: "สมุนไพรฟื��นพลัง", emoji: "🌿", description: "ใช้ฟื้น HP 25 แต้มระหว่างการผจญภัย" },
   { id: "mana_crystal", name: "ผลึกมานา", emoji: "🔷", description: "ใช้ฟื้น MP 20 แต้มระหว่างการผจญภัย" },
 ];
 
@@ -451,7 +451,7 @@ export async function handleQuestChoose(interaction: ButtonInteraction, questId:
   if (!session || !quest || quest.progress < quest.target) return rejectComponent(interaction, "เควสนี้ยังส่งไม่ได้");
   const mushrooms = mushroomInventory(session).filter((item) => !quest.requiredMushroomIds || quest.requiredMushroomIds.includes(item.id));
   if (mushrooms.length === 0) return rejectComponent(interaction, "ไม่มีเห็ดในกระเป๋า");
-  const embed = new EmbedBuilder().setTitle("เลือกเห็ดที่จะส่ง").setDescription(`เควส **${quest.title}** ต้องการเห็ด ${quest.target} ชิ้น\nเลือกเห็ดราคาถูกหรือเห็ดชนิดที่ต้องการส่งได้เอง`).setColor(0xf1c40f);
+  const embed = new EmbedBuilder().setTitle("เลือกเห็ดที่จะส่ง").setDescription(`เควส **${quest.title}** ต้องการเห็ด ${quest.target} ชิ้น\nเลือกเห็ดราคาถูกหรือเห็ดชนิดที่ต้องการส่ง���ด้เอง`).setColor(0xf1c40f);
   const menu = new StringSelectMenuBuilder().setCustomId(`fs:quest_mushroom:${session.userId}:${encodeQuestId(quest.id)}`)    .setPlaceholder("เลือกชนิดเห็ด").setMinValues(1).setMaxValues(Math.min(mushrooms.length, 5)).addOptions(mushrooms.slice(0, 25).map((item, index) => ({ label: `${item.name} (${item.quantity} ชิ้น)`.slice(0, 100), value: `slot_${index}`, description: `มูลค่าขาย ${item.value ?? 0} สปอร์/ชิ้น`.slice(0, 100), emoji: item.emoji })));
 
   await update(interaction, [embed], [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu), new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:quests:${session.userId}`).setLabel("ยกเลิก").setStyle(ButtonStyle.Secondary))]);
@@ -597,12 +597,13 @@ function newFarmEvent(playerLevel = 1): StoryEventState | BattleState {
     return { kind: "quest", id: "hunt_monster", title: "ประกาศจับมอนสเตอร์จอมซน", description: "ช่วยปกป้องหมู่บ้านจากมอนสเตอร์จอมซน 2 ตัว แล้วกลับมารับรางวัล", image: IMAGES.monsterQuest, quest: { id: "hunt_monster", title: "ปกป้องหมู่บ้าน", description: "ชนะมอนสเตอร์ 2 ตัว", target: 2, progress: 0, rewardSpore: 150, rewardExp: 70 } };
   }
 
-  if (roll < 97) {
+  if (roll < 79) return { kind: "shop", id: "mushroom_buyer", shopMode: "sell", title: "พ่อค้ารับซื้อเห็ด", description: "พ่อค้าตั้งแผงรับซื้อเห็ดจากนักเดินทาง ราคายุติธรรมและพร้อมจ่ายทันที", image: IMAGES.shop };
+  if (roll < 79.5) {
     const offer = randomOf(ITEMS_POOL) as BuffItem;
     const marketPrice = Math.max(180, 180 + Math.round(offer.buffValue * 12) + (offer.buffType === "attack_percent" ? 120 : 0));
-    return { kind: "shop", id: `shop_${offer.id}`, title: "พ่อค้าเร่แห่งป่าเห็ด", description: `พ่อค้าเร่เปิดร้านชั่วคราว — ราคาตลาดของ ${offer.name} ปรับตามค�����ามหายาก`, image: IMAGES.shop, offer: { id: offer.id, name: offer.name, emoji: offer.emoji, description: offer.lore, price: marketPrice } };
+    return { kind: "shop", id: `item_merchant_${offer.id}`, shopMode: "buy", title: "พ่อค้าลับแห่งป่าเห็ด", description: `พ่อค้าหายากปรากฏตัวพร้อมไอเทม ${offer.name} — โอกาสพบพ่อค้าประเภทนี้ต่ำมาก`, image: IMAGES.shop, offer: { id: offer.id, name: offer.name, emoji: offer.emoji, description: offer.lore, price: marketPrice } };
   }
-  if (roll < 99) return { kind: "secret", id: "hidden_grotto", title: "🌌 พื้นที่ลับใต้รากไม้", description: "ท่านพบทางลับท���่มีแสงสีฟ้าส่องออกมา เหมือนมีบางอย่างรออยู่", image: IMAGES.secret };
+  if (roll < 99) return { kind: "secret", id: "hidden_grotto", title: "🌌 พื้นที่ลับใต้รากไม้", description: "ท่านพบทางลับที่มีแสงสีฟ้าส่องออกมา เหมือนมีบางอย่างรออยู่", image: IMAGES.secret };
   return { kind: "ruins", id: "ancient_ruins", title: "🏛️ เหตุการณ��ต่อเนื่อง: ซากวิหาร", description: "��ระตูวิหารโบรา��เปิดอ��ก เผยร่องรอยของผู้กล้าคนก่อน", image: IMAGES.ruins };
 }
 
@@ -715,8 +716,14 @@ async function renderEvent(interaction: ComponentInteraction | ChatInputCommandI
   } else if (event.kind === "item") {
     row.addComponents(new ButtonBuilder().setCustomId(`fs:item_take:${session.userId}`).setLabel("🎁 เก็บไอเทม").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`fs:leave:${session.userId}`).setLabel("ทิ้งไว้").setStyle(ButtonStyle.Secondary));
   } else if (event.kind === "shop") {
-    embed.addFields({ name: `${event.offer!.emoji} ${event.offer!.name}`, value: `${event.offer!.description}\nราคา **${event.offer!.price} สปอร์**` });
-    row.addComponents(new ButtonBuilder().setCustomId(`fs:shop_buy:${session.userId}`).setLabel("ซื้อ").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`fs:shop_sell:${session.userId}`).setLabel("ขายเห็ด 1 ดอก").setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(`fs:leave:${session.userId}`).setLabel("ออกจากร้าน").setStyle(ButtonStyle.Secondary));
+  if (event.shopMode === "buy" && event.offer) {
+    embed.addFields({ name: `${event.offer.emoji} ${event.offer.name}`, value: `${event.offer.description}\nราคา **${event.offer.price} สปอร์**` });
+    row.addComponents(new ButtonBuilder().setCustomId(`fs:shop_buy:${session.userId}`).setLabel("ซื้อไอเทม").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`fs:leave:${session.userId}`).setLabel("ออกจากร้าน").setStyle(ButtonStyle.Secondary));
+  } else {
+    embed.addFields({ name: "รับซื้อเห็ด", value: "เลือกเห็ดจากกระเป๋าเพื่อขายได้หลายรายการ" });
+    row.addComponents(new ButtonBuilder().setCustomId(`fs:shop_sell:${session.userId}`).setLabel("ขายเห็ด").setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(`fs:leave:${session.userId}`).setLabel("ออกจากร้าน").setStyle(ButtonStyle.Secondary));
+  }
+
   } else if (event.kind === "secret") {
     row.addComponents(new ButtonBuilder().setCustomId(`fs:secret_open:${session.userId}`).setLabel("🔮 เปิดทางลับ").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`fs:leave:${session.userId}`).setLabel("ไม่เสี่ยง").setStyle(ButtonStyle.Secondary));
   } else {
@@ -825,14 +832,14 @@ export async function handleEventAction(interaction: ButtonInteraction, action: 
     finishEvent(session, "found_story_item");
     return renderMain(interaction, session, `เก็บ ${event.item.name} เข้ากระเป๋าแล้ว`);
   }
-  if (action === "shop_sell" && event.kind === "shop") {
+  if (action === "shop_sell" && event.kind === "shop" && event.shopMode === "sell") {
     const mushrooms = mushroomInventory(session);
     if (!mushrooms.length) return rejectComponent(interaction, "ยังไม่มีเห็ดให้ขาย");
     const menu = new StringSelectMenuBuilder().setCustomId(`fs:shop_mushrooms:${session.userId}`).setPlaceholder("เลือกเห็ดและจำนวนที่จะขาย").setMinValues(1).setMaxValues(Math.min(mushrooms.length, 25)).addOptions(mushrooms.slice(0, 25).map((item, index) => ({ label: `${item.name} x${item.quantity}`.slice(0, 100), value: `slot_${index}`, description: `${item.value ?? 10} สปอร์/ชิ้น · ยอดสูงสุด ${(item.value ?? 10) * item.quantity}`.slice(0, 100), emoji: item.emoji })));
     const embed = new EmbedBuilder().setTitle("เลือกเห็ดที่จะขาย").setDescription("เลือกชนิดเห็ดได้หลายรายการ ระบบจะสรุปยอดรวมก่อนยืนยัน").setColor(0x2ecc71);
     return update(interaction, [embed], [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu), new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`fs:event_leave:${session.userId}`).setLabel("ยกเลิก").setStyle(ButtonStyle.Secondary))]);
   }
-  if (action === "shop_buy" && event.kind === "shop" && event.offer) {
+  if (action === "shop_buy" && event.kind === "shop" && event.shopMode === "buy" && event.offer) {
     if (session.currentSpore < event.offer.price) return rejectComponent(interaction, "❌ สปอร์ไม่พอสำหรับซื้อไอเทมนี้");
     const player = getPlayer(session.userId);
     player.sporePoints -= event.offer.price;

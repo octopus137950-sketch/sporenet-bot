@@ -117,6 +117,7 @@ export interface StoryEventState {
   mushroom?: MushroomDefinition;
   item?: StoryItem;
   offer?: StoryItem & { price: number };
+  shopMode?: "sell" | "buy";
   quest?: { id: string; title: string; description: string; target: number; progress: number; rewardSpore: number; rewardExp: number };
   resolved?: boolean;
 }
