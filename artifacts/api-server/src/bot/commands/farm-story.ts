@@ -529,6 +529,7 @@ async function renderMain(interaction: ComponentInteraction | ChatInputCommandIn
   saveSession(session);
   const player = getPlayer(session.userId);
   const chapter = CHAPTERS.find((entry) => entry.id === session.chapter) ?? CHAPTERS[0]!;
+  const globalItemCount = getInventory(session.userId).reduce((sum, entry) => sum + entry.quantity, 0);
   const embed = new EmbedBuilder()
     .setTitle(`🌲 ${chapter.title} • Chapter ${chapter.id}`)
     .setDescription(`${chapter.intro}\n\n${chapter.lore[0]}`)
@@ -539,7 +540,7 @@ async function renderMain(interaction: ComponentInteraction | ChatInputCommandIn
     .addFields(
       { name: "⭐ EXP", value: `${player.farmExp}/${player.farmLevel * 100}`, inline: true },
       { name: "🎒 เห็ดในตะกร้า", value: `${session.inventory.filter((item) => item.type === "mushroom").reduce((sum, item) => sum + item.quantity, 0)} ชิ้น`, inline: true },
-      { name: "🎁 ไอเทม", value: `${globalItems.length + session.inventory.filter((item) => item.type === "item").reduce((sum, item) => sum + item.quantity, 0)} ชิ้น`, inline: true },
+      { name: "🎁 ไอเทม", value: `${globalItemCount + session.inventory.filter((item) => item.type === "item").reduce((sum, item) => sum + item.quantity, 0)} ชิ้น`, inline: true },
     )
     .setFooter({ text: "ฟาร์มในโหมดนี้ไม่มี cooldown • ทุก action สำคัญจะ autosave" });
   const rows = [
