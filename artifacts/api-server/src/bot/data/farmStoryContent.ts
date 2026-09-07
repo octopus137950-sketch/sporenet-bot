@@ -23,14 +23,36 @@ export const SIDE_QUESTS: ActiveQuest[] = [
 ];
 
 export interface MainQuestStage { id: string; title: string; description: string; target: number; rewardSpore: number; rewardExp: number; image: string; }
-export interface MainQuestChain { id: string; title: string; description: string; stages: MainQuestStage[]; image: string; }
+export interface MainQuestChain { id: string; chapter: number; title: string; description: string; stages: MainQuestStage[]; image: string; }
+export interface ChapterDefinition {
+  id: number;
+  title: string;
+  intro: string;
+  unlockAfterChapter?: number;
+  unlockQuestIds: string[];
+  lore: string[];
+}
+
+export const CHAPTERS: ChapterDefinition[] = [
+  { id: 1, title: "เสียงเรียกจากหัวใจผลึก", intro: "ผลึกโบราณกำลังตื่นขึ้นใต้ป่าเห็ด", unlockQuestIds: [], lore: ["อาณาจักรเห็ดเคยรุ่งเรืองด้วยพลังของหัวใจผลึก", "ผู้พิทักษ์รากไม้ไม่ได้ปกป้องสมบัติ แต่กำลังปกป้องผนึกโบราณ"] },
+  { id: 2, title: "หมู่บ้านใต้รากไม้", intro: "ผู้รอดชีวิตรวมตัวกันใต้รากไม้ยักษ์", unlockAfterChapter: 1, unlockQuestIds: ["main_awakening:return_crystal"], lore: ["หมู่บ้านใต้รากไม้คือที่หลบภัยสุดท้ายของชาวเห็ด", "ผู้อาวุโสกำลังตามหาผู้ถือผลึกคนใหม่"] },
+  { id: 3, title: "เมืองเห็ดที่ถูกทิ้งร้าง", intro: "ซากเมืองเก่าซ่อนความจริงของราชวงศ์", unlockAfterChapter: 2, unlockQuestIds: ["chapter_2:root_village"] , lore: ["เมืองหลวงไม่ได้ล่มสลายเพราะสงคราม แต่เพราะผลึกถูกใช้ผิดวิธี"] },
+  { id: 4, title: "รอยแยกใต้ป่า", intro: "รอยแยกเปิดทางให้สิ่งมีชีวิตจากใต้พิภพ", unlockAfterChapter: 3, unlockQuestIds: ["chapter_3:ruined_city"], lore: ["จอมมารเห็ดถือกำเนิดจากเงาของหัวใจผลึก"] },
+  { id: 5, title: "สงครามราชันเห็ด", intro: "ชะตาของอาณาจักรเชื่อมเข้ากับสงครามบอสโลก", unlockAfterChapter: 4, unlockQuestIds: ["chapter_4:rift_sealed"], lore: ["ผู้ถือผลึกต้องเลือกว่าจะรักษาอาณาจักร หรือเปลี่ยนแปลงมันตลอดกาล"] },
+];
+
 export const MAIN_QUESTS: MainQuestChain[] = [{
-  id: "main_awakening", title: "เสียงเรียกจากหัวใจผลึก", description: "ค้นหาต้นกำเนิดของสปอร์ที่กำลังตื่นขึ้น", image: "story_main_awakening_pixel.png", stages: [
+  id: "main_awakening", chapter: 1, title: "เสียงเรียกจากหัวใจผลึก", description: "ค้นหาต้นกำเนิดของสปอร์ที่กำลังตื่นขึ้น", image: "story_main_awakening_pixel.png", stages: [
     { id: "find_grove", title: "ตามรอยแสงฟ้า", description: "ออกสำรวจป่า 3 ครั้ง", target: 3, rewardSpore: 120, rewardExp: 80, image: "quest_main_grove_pixel.png" },
     { id: "defeat_guardian", title: "ผู้พิทักษ์ใต้รากไม้", description: "เอาชนะมอนสเตอร์ 1 ตัว", target: 1, rewardSpore: 240, rewardExp: 160, image: "quest_main_guardian_pixel.png" },
     { id: "return_crystal", title: "นำผลึกกลับคืน", description: "เก็บเห็ดหัวใจผลึก 2 ชิ้น", target: 2, rewardSpore: 400, rewardExp: 280, image: "quest_main_crystal_pixel.png" },
   ],
-}];
+  },
+  { id: "main_root_village", chapter: 2, title: "หมู่บ้านใต้รากไม้", description: "ช่วยผู้รอดชีวิตตั้งหลักใต้รากไม้ยักษ์", image: "event_moon_grove_pixel.png", stages: [{ id: "root_village", title: "ตามหาเสียงจากรากไม้", description: "ออกสำรวจป่า 2 ครั้ง", target: 2, rewardSpore: 180, rewardExp: 120, image: "event_moon_grove_pixel.png" }, { id: "village_guard", title: "ปกป้องหมู่บ้าน", description: "เอาชนะมอนสเตอร์ 2 ตัว", target: 2, rewardSpore: 300, rewardExp: 200, image: "quest_main_guardian_pixel.png" }] },
+  { id: "main_ruined_city", chapter: 3, title: "เมืองเห็ดที่ถูกทิ้งร้าง", description: "เปิดเผยความลับของราชวงศ์เก่า", image: "quest_main_crystal_pixel.png", stages: [{ id: "ruined_city", title: "อ่านบันทึกที่แตกสลาย", description: "เก็บเห็ด 3 ครั้ง", target: 3, rewardSpore: 380, rewardExp: 240, image: "quest_main_crystal_pixel.png" }] },
+  { id: "main_underforest_rift", chapter: 4, title: "รอยแยกใต้ป่า", description: "ปิดรอยแยกก่อนสิ่งจากใต้พิภพจะหลุดออกมา", image: "quest_main_guardian_pixel.png", stages: [{ id: "rift_sealed", title: "ผนึกเสียงใต้ดิน", description: "เอาชนะมอนสเตอร์ 3 ตัว", target: 3, rewardSpore: 520, rewardExp: 340, image: "quest_main_guardian_pixel.png" }] },
+  { id: "main_mushroom_war", chapter: 5, title: "สงครามราชันเห็ด", description: "เตรียมตัวเผชิญหน้าบอสโลก", image: "story_main_awakening_pixel.png", stages: [{ id: "world_war", title: "รวบรวมกำลังพล", description: "เก็บเห็ด 5 ครั้ง", target: 5, rewardSpore: 700, rewardExp: 500, image: "story_main_awakening_pixel.png" }] },
+];
 
 export const STORY_EVENT_IMAGES = {
   moon_grove: "event_moon_grove_pixel.png", merchant: "event_mushroom_merchant_pixel.png", guardian: "event_root_guardian_pixel.png", crystal: "event_crystal_cavern_pixel.png", camp: "event_forest_camp_pixel.png",

@@ -32,7 +32,7 @@ import {
   type WeaponSkill,
 } from "../data/farmStoryStore.js";
 import { requireVoiceChannel } from "../utils/voiceChannelGuard.js";
-import { MAIN_QUESTS, newSideQuest, mainStage, rewardText, FARM_EQUIPMENT } from "../data/farmStoryContent.js";
+import { CHAPTERS, MAIN_QUESTS, newSideQuest, mainStage, rewardText, FARM_EQUIPMENT } from "../data/farmStoryContent.js";
 
 type ComponentInteraction = ButtonInteraction | StringSelectMenuInteraction;
 
@@ -123,10 +123,15 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   session.activeQuests ??= session.activeQuest ? [session.activeQuest] : [];
   session.completedQuestIds ??= [];
   if (!session.activeMainQuestId && Math.random() < 0.08) {
-    const chain = MAIN_QUESTS[Math.floor(Math.random() * MAIN_QUESTS.length)]!;
+    const chain = MAIN_QUESTS.find((quest) => quest.chapter === session.chapter);
+    if (!chain) {
+      session.storyFlags ??= {};
+      session.storyFlags[`chapter_${session.chapter}_ready`] = true;
+    } else {
     session.activeMainQuestId = chain.id;
     session.activeMainQuestStage = 0;
     session.activeQuest = mainStage(chain, 0);
+    }
   } else if (!session.activeMainQuestId && session.activeQuests.length === 0) {
     session.activeQuests.push(newSideQuest());
     session.activeQuest = session.activeQuests[0];
@@ -247,7 +252,7 @@ async function renderWeaponSelection(interaction: ComponentInteraction, accepted
 }
 
 export async function handleWeaponSelect(interaction: StringSelectMenuInteraction, weaponId: string, accepted: boolean): Promise<void> {
-  if (!validOwner(interaction)) return rejectComponent(interaction, "❌ เมนูนี้เป็นของผู้เล่นคนอื่น");
+  if (!validOwner(interaction)) return rejectComponent(interaction, "❌ เมนูนี้เป็นของผู้เล่นคนอื��น");
   if (getSession(interaction.user.id, interaction.guildId!) || !WEAPONS[weaponId as keyof typeof WEAPONS]) {
     return rejectComponent(interaction, "❌ session นี้ถูกสร้างไปแล้วหรืออาวุธไม่ถูกต้อง");
   }
@@ -490,7 +495,29 @@ export async function handleQuestSubmit(interaction: ButtonInteraction, questId 
   if (remaining > 0) return rejectComponent(interaction, `เห็ดไม่ครบ ${quest.target} ชิ้น`);
   const levelText = award(session, quest.rewardSpore, quest.rewardExp);
   quests.splice(index, 1);
-  session.activeQuest = quests[0];
+  const isMainQuest = quest.id.includes(":");
+  if (isMainQuest) {
+    session.completedQuestIds ??= [];
+    session.completedQuestIds.push(quest.id);
+    const nextStage = (session.activeMainQuestStage ?? 0) + 1;
+    const chain = MAIN_QUESTS.find((entry) => entry.id === session.activeMainQuestId);
+    if (chain && nextStage < chain.stages.length) {
+      session.activeMainQuestStage = nextStage;
+      session.activeQuest = mainStage(chain, nextStage);
+      quests.push(session.activeQuest);
+    } else {
+      session.activeMainQuestId = undefined;
+      session.activeMainQuestStage = undefined;
+      session.activeQuest = undefined;
+      session.chapter = Math.min(5, session.chapter + 1);
+      session.storyFlags ??= {};
+      session.storyFlags[`chapter_${session.chapter - 1}_complete`] = true;
+      session.unlockedAreaIds ??= ["forest_edge"];
+      session.unlockedAreaIds.push(`chapter_${session.chapter}`);
+    }
+  }
+  session.activeQuest ??= quests[0];
+  session.activeQuest = session.activeQuest ?? quests[0];
   session.pendingQuestSubmission = undefined;
   session.lastAction = `submitted_quest_${quest.id}`;
   saveSession(session);
@@ -501,9 +528,11 @@ async function renderMain(interaction: ComponentInteraction | ChatInputCommandIn
   syncFromPlayer(session);
   saveSession(session);
   const player = getPlayer(session.userId);
-  const globalItems = getInventory(session.userId);
+  const chapter = CHAPTERS.find((entry) => entry.id === session.chapter) ?? CHAPTERS[0]!;
   const embed = new EmbedBuilder()
-    .setTitle(`🌲 ผจญภัยในป่าเห็ด • Chapter ${session.chapter}`)
+    .setTitle(`🌲 ${chapter.title} • Chapter ${chapter.id}`)
+    .setDescription(`${chapter.intro}\n\n${chapter.lore[0]}`)
+
     .setDescription(`${notice ? `> ${notice}\n\n` : ""}เลือกการกระทำของท่านจากปุ่มด้านล่าง\n\n❤️ HP **${session.currentHP}/${session.maxHP}** · 💙 MP **${session.currentMP}/${session.maxMP}**\n⚔️ ${session.weapon.name} · ⭐ Lv.${player.farmLevel} · 🍄 ${player.sporePoints.toLocaleString()} สปอร์`)
     .setColor(0x57f287)
     .setThumbnail(IMAGES.adventure)
@@ -639,7 +668,6 @@ export async function handleFarm(interaction: ButtonInteraction): Promise<void> 
   if (session.battle) return renderBattle(interaction, session, "ต่อสู้ให้จบก่อนจึงจะออกฟาร์มได้");
   if (session.pendingEvent) return renderEvent(interaction, session, session.pendingEvent);
 
-  session.chapter += 1;
   const regenText = regenerateAfterFarm(session);
   const event = newFarmEvent(getPlayer(session.userId).farmLevel ?? 1);
   if ("monster" in event) session.battle = event;

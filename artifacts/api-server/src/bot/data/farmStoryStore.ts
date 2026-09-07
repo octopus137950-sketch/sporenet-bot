@@ -215,6 +215,9 @@ export interface FarmStorySession {
   activeMainQuestId?: string;
   activeMainQuestStage?: number;
   completedQuestIds?: string[];
+  storyFlags?: Record<string, boolean>;
+  discoveredNpcIds?: string[];
+  unlockedAreaIds?: string[];
   pendingEvent?: StoryEventState;
   pendingShopMushroomIds?: string[];
   pendingQuestSubmission?: { questId: string; mushroomIds: string[] };
@@ -242,6 +245,10 @@ function loadStore(): FarmStoryStore {
     for (const session of Object.values(sessions) as FarmStorySession[]) {
       session.activeQuests ??= session.activeQuest ? [session.activeQuest] : [];
       session.completedQuestIds ??= [];
+      session.storyFlags ??= {};
+      session.discoveredNpcIds ??= [];
+      session.unlockedAreaIds ??= ["forest_edge"];
+      session.chapter = Math.max(1, Math.min(5, session.chapter ?? 1));
       const level = Math.max(1, Math.floor((session.currentExp ?? 0) / 100) + 1);
       session.stats ??= { hp: 0, mp: 0, atk: 0, def: 0, spd: 0, points: 5 + Math.max(0, level - 1) * 3, awardedLevel: level };
       session.stats.awardedLevel ??= level;
@@ -296,6 +303,9 @@ export function createSession(
     statusEffects: [],
     activeQuests: [],
     completedQuestIds: [],
+    storyFlags: {},
+    discoveredNpcIds: [],
+    unlockedAreaIds: ["forest_edge"],
     createdAt: now,
     lastSavedAt: now,
     lastAction: "weapon_selected",
