@@ -546,25 +546,14 @@ async function renderMain(interaction: ComponentInteraction | ChatInputCommandIn
   const chapterTitle = session.chapter === 0
     ? `🌱 ${chapter.title} • Stage ${session.stage}`
     : `🌲 ${chapter.title} • Chapter ${session.chapter} • Stage ${session.stage}`;
-  const progressionText = session.chapter === 0
-    ? "กำลังค้นหาเส้นทางเข้าสู่ Chapter 1 — ทุกครั้งที่ฟาร์มจะเพิ่ม Stage และมีโอกาสสุ่มพบเส้นทาง"
-    : session.chapterUnlockReady && session.chapter < 5
-      ? `เควสหลักของ Chapter ${session.chapter} สำเร็จแล้ว — รอโอกาสสุ่มเข้าสู่ Chapter ${session.chapter + 1}`
-      : session.chapter === 5 && session.storyFlags?.chapter_5_complete
-        ? "เนื้อเรื่องหลักจบครบแล้ว — ยังสำรวจและฟาร์มต่อได้"
-        : "ทำเควสหลักของบทนี้ให้สำเร็จเพื่อปลดล็อกเส้นทางถัดไป";
-  const globalItems = getInventory(session.userId);
   const embed = new EmbedBuilder()
     .setTitle(chapterTitle)
 
-    .setDescription(`${notice ? `> ${notice}\n\n` : ""}${chapter.intro}\n\n${chapter.lore[0]}\n\n📍 ${progressionText}\n\nเลือกการกระทำของท่านจากปุ่มด้านล่าง\n\n❤️ HP **${session.currentHP}/${session.maxHP}** · 💙 MP **${session.currentMP}/${session.maxMP}**\n⚔️ ${session.weapon.name} · ⭐ Lv.${player.farmLevel} · 🍄 ${player.sporePoints.toLocaleString()} สปอร์`)
+    .setDescription(`${notice ? `> ${notice}\n\n` : ""}${chapter.intro}\n\n${chapter.lore[0]}\n\n❤️ HP **${session.currentHP}/${session.maxHP}** · 💙 MP **${session.currentMP}/${session.maxMP}**\n⚔️ ${session.weapon.name} · ⭐ Lv.${player.farmLevel} · 🍄 ${player.sporePoints.toLocaleString()} สปอร์`)
     .setColor(0x57f287)
     .setThumbnail(IMAGES.adventure)
     .addFields(
       { name: "⭐ EXP", value: `${player.farmExp}/${player.farmLevel * 100}`, inline: true },
-      { name: "📍 Stage", value: `${session.stage}`, inline: true },
-      { name: "🎒 เห็ดในตะกร้า", value: `${session.inventory.filter((item) => item.type === "mushroom").reduce((sum, item) => sum + item.quantity, 0)} ชิ้น`, inline: true },
-      { name: "🎁 ไอเทม", value: `${globalItems.length + session.inventory.filter((item) => item.type === "item").reduce((sum, item) => sum + item.quantity, 0)} ชิ้น`, inline: true },
     )
     .setFooter({ text: "ฟาร์มในโหมดนี้ไม่มี cooldown • ทุก action สำคัญจะ autosave" });
   const rows = [
