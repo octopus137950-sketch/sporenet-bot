@@ -50,7 +50,10 @@ export async function handleInterestSelect(interaction: StringSelectMenuInteract
     const item = FRIEND_INTERESTS.find((interest) => interest.value === value);
     if (!item) continue;
     let role = guild.roles.cache.find((candidate) => candidate.name === FRIEND_ROLE_PREFIX + item.label);
-    if (!role) role = await guild.roles.create({ name: FRIEND_ROLE_PREFIX + item.label, color: item.color, reason: "Friend Match interest role" }).catch(() => null);
+    if (!role) {
+      const createdRole = await guild.roles.create({ name: FRIEND_ROLE_PREFIX + item.label, color: item.color, reason: "Friend Match interest role" }).catch(() => null);
+      if (createdRole) role = createdRole;
+    }
     if (role) { await member.roles.add(role).catch(() => null); assigned.push(role.name); }
   }
   const embed = new EmbedBuilder().setTitle("ตั้งค่าโปรไฟล์หาเพื่อนแล้ว").setColor(0x57f287)

@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  ComponentType,
   PermissionFlagsBits,
   SlashCommandBuilder,
   TextChannel,
@@ -34,11 +35,13 @@ export async function execute(
     const panelMessages = messages.filter((message) => {
       if (message.author.id !== botUserId) return false;
 
-      return message.components.some((row) =>
-        row.components.some(
-          (component) =>
-            "customId" in component && component.customId === "shop_open",
-        ),
+      return message.components.some(
+        (row) =>
+          row.type === ComponentType.ActionRow &&
+          row.components.some(
+            (component) =>
+              "customId" in component && component.customId === "shop_open",
+          ),
       );
     });
 

@@ -164,6 +164,20 @@ export interface EquipmentItem {
   value: number;
 }
 
+export function weaponToEquipment(weapon: Weapon): EquipmentItem {
+  return {
+    id: weapon.id,
+    name: weapon.name,
+    emoji: weapon.emoji,
+    slot: "weapon",
+    description: weapon.description,
+    attack: weapon.baseDamage,
+    defense: weapon.baseDefense,
+    hp: weapon.baseHP,
+    value: 0,
+  };
+}
+
 export interface PlayerStats {
   hp: number;
   mp: number;
@@ -267,7 +281,7 @@ function loadStore(): FarmStoryStore {
       session.stats ??= { hp: 0, mp: 0, atk: 0, def: 0, spd: 0, points: 5 + Math.max(0, level - 1) * 3, awardedLevel: level };
       session.stats.awardedLevel ??= level;
       session.stats.points ??= 0;
-      session.equipment ??= { weapon: session.weapon };
+      session.equipment ??= { weapon: weaponToEquipment(session.weapon) };
     }
     return { version: FARM_STORY_STORE_VERSION, sessions };
   } catch (error) {
@@ -304,7 +318,7 @@ export function createSession(
     guildId,
     weapon,
     stats: { hp: 0, mp: 0, atk: 0, def: 0, spd: 0, points: 5, awardedLevel: 1 },
-    equipment: { weapon },
+    equipment: { weapon: weaponToEquipment(weapon) },
     chapter: 0,
     stage: 0,
     chapterUnlockReady: true,

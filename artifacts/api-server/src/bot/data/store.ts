@@ -1168,7 +1168,8 @@ export function createVerificationCode(userId: string, username: string): string
 
 export function consumeVerificationCode(username: string, code: string): string | undefined {
   const userId = discordUsernames.get(username.trim().toLowerCase());
-  const entry = userId ? verificationCodes.get(userId) : undefined;
+  if (!userId) return undefined;
+  const entry = verificationCodes.get(userId);
   if (!entry || entry.code !== code.trim() || entry.expiresAt < Date.now()) return undefined;
   verificationCodes.delete(userId);
   return userId;

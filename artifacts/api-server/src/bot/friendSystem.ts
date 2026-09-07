@@ -30,7 +30,7 @@ export function parseInterests(raw: string): string[] {
   const values = tokens.map((token) => {
     const found = FRIEND_INTERESTS.find((item) => item.value === token || item.label.toLowerCase() === token);
     return found?.value;
-  }).filter((value): value is string => Boolean(value));
+  }).filter((value): value is Exclude<typeof value, undefined> => value !== undefined);
   return [...new Set(values)].slice(0, 5);
 }
 
@@ -160,38 +160,38 @@ export async function handleFriendButton(interaction: ButtonInteraction): Promis
   await interaction.deferUpdate().catch(() => null);
   if (!matchId) return;
   const match = getFriendMatch(matchId);
-  if (!match) { await interaction.editReply({ content: "❌ ไม่พบข้อมูล match นี้แล้ว", ephemeral: true }); return; }
+  if (!match) { await interaction.editReply({ content: "❌ ไม่พบข้อมูล match นี้แล้ว" }); return; }
   const guild = interaction.client.guilds.cache.get(match.guildId);
-  if (!guild) { await interaction.editReply({ content: "❌ ไม่พบเซิร์ฟเวอร์ของ match นี้", ephemeral: true }); return; }
+  if (!guild) { await interaction.editReply({ content: "❌ ไม่พบเซิร์ฟเวอร์ของ match นี้" }); return; }
   if (action === "friend_skip") {
-    if (interaction.user.id !== match.userA || match.status !== "candidate") { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (interaction.user.id !== match.userA || match.status !== "candidate") { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว" }); return; }
     match.status = "declined"; saveFriendMatch(match);
     await interaction.editReply({ content: "ข้ามคนนี้แล้ว ลองกด `/friend-match` เพื่อหาคนใหม่ได้เลย", embeds: [], components: [] });
     return;
   }
   if (action === "friend_interest") {
-    if (interaction.user.id !== match.userA || match.status !== "candidate") { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (interaction.user.id !== match.userA || match.status !== "candidate") { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว" }); return; }
     match.status = "pending"; saveFriendMatch(match);
     await notifyUser(guild, match.userB, `มีคนสนใจอยากคุยกับคุณแล้ว! <@${match.userA}> กำลังรอว่าคุณจะสนใจคุยด้วยไหม`, match, true);
     await interaction.editReply({ content: "✅ ส่งคำขอให้เขาแล้ว ถ้าเขาสนใจกลับ บอทจะแจ้งให้คุณทราบ", embeds: [], components: [] });
     return;
   }
   if (action === "friend_accept") {
-    if (interaction.user.id !== match.userB || match.status !== "pending") { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (interaction.user.id !== match.userB || match.status !== "pending") { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว" }); return; }
     match.status = "matched"; match.matchedAt = Date.now(); saveFriendMatch(match);
     await interaction.editReply({ content: "จับคู่สำเร็จแล้ว เมื่อพร้อมคุยให้เลือกการดำเนินการต่อจากข้อความนี้", embeds: [], components: [matchRow(match.id)] });
     await notifyUser(guild, match.userA, `<@${match.userB}> ตอบรับการจับคู่แล้ว เมื่อพร้อมคุยให้เลือกเข้าห้องเสียงหรือไว้คุยทีหลัง`);
     return;
   }
   if (action === "friend_decline") {
-    if (interaction.user.id !== match.userB || match.status !== "pending") { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (interaction.user.id !== match.userB || match.status !== "pending") { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว" }); return; }
     match.status = "declined"; saveFriendMatch(match);
     await interaction.editReply({ content: "รับทราบแล้ว ไม่ได้แจ้งรายละเอียดเพิ่มเติมให้อีกฝ่าย", embeds: [], components: [] });
     await notifyUser(guild, match.userA, "อีกฝ่ายยังไม่สะดวก match ในครั้งนี้ ลองหาเพื่อนคนใหม่ได้เลย");
     return;
   }
   if (action === "friend_voice") {
-    if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later"].includes(match.status)) { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later"].includes(match.status)) { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว" }); return; }
     if (match.voiceRequestedBy === interaction.user.id) { await interaction.editReply({ content: "ส่งคำขอเข้าห้องเสียงไปแล้ว กรุณารออีกฝ่ายตอบรับ", embeds: [], components: [] }); return; }
     if (match.voiceRequestedBy && match.voiceRequestedBy !== interaction.user.id) {
       const channel = await createMatchVoice(guild, match);
@@ -207,7 +207,7 @@ export async function handleFriendButton(interaction: ButtonInteraction): Promis
     return;
   }
   if (action === "friend_later") {
-    if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later"].includes(match.status)) { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว", ephemeral: true }); return; }
+    if (![match.userA, match.userB].includes(interaction.user.id) || !["matched", "later"].includes(match.status)) { await interaction.editReply({ content: "❌ ปุ่มนี้ใช้ไม่ได้แล้ว" }); return; }
     if (match.laterBy === interaction.user.id) { await interaction.editReply({ content: "เลือกไว้คุยทีหลังไปแล้ว ไม่ต้องกดซ้ำ", embeds: [], components: [] }); return; }
     if (match.voiceRequestedBy === interaction.user.id) { match.voiceRequestedBy = undefined; }
     if (match.voiceRequestedBy && match.voiceRequestedBy !== interaction.user.id) {

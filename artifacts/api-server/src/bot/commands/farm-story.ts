@@ -19,6 +19,7 @@ import {
   createSession,
   getSession,
   saveSession,
+  addItemToSession,
   type ActiveQuest,
   type BattleState,
   type EquipmentSlot,
@@ -30,17 +31,19 @@ import {
   type Weapon,
   WEAPONS,
   type WeaponSkill,
+  weaponToEquipment,
 } from "../data/farmStoryStore.js";
 import { requireVoiceChannel } from "../utils/voiceChannelGuard.js";
 import { CHAPTERS, MAIN_QUESTS, newSideQuest, mainStage, rewardText, FARM_EQUIPMENT } from "../data/farmStoryContent.js";
 
 type ComponentInteraction = ButtonInteraction | StringSelectMenuInteraction;
+type OwnerInteraction = ComponentInteraction | ModalSubmitInteraction;
 const CHAPTER_ENTRY_CHANCE = 0.05;
 
 function farmStoryBuffs(userId: string): { sporePercent: number; sporeFlat: number; expPercent: number } {
   return getInventory(userId).reduce((buffs, entry) => {
-    const item = getItemById(entry.itemId ?? entry.id);
-    if (!item || entry.quantity <= 0) return buffs;
+    const item = getItemById(entry.itemId);
+    if (!item) return buffs;
     if (item.buffType === "spore_percent") buffs.sporePercent += item.buffValue;
     if (item.buffType === "spore_flat") buffs.sporeFlat += item.buffValue;
     if (item.buffType === "exp_percent") buffs.expPercent += item.buffValue;
@@ -161,7 +164,7 @@ function userIdFromCustomId(customId: string): string | undefined {
   return customId.split(":")[2];
 }
 
-function validOwner(interaction: ComponentInteraction): boolean {
+function validOwner(interaction: OwnerInteraction): boolean {
   const owner = userIdFromCustomId(interaction.customId);
   return owner === interaction.user.id;
 }
@@ -182,7 +185,7 @@ function decodeQuestId(value: string): string {
   return Buffer.from(value, "base64url").toString("utf8");
 }
 
-async function rejectComponent(interaction: ComponentInteraction, message: string): Promise<void> {
+async function rejectComponent(interaction: OwnerInteraction, message: string): Promise<void> {
   if (!interaction.replied && !interaction.deferred) {
     await interaction.reply({ content: message, ephemeral: true });
   }
@@ -382,7 +385,7 @@ function syncFromPlayer(session: FarmStorySession): void {
   session.currentExp = player.farmExp;
   const level = Math.max(1, player.farmLevel ?? 1);
   session.stats ??= { hp: 0, mp: 0, atk: 0, def: 0, spd: 0, points: 5, awardedLevel: 1 };
-  session.equipment ??= { weapon: session.weapon };
+  session.equipment ??= { weapon: weaponToEquipment(session.weapon) };
   const expectedLevel = Math.max(1, level);
   if (session.stats.awardedLevel < expectedLevel) {
     session.stats.points += (expectedLevel - session.stats.awardedLevel) * 3;
@@ -561,7 +564,7 @@ async function renderMain(interaction: ComponentInteraction | ChatInputCommandIn
       { name: "⭐ EXP", value: `${player.farmExp}/${player.farmLevel * 100}`, inline: true },
       { name: "📍 Stage", value: `${session.stage}`, inline: true },
       { name: "🎒 เห็ดในตะกร้า", value: `${session.inventory.filter((item) => item.type === "mushroom").reduce((sum, item) => sum + item.quantity, 0)} ชิ้น`, inline: true },
-      { name: "🎁 ไอเทม", value: `${globalItems.reduce((sum, entry) => sum + entry.quantity, 0) + session.inventory.filter((item) => item.type === "item").reduce((sum, item) => sum + item.quantity, 0)} ชิ้น`, inline: true },
+      { name: "🎁 ไอเทม", value: `${globalItems.length + session.inventory.filter((item) => item.type === "item").reduce((sum, item) => sum + item.quantity, 0)} ชิ้น`, inline: true },
     )
     .setFooter({ text: "ฟาร์มในโหมดนี้ไม่มี cooldown • ทุก action สำคัญจะ autosave" });
   const rows = [
@@ -657,7 +660,7 @@ export async function handleItems(interaction: ButtonInteraction): Promise<void>
     .setColor(0x3498db)
     .addFields(items.map((item) => ({
       name: `${item.emoji ?? "ไอเทม"} ${item.name} ×${item.quantity}`,
-      value: item.description ?? (item.id === "healing_herb" ? "ฟื้น HP 25 แต้ม" : "ฟื้น MP 20 แต้ม"),
+      value: item.id === "healing_herb" ? "ฟื้น HP 25 แต้ม" : "ฟื้น MP 20 แต้ม",
       inline: false,
     })));
   const buttons = items.map((item, index) => new ButtonBuilder().setCustomId(`fs:itemuse:${session.userId}:${item.id}:${index}`).setLabel(`${item.emoji ?? "ไอเทม"} ใช้ ${item.name}`).setStyle(ButtonStyle.Primary));

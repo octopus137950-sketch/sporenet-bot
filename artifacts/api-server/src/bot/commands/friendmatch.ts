@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder, GuildMember, SlashCommandBuilder } from "discord.js";
 import { getFriendChannelConfig, getFriendMatch, getFriendMatchBetween, getFriendProfile, getFriendProfiles, saveFriendMatch } from "../data/store.js";
 import { candidateScore, interestLabels } from "../friendSystem.js";
 
@@ -22,10 +22,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const pendingRequest = getFriendProfiles(guild.id)
     .map((candidate) => ({ candidate, match: getFriendMatchBetween(guild.id, interaction.user.id, candidate.userId) }))
     .find(({ match }) => match?.status === "pending" && match.userB === interaction.user.id);
-  if (pendingRequest) {
+  if (pendingRequest?.match) {
+    const pendingMatch = pendingRequest.match;
     const member = await guild.members.fetch(pendingRequest.candidate.userId).catch(() => null);
     if (member) {
-      const match = getFriendMatch(pendingRequest.match.id) ?? pendingRequest.match;
+      const match = getFriendMatch(pendingMatch.id) ?? pendingMatch;
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder().setCustomId(`friend_accept:${match.id}`).setLabel("สนใจคุยด้วย").setEmoji("✅").setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId(`friend_decline:${match.id}`).setLabel("ไม่ใช่ตอนนี้").setStyle(ButtonStyle.Danger),
@@ -46,7 +47,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const fallbackPool = ranked.filter((item) => candidateScore(profile, item) === topScore);
   const ordered = topScore > 0 ? ranked : fallbackPool.sort(() => Math.random() - 0.5);
   let candidate = null as typeof ranked[number] | null;
-  let member = null as Awaited<ReturnType<typeof guild.members.fetch>> | null;
+  let member: GuildMember | null = null;
   for (const item of ordered) {
     const found = await guild.members.fetch(item.userId).catch(() => null);
     if (found) { candidate = item; member = found; break; }
